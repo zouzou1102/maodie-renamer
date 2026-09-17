@@ -16,7 +16,7 @@
  * 『减少动画』开关」，但此前界面上根本没有设置入口 —— 开关写好了、也能生效，
  * 用户却打不开。这个弹窗把它补上了。
  */
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import AppModal from './AppModal.vue'
 import { THEME_OPTIONS } from '@shared/labels'
 import type { AppInfo } from '@shared/types'
@@ -37,6 +37,24 @@ function setTheme(t: Theme): void {
  * （Electron 默认装在用户目录深处）。这一条比写一百行文档有用。 */
 const appInfo = ref<AppInfo | null>(null)
 const cliOpen = ref(false)
+
+/**
+ * ★ 关窗即归位：本组件是**常驻挂载**的（App.vue 里不带 v-if），
+ * 所以 `cliOpen` 会一直活在内存里 —— 用户展开命令行、关掉设置、再打开，
+ * 会看到它还是展开的。那是个**状态泄漏**，不是特性：
+ * 「折起 / 展开」是临时 UI 状态（IX-102 明确不写偏好），
+ * 重开时就该回到设计稿画的那个默认样子。
+ *
+ * 踩到的教训：这条一开始没有，直到 P2-C 增量的冒烟用例发现
+ * 「上一条用例展开过 → 下一条断言『默认折起』就会红」——
+ * 也就是说这个泄漏**早就存在**，只是此前只有一个用例碰它，没暴露出来。
+ */
+watch(
+  () => task.modal,
+  (now) => {
+    if (now !== 'settings') cliOpen.value = false
+  },
+)
 
 onMounted(async () => {
   appInfo.value = await window.maodie.app.getInfo()
@@ -163,9 +181,23 @@ async function copyText(text: string, what: string): Promise<void> {
         </button>
       </div>
 
-      <!-- EL-115 说明 + 代码块；EL-116 复制按钮组 -->
+      <!-- EL-115 说明 + 代码块；EL-116 复制按钮组；EL-117 教程入口（P2-C 增量）-->
       <div v-if="cliOpen" class="md-cli__body">
-        <p class="md-cli__desc">给进阶用户用脚本批量改名。在命令行（或 .bat 文件）里跑下面这条：</p>
+        <!-- EL-117 引导卡：一句话 + 「查看教程」
+             ★ 为什么要这一段：原来这里开篇就是「给进阶用户用脚本批量改名」，
+               然后直接甩一屏参数。小白读到「进阶用户」四个字就退了，
+               而**看懂命令行恰恰是最需要人扶一把的地方**。
+               所以这里只说「什么场景下你会需要它」，具体怎么操作交给教程弹窗。 -->
+        <div class="md-cli__lead" data-cli-lead>
+          <p class="md-cli__lead-text">
+            要让别的程序（或定时任务）自动帮你改名时用得上。没接触过命令行也没关系，有图文教程。
+          </p>
+          <button class="md-btn md-btn--secondary" data-cli-guide-btn @click="task.openCliGuide()">
+            查看教程
+          </button>
+        </div>
+
+        <p class="md-cli__desc">在命令行窗口（或 .bat 文件）里跑下面这条：</p>
         <p class="md-cli__code">{{ cliCommand }}</p>
         <div class="md-cli__btns">
           <button class="md-btn md-btn--secondary" @click="copyText(cliCommand, '命令')">复制命令</button>
@@ -251,8 +283,7 @@ async function copyText(text: string, what: string): Promise<void> {
 .md-cli__body {
   display: flex;
   flex-direction: column;
-  gap: var(--md-space-2);
-  padding: 12px;
+  gap: var(--md-space-2);  padding: 12px;
   border-radius: 10px;
   background: var(--md-bg-warm);
 }

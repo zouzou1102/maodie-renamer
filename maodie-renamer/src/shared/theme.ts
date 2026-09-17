@@ -44,3 +44,29 @@ export const WINDOW_BG = {
 export function windowBackgroundFor(dark: boolean): string {
   return dark ? WINDOW_BG.dark : WINDOW_BG.light
 }
+
+/**
+ * 命令行示意图的专用色（P2-C 增量 · 教程卡片）。
+ *
+ * ★ **这两个值刻意不参与主题切换。**
+ *
+ * 理由：示意图画的是**现实中的 Windows 命令提示符窗口** —— 它永远是黑底浅字，
+ * 与用户把本软件设成「浅色」还是「深色」**毫无关系**。如果让它跟随主题，
+ * 深色主题下这个窗口会变成浅底深字，反而**不像命令行窗口了**，小白更认不出来。
+ *
+ * ⚠️ 这就是为什么不能放进 `tokens.css`：令牌的语义是「随主题变的界面颜色」，
+ * 而这两个是「画里那台机器的颜色」。两者生命周期不同 ——
+ * 设计规范改了主色，这里不该跟着动。
+ *
+ * 白名单：`tests/p2a-theme.test.ts` 的 TC-32 盯着「色值只能写在 tokens.css」，
+ * `src/shared/theme.ts` 是唯一豁免文件（`WINDOW_BG` 也需要它）。本常量与
+ * `WINDOW_BG` 一样属于「必须有一份 TS 拷贝」的情形（SVG 是字符串，读不到 CSS 变量）。
+ */
+export const CLI_DEMO_COLORS = {
+  /** 命令提示符窗口的底色（Windows 终端的默认黑）*/
+  screen: '#0c0c0c',
+  /** 命令提示符窗口里的浅色文字 */
+  screenInk: '#cccccc',
+  /** 窗口标题栏（比底色略亮一档，用来区分标题与正文）*/
+  screenBar: '#2b2b2b',
+} as const

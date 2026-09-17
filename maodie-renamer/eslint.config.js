@@ -206,12 +206,14 @@ export default tseslint.config(
 
   // v-html 只用于渲染构建期打包进来的自有 SVG 字符串（切图资源），
   // 不涉及任何用户输入，也没有任何网络内容 —— 这条 XSS 告警在此不适用
-  // （TitleBar 渲染的是 resources/cats/ui-btn-*.svg 这些自有切图）
+  // （TitleBar 渲染的是 resources/cats/ui-btn-*.svg 这些自有切图；
+  //   CliGuideModal 渲染的是 shared/cli-guide.ts 里写死的三张教程示意图）
   {
     files: [
       'src/renderer/src/components/MdIcon.vue',
       'src/renderer/src/components/CatStage.vue',
       'src/renderer/src/components/TitleBar.vue',
+      'src/renderer/src/components/CliGuideModal.vue',
     ],
     rules: { 'vue/no-v-html': 'off' },
   },

@@ -539,6 +539,93 @@ const FEATURES = [
      .waitUntil("!document.querySelector('.md-modal')", 8000)
   ),
 
+  /* ── P2-C 增量：命令行教程卡片（SCR-08）─────────────────────────────
+     小白卡在命令行上，卡的不是「命令写错了」，是「命令行在哪、
+     哪一段要换、会不会一跑就把文件改坏」。这三条各对应一张图。
+     所以下面的断言**不是**「有没有三张 SVG」，而是：
+       · 三张图的标题文字真的逐张出现（说明能翻到）
+       · 第一张图画的是键盘 Win+R
+       · 「黑窗口」那张的底色**真的是黑的**（不是主题色翻转后的灰）
+       · 第三步必须讲「先不加 --yes」
+     ⚠️ 依旧不用 `document.body.innerText`：本段文案里就含「命令行」等词，
+        而操作横幅挂在 body 里 —— 那样会被自己喂饱（见本段开头警告）。 */
+
+  /* ⚠️ 本段的**前置收敛**：设置弹窗是常驻组件（App.vue 里不带 v-if），
+     所以「命令行展开区」的 cliOpen 会**跨用例保留** —— 上一条用例展开过，
+     这一条打开设置时它仍是展开的。
+     本段不替产品下「重开该不该折起」的结论（那是设计问题，另行确认），
+     只在**确定已展开**的前提下验引导卡本身。
+     做法：先读到真实状态，再决定要不要点 —— 用 seeThat 读出状态、
+     用 waitUntil 等它稳定，两步都不预设初始值。 */
+  feature('P2-C 增量 EL-117 设置里出现「查看教程」引导卡（小白有门可进）', (c) =>
+    c.click('.md-winbtn--settings')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     // 产品已保证：每次打开设置，命令行展开区都回到**默认折起**（见 SettingsModal 的
+     // cliOpen 归位——关窗即重置，否则上一次的展开态会泄漏到下一次）。
+     // 所以这里可以像第 29 条一样，从「默认折起」这个确定状态出发。
+     .notSee('.md-cli__body', '★ 重新打开设置时命令行回到折起（不泄漏上一次的展开态）')
+     .click('.md-cli__bar')
+     .waitUntil("!!document.querySelector('.md-cli__body')", 8000)
+     .see('[data-cli-lead]', '展开后第一眼是引导卡，而不是一屏参数')
+     .seeContains('[data-cli-lead]', '没接触过命令行也没关系',
+       '★ 引导卡要明确告诉小白「不懂也能用」—— 这是愿不愿意往下看的开关')
+     .seeText('[data-cli-guide-btn]', '查看教程', '引导卡上有一个「查看教程」按钮')
+  ),
+
+  feature('P2-C 增量 SCR-08 点开教程：三步图文逐张翻得到，第一张画 Win+R', (c) =>
+    c.click('[data-cli-guide-btn]')
+     .waitUntil("!!document.querySelector('[data-guide-card]')", 8000)
+     // 进教程 = 设置关掉（同一 modal 状态机，避免遮罩叠两层 / Esc 语义含糊）
+     .notSee('.md-settings', '★ 进教程时设置弹窗关掉（同屏不叠两个遮罩）')
+     .see('[data-guide-card]', '教程卡出现')
+     .seeContains('[data-guide-title]', '第一步', '默认停在第 1 步')
+     .seeContains('[data-guide-body]', 'cmd', '第一步正文要写出 cmd 这个名字')
+     .seeThat("document.querySelector('[data-guide-card] svg').getAttribute('viewBox') !== null",
+       true, '第一张示意图带 viewBox（能随容器缩放，不是死位图）')
+     .seeContains('[data-guide-card] svg', '⊞',
+       '★ 第一张图画的是键盘上的 Win 键 —— 小白最大的门槛是「命令行在哪」')
+     .seeThat("document.querySelectorAll('[data-guide-card] svg text').length > 0", true,
+       '示意图里真的有文字节点（不是一块空白矩形）')
+     .click('[data-guide-next]')
+     .seeContains('[data-guide-title]', '第二步', '翻到第 2 步')
+     // 第二步的要点是「命令里只有两段要换成你自己的」——图里给这两段标了 ②③
+     .seeContains('[data-guide-body]', '②', '第二步要指出命令里哪一段要换（拆段说明）')
+     .seeContains('[data-guide-body]', '③', '第二步要指出另一段要换 —— 只说一段等于没讲清')
+     .click('[data-guide-next]')
+     .seeContains('[data-guide-title]', '第三步', '翻到第 3 步')
+     .seeContains('[data-guide-body]', '--yes',
+       '★ 第三步必须讲「先不加 --yes 试一遍」—— 命令行没有预览界面，不讲这句等于教人盲改')
+  ),
+
+  feature('P2-C 增量 示意图的「命令行窗口」底色真的是黑的（不随主题翻）', (c) =>
+    c.seeStyle('[data-guide-card] svg rect', 'fill', 'rgb(12, 12, 12)',
+      '★ 那张模拟命令提示符的黑窗口，底色就是现实里终端的黑 #0C0C0C —— '
+      + '它刻意不走主题令牌：深色主题下若把它翻成浅底，小白反而认不出这是命令行')
+  ),
+
+  feature('P2-C 增量 教程能关掉、也能再打开（不是一次性的）', (c) =>
+    // 此时停在第 3 步（上一条用例翻到底了），页脚是「知道了」→ 能直接关
+    c.click('.md-modal__foot--spread .md-btn--primary')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
+     .click('.md-winbtn--settings')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     .click('.md-cli__bar')
+     .waitUntil("!!document.querySelector('.md-cli__body')", 8000)
+     .click('[data-cli-guide-btn]')
+     .waitUntil("!!document.querySelector('[data-guide-card]')", 8000)
+     .seeContains('[data-guide-title]', '第一步',
+       '★ 重新打开时回到第 1 步（不记住上次翻到哪 —— 教程是「从头学一遍」的东西）')
+     // 从第 1 步直接点页签跳到最后一步，再关窗。
+     // ⚠️ 不用「连点下一步」：那会把「页脚按钮在第几步叫什么」这件事
+     //    悄悄写进用例，而它恰恰是会随步骤变的东西（前两步是「下一步」、
+     //    最后一步才是「知道了」）—— 第一次写这条时就栽在这上面。
+     .click('.md-guide__tabs .md-tab:nth-child(3)')
+     .seeContains('[data-guide-title]', '第三步', '点页签能直接跳到第 3 步')
+     .click('.md-modal__foot--spread .md-btn--primary')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
+     .notSee('.md-modal', '教程关得掉（关掉后没有残留遮罩）')
+  ),
+
   feature('P2-C TC-33 明细就地展开：序号与「原名 → 新名」逐条正确，再点收回', (c) =>
     c.click('.md-actionbar .md-btn--secondary')
      .waitUntil("!!document.querySelector('.md-history')", 8000)

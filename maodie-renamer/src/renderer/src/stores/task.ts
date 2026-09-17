@@ -18,7 +18,7 @@ import { usePrefsStore } from './prefs'
 import { useRuleStore } from './rule'
 import { playFailure, playSuccess } from '../utils/sound'
 
-export type ModalKind = 'none' | 'result' | 'conflict' | 'confirm' | 'settings'
+export type ModalKind = 'none' | 'result' | 'conflict' | 'confirm' | 'settings' | 'cliGuide'
 
 export type ConfirmKind = 'rename' | 'undoOne' | 'undoAll' | 'clear' | 'clearHistory'
 
@@ -437,6 +437,18 @@ export const useTaskStore = defineStore('task', () => {
     modal.value = 'settings'
   }
 
+  /** P2-C 增量：打开「命令行怎么用」教程（SCR-08）。
+   *
+   * ★ 注意这里**不是** `settings` 的子状态 —— 教程占用同一个 modal 状态机，
+   *   意味着从设置跳进教程时设置会关掉。这是刻意的：
+   *   ① 两个弹窗叠在一起，遮罩会叠两层，视觉上会「越叠越暗」
+   *   ② Esc 该关哪一个会变得含糊（Esc 在 AppModal 里是常驻监听）
+   *   ③ 用户看完教程真正的下一步是「回去复制命令」，而不是同时看两个窗
+   *   所以：进教程 = 设置关掉；关教程 = 回主界面（命令随时能在设置里再拿一次）。*/
+  function openCliGuide(): void {
+    modal.value = 'cliGuide'
+  }
+
   function todayOf(): string {
     const d = new Date()
     const p = (n: number) => String(n).padStart(2, '0')
@@ -465,6 +477,7 @@ export const useTaskStore = defineStore('task', () => {
     undoLast,
     closeModal,
     openSettings,
+    openCliGuide,
     setStatusOverride,
   }
 })
