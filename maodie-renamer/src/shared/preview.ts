@@ -87,7 +87,9 @@ export function resolveItems(
   /** 第一遍：算新名 + 校验，筛出合法项 */
   const computed = items.map((item, index) => {
     const parts = splitName(item.fromName, item.isDir)
-    const newStem = computeNewStem(parts, rule, { index, total, date })
+    // ★ P3-1：seedKey 传**文件自己的 id** —— 「随机字符」类型靠它做确定性伪随机，
+    //   这样同一个文件反复预览拿到的串恒定（预览 ≡ 执行的硬要求）。
+    const newStem = computeNewStem(parts, rule, { index, total, date, seedKey: item.id })
     const attemptedName = joinName(newStem, parts.ext)
     // ★ 必须把原始扩展名传进去：「只剩扩展名」与「本来就叫 .gitignore」
     //   在字符串层面同构，只有调用方知道原始 ext

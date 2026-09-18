@@ -86,8 +86,22 @@ export interface FileItem {
 /* ══ 规则配置 ══════════════════════════════════════════════════════════ */
 
 export type RuleMode = 'delete' | 'replace' | 'rule'
-export type SeqPosition = 'prefix' | 'suffix'
-export type DateFormat = 'YYYY-MM-DD' | 'YYYYMMDD' | 'YYYY年MM月DD日'
+/**
+ * P3-1：编号类型。
+ *
+ * ⚠️ 它是**规则化模式内部**的一个参数（跟「位置」「起始」「位数」同级），
+ * 不是第四种模式 —— 模式互斥解决的是「算新名走哪条路」，类型解决的是
+ * 「序号长什么样」，两件事不该混在同一层。
+ */
+export type SeqKind = 'number' | 'letter' | 'random' | 'time'
+/** P3-1：`'at'` = 插在主体的第 n 个码点之后（扩展名永不参与） */
+export type SeqPosition = 'prefix' | 'suffix' | 'at'
+export type DateFormat =
+  | 'YYYY-MM-DD'
+  | 'YYYYMMDD'
+  | 'YYYY年MM月DD日'
+  | 'MM月DD日'
+  | 'YYMMDD'
 /** F-11 大小写转换。'capitalize' = 只把主体第一个字符转大写、其余保持原样 */
 export type CaseTransform = 'none' | 'lower' | 'upper' | 'capitalize'
 
@@ -120,6 +134,26 @@ export interface RuleConfig {
     dateFormat: DateFormat
     /** 默认 true；false = 丢弃原主体 */
     keepOriginal: boolean
+
+    /* ── P3-1（第 1 批）新增 6 个字段 ──────────────────────────────────
+       每个都有默认值，且默认值下的输出与 P0/P1 **逐字节一致**
+       （`seqKind: 'number'` 时 `seqText` 走的就是原来那段函数体）。
+       这是本批能免掉迁移的地基：规则从来不落盘，`StoreName` 只有
+       history / window / prefs（见 P3-1 设计 §1.2）。 */
+    /** 编号类型，默认 'number' */
+    seqKind: SeqKind
+    /** 默认 1，范围 1–200；仅 `seqPosition === 'at'` 时生效 */
+    seqAt: number
+    /** 默认 6，范围 1–16；仅 `seqKind === 'random'` 时生效。
+     *  ⚠️ 刻意与 `seqPad` 分开：复用 `seqPad` 要把它的上限 6 改成 16，
+     *  那等于动一条既有断言（`seqPad: 99 → '000001'`）。 */
+    seqRandomLen: number
+    /** 默认 0，≥ 0；「换一批」把种子 +1，整批随机串随之改变 */
+    seqRandomSeed: number
+    /** 默认 ''；格式 YYYY-MM-DD。为空且类型是时间时，引擎回落到调用方传入的目标日期 */
+    seqTimeStart: string
+    /** 时间类型的样式，默认 'YYYY年MM月DD日'；与「启用日期」共用同一张样式表 */
+    seqTimeFormat: DateFormat
   }
 }
 
@@ -143,6 +177,13 @@ export const DEFAULT_RULE: RuleConfig = {
     dateEnabled: false,
     dateFormat: 'YYYY-MM-DD',
     keepOriginal: true,
+    /* P3-1 的 6 个默认值 —— 这一组值 = 「行为与 P0/P1 完全相同」 */
+    seqKind: 'number',
+    seqAt: 1,
+    seqRandomLen: 6,
+    seqRandomSeed: 0,
+    seqTimeStart: '',
+    seqTimeFormat: 'YYYY年MM月DD日',
   },
 }
 

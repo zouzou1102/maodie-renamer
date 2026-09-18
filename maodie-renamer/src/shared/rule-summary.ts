@@ -40,11 +40,7 @@ function buildBaseSummary(rule: RuleConfig): string {
       if (r.suffix) parts.push(`后缀「${r.suffix}」`)
 
       if (r.seqEnabled) {
-        const bits = [`起始 ${r.seqStart}`]
-        if (r.seqStep !== 1) bits.push(`步长 ${r.seqStep}`)
-        bits.push(r.seqPad === 0 ? '不补零' : `补零 ${r.seqPad}`)
-        bits.push(seqPositionLabel(r.seqPosition))
-        parts.push(`序号(${bits.join(' / ')})`)
+        parts.push(`序号(${seqBits(r).join(' / ')})`)
       }
 
       if (r.dateEnabled) {
@@ -60,6 +56,43 @@ function buildBaseSummary(rule: RuleConfig): string {
     default:
       return '未知规则'
   }
+}
+
+/**
+ * 序号段的摘要片段（P3-1 起要体现**类型**与**位置**）。
+ *
+ * 措辞对齐（设计 §7.3）：「步长」改叫「**增量**」、「补零」改叫「**位数**」，
+ * 与界面用词一致。
+ *
+ * ⚠️ 这段字符串会**写进 `history.json`**：上了这一批之后，新记录是新写法
+ *    （`序号(数字 / 起始 4 / 增量 4 / 位数 0 / 排在最前)`），老记录保持旧写法
+ *    （`序号(起始 1 / 步长 1 / 补零 3 / 排在最后)`）。这是**可以接受**的 ——
+ *    摘要是纯显示字符串，不参与任何解析。
+ *    **但绝对不要为了「新老一致」去写迁移改老记录**：那等于去改已经落盘的
+ *    历史数据，而历史数据是撤销功能的依据（与 P2-B「摘要截断只在渲染层」同一条纪律）。
+ */
+function seqBits(r: RuleConfig['rule']): string[] {
+  const bits: string[] = []
+  switch (r.seqKind) {
+    case 'letter':
+      bits.push('字母', `起始 ${Math.max(1, r.seqStart)}`, `增量 ${Math.max(1, r.seqStep)}`)
+      break
+    case 'random':
+      bits.push(`随机 ${r.seqRandomLen} 位`)
+      break
+    case 'time': {
+      const start = r.seqTimeStart || '当天'
+      bits.push(r.seqStep === 1 ? `时间 ${start} 起每天` : `时间 ${start} 起每 ${r.seqStep} 天`)
+      break
+    }
+    case 'number':
+    default:
+      bits.push('数字', `起始 ${r.seqStart}`, `增量 ${r.seqStep}`, `位数 ${r.seqPad}`)
+      break
+  }
+  // 第三档要把 n 一起写出来：只写「第 n 个字符后」，历史记录里就读不出当时到底插在哪儿
+  bits.push(r.seqPosition === 'at' ? `第 ${r.seqAt} 个字符后` : seqPositionLabel(r.seqPosition))
+  return bits
 }
 
 /* ── 显示层截断（P2-B §5.2）───────────────────────────────────────────── */

@@ -93,6 +93,12 @@ test('「加日期前缀」逐字段等于设计：规则化 + 前缀 {d} + 启�
       dateEnabled: true,
       dateFormat: 'YYYY-MM-DD',
       keepOriginal: true,
+      seqKind: 'number',
+      seqAt: 1,
+      seqRandomLen: 6,
+      seqRandomSeed: 0,
+      seqTimeStart: '',
+      seqTimeFormat: 'YYYY年MM月DD日',
     },
   } satisfies RuleConfig)
 })
@@ -117,6 +123,12 @@ test('「补零编号」逐字段等于设计：序号开、起始 1、步长 1�
       dateEnabled: false,
       dateFormat: 'YYYY-MM-DD',
       keepOriginal: true,
+      seqKind: 'number',
+      seqAt: 1,
+      seqRandomLen: 6,
+      seqRandomSeed: 0,
+      seqTimeStart: '',
+      seqTimeFormat: 'YYYY年MM月DD日',
     },
   } satisfies RuleConfig)
 })
@@ -141,6 +153,12 @@ test('「日期+编号」逐字段等于设计：前缀 {d}- + 日期 + 序号�
       dateEnabled: true,
       dateFormat: 'YYYY-MM-DD',
       keepOriginal: true,
+      seqKind: 'number',
+      seqAt: 1,
+      seqRandomLen: 6,
+      seqRandomSeed: 0,
+      seqTimeStart: '',
+      seqTimeFormat: 'YYYY年MM月DD日',
     },
   } satisfies RuleConfig)
 })
@@ -169,6 +187,12 @@ test('「去掉括号」逐字段等于设计：替换模式 + 正则开 + 替�
       dateEnabled: false,
       dateFormat: 'YYYY-MM-DD',
       keepOriginal: true,
+      seqKind: 'number',
+      seqAt: 1,
+      seqRandomLen: 6,
+      seqRandomSeed: 0,
+      seqTimeStart: '',
+      seqTimeFormat: 'YYYY年MM月DD日',
     },
   } satisfies RuleConfig)
 })
@@ -193,6 +217,12 @@ test('「空格换下划线」逐字段等于设计：替换模式、正则关�
       dateEnabled: false,
       dateFormat: 'YYYY-MM-DD',
       keepOriginal: true,
+      seqKind: 'number',
+      seqAt: 1,
+      seqRandomLen: 6,
+      seqRandomSeed: 0,
+      seqTimeStart: '',
+      seqTimeFormat: 'YYYY年MM月DD日',
     },
   } satisfies RuleConfig)
 })
@@ -217,6 +247,12 @@ test('「全部小写」逐字段等于设计：规则化、各要素全关、�
       dateEnabled: false,
       dateFormat: 'YYYY-MM-DD',
       keepOriginal: true,
+      seqKind: 'number',
+      seqAt: 1,
+      seqRandomLen: 6,
+      seqRandomSeed: 0,
+      seqTimeStart: '',
+      seqTimeFormat: 'YYYY年MM月DD日',
     },
   } satisfies RuleConfig)
 })

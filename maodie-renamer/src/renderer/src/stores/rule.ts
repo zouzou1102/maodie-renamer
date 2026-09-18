@@ -8,9 +8,10 @@
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { DEFAULT_RULE, type RuleConfig, type RuleMode } from '@shared/types'
+import { DEFAULT_RULE, type RuleConfig, type RuleMode, type SeqKind } from '@shared/types'
 import { buildRuleSummary } from '@shared/rule-summary'
-import { compileRegex } from '@shared/rule-engine'
+import { compileRegex, isYmd } from '@shared/rule-engine'
+import { todayYmd } from '@shared/today'
 import { cloneTemplateRule, type RuleTemplate } from '@shared/templates'
 
 function cloneDefault(): RuleConfig {
@@ -71,12 +72,25 @@ export const useRuleStore = defineStore('rule', () => {
     clamp()
   }
 
-  /** 越界钳制（IX-044）：起始 ≥ 0、步长 ≥ 1、补零 0–6 */
+  /**
+   * 越界钳制（IX-044）。
+   *
+   * P0/P1：起始 ≥ 0、步长 ≥ 1、补零 0–6。
+   * P3-1 追加：`seqAt` 1–200、`seqRandomLen` 1–16、`seqRandomSeed` ≥ 0、
+   * `seqTimeStart` 必须是合法 `YYYY-MM-DD`（不合法就清空，引擎会回落到目标日期）。
+   *
+   * ⚠️ 这些范围必须与 `src/main/ipc/rename.ipc.ts` 的 `sanitizeRule`
+   *    **完全一致**：两边不一致就是「预览对、执行错」，而界面看不出来。
+   */
   function clamp(): void {
     const r = rule.value.rule
     r.seqStart = Math.max(0, Math.trunc(r.seqStart) || 0)
     r.seqStep = Math.max(1, Math.trunc(r.seqStep) || 1)
     r.seqPad = Math.min(6, Math.max(0, Math.trunc(r.seqPad) || 0))
+    r.seqAt = Math.min(200, Math.max(1, Math.trunc(r.seqAt) || 0))
+    r.seqRandomLen = Math.min(16, Math.max(1, Math.trunc(r.seqRandomLen) || 0))
+    r.seqRandomSeed = Math.max(0, Math.trunc(r.seqRandomSeed) || 0)
+    if (!isYmd(r.seqTimeStart)) r.seqTimeStart = ''
   }
 
   function reset(): void {
@@ -105,5 +119,46 @@ export const useRuleStore = defineStore('rule', () => {
     clamp()
   }
 
-  return { rule, summary, activeMode, regexError, setMode, patch, patchInner, reset, applyTemplate }
+  /**
+   * P3-1 · EL-125 / IX-108「换一批」：把随机种子 +1。
+   *
+   * 种子一变，整批随机串就换一批（同一个文件在自己那一批里仍然恒定，所以
+   * 「预览 ≡ 执行」不受影响）。为什么必须有这个按钮：没有它，用户第一次随机
+   * 出来的串会跟他一辈子，撞上重名也没法自救。
+   *
+   * 用**单调 +1** 而不是重新随机：点一次必然与上一批不同，也就不会出现
+   * 「点了好像没变」的错觉；而且单调递增让种子本身也是可复现的。
+   */
+  function bumpRandomSeed(): void {
+    const r = rule.value.rule
+    r.seqRandomSeed = Math.max(0, Math.trunc(r.seqRandomSeed) || 0) + 1
+  }
+
+  /**
+   * P3-1 · EL-121 / IX-107 切换编号类型。
+   *
+   * 切到「时间」且起点还是空的时候，把起点填成**本机今天** —— 设计写死的默认值
+   * 就是「你点选『时间』那一刻」。填进去之后它就成了**冻结进规则的字面值**，
+   * 不会像「启用日期」那样跟着执行日漂移；之后用户想改成任意一天都行。
+   */
+  function switchSeqKind(k: SeqKind): void {
+    const r = rule.value.rule
+    r.seqKind = k
+    if (k === 'time' && !isYmd(r.seqTimeStart)) r.seqTimeStart = todayYmd()
+    clamp()
+  }
+
+  return {
+    rule,
+    summary,
+    activeMode,
+    regexError,
+    setMode,
+    patch,
+    patchInner,
+    reset,
+    applyTemplate,
+    bumpRandomSeed,
+    switchSeqKind,
+  }
 })

@@ -43,15 +43,22 @@ describe('rule-summary · 历史页规则摘要', () => {
       ),
     )
     expect(s).toContain('前缀「{d}-发票-」')
-    expect(s).toContain('序号(起始 1 / 补零 3 / 排在最后)')
+    expect(s).toContain('序号(数字 / 起始 1 / 增量 1 / 位数 3 / 排在最后)')
     expect(s).toContain('日期(YYYY-MM-DD)')
     expect(s).toContain('不保留原名')
   })
 
-  it('规则化模式步长非 1 时才显示步长', () => {
+  /**
+   * ⚠️ P3-1 改过这里的**期望值**（不是放宽断言）：设计 §7.3 明文把摘要措辞
+   *    「步长 → 增量」「补零 → 位数」对齐到界面用词，且**增量与位数总是写出来**
+   *    （不再「非 1 才显示」）。所以这条用例的前提跟着需求变了：
+   *    它现在盯的是「两个字段在任何取值下都出现在摘要里」——包括 0。
+   *    摘要会写进 `history.json`，老记录保持旧措辞（不写迁移），两种写法各自自洽。
+   */
+  it('规则化模式：增量与位数总是写出来（含 0），措辞已对齐界面', () => {
     const s = buildRuleSummary(rule({ mode: 'rule' }, { seqEnabled: true, seqStep: 5, seqPad: 0 }))
-    expect(s).toContain('步长 5')
-    expect(s).toContain('不补零')
+    expect(s).toContain('增量 5')
+    expect(s).toContain('位数 0')
   })
 
   it('规则化模式一个要素都没启用 → 明确说明，而不是空字符串', () => {
