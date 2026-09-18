@@ -3,11 +3,51 @@
  */
 
 import type { Theme } from './theme'
-import type { CaseTransform, ConflictKind, DateFormat, ItemStatus, SeqPosition } from './types'
+import type {
+  CaseTransform,
+  ConflictKind,
+  DateFormat,
+  ItemStatus,
+  SeqKind,
+  SeqPosition,
+} from './types'
 
 export function seqPositionLabel(v: SeqPosition): string {
-  return v === 'prefix' ? '排在最前' : '排在最后'
+  if (v === 'prefix') return '排在最前'
+  if (v === 'at') return '第 n 个字符后'
+  return '排在最后'
 }
+
+/** P3-1 位置三档（顺序即界面顺序；新增档排在最后，前两档位置不动）*/
+export const SEQ_POSITION_OPTIONS: Array<{ value: SeqPosition; label: string }> = [
+  { value: 'suffix', label: '排在最后' },
+  { value: 'prefix', label: '排在最前' },
+  { value: 'at', label: '插在第 n 个字符后' },
+]
+
+/** P3-1 编号类型四选一（顺序即界面顺序）*/
+export const SEQ_KIND_OPTIONS: Array<{ value: SeqKind; label: string }> = [
+  { value: 'number', label: '数字' },
+  { value: 'letter', label: '字母' },
+  { value: 'random', label: '随机字符' },
+  { value: 'time', label: '时间' },
+]
+
+export function seqKindLabel(v: SeqKind): string {
+  return SEQ_KIND_OPTIONS.find((o) => o.value === v)?.label ?? '数字'
+}
+
+/**
+ * 日期样式 5 档。**「启用日期」与「时间」类型共用同一张表**（设计 §3.5）——
+ * 两处各写一份必然会漂移。label 用真实样例日期，用户不用看格式串就懂。
+ */
+export const DATE_FORMAT_OPTIONS: Array<{ value: DateFormat; label: string }> = [
+  { value: 'YYYY-MM-DD', label: '2026-09-11' },
+  { value: 'YYYYMMDD', label: '20260911' },
+  { value: 'YYYY年MM月DD日', label: '2026年09月11日' },
+  { value: 'MM月DD日', label: '09月11日' },
+  { value: 'YYMMDD', label: '260911' },
+]
 
 export function dateFormatLabel(v: DateFormat): string {
   return v

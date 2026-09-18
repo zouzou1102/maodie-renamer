@@ -256,11 +256,47 @@ const seqPreviewExpr = (stem, ext, prefixExpr = "''") => `(() => {
       === (${prefixExpr}) + ${JSON.stringify(stem)} + String(1 + i).padStart(3, '0') + ${JSON.stringify(ext)};
   })()`;
 
+/* ── P3-1 用到的三个表达式工厂 ─────────────────────────────────────────── */
+
+/** 「启用序号」那个勾选框的选中态（按文案找，不按下标 —— 组里以后可能加控件）*/
+const SEQ_ENABLED_EXPR =
+  "(() => { const l = Array.from(document.querySelectorAll('.md-rulepanel__group .md-check'))"
+  + ".find((e) => e.textContent.includes('启用序号'));"
+  + " return !!(l && l.querySelector('input').checked); })()";
+
+/**
+ * EL-124 示例行里第 i 个示例名。
+ *
+ * ⚠️ 这里刻意给**两个**形式，别混用：
+ *   · `seqDemoSel`  → **CSS 选择器**，喂给 `seeText` / `see` / `seeStyle`（它们内部走 querySelector）；
+ *   · `seqDemoText` → **JS 表达式**，喂给 `seeThat` / `waitUntil`（它们内部走 eval）。
+ * 把表达式当选择器塞给 `seeText` 会让 querySelector 抛语法错误，整个功能报
+ * 「Script failed to execute」——看不清是哪条断言错了。
+ */
+const seqDemoSel = (i) => `[data-seq-demo] code:nth-of-type(${i + 1})`;
+const seqDemoText = (i) => `(() => { const c = document.querySelectorAll('[data-seq-demo] code');
+    return c.length > ${i} ? c[${i}].textContent.trim() : null; })()`;
+
+/**
+ * 「切到时间类型后，起点自动填成本机今天」的判据。
+ *
+ * 期望值不能写死（写死的话明天再跑必红，而它本来没坏），所以拿渲染层自己的 `new Date()`
+ * 现算一个本地日期来比 —— 与 `src/shared/today.ts` 的语义一致（都是本地时区、都不是 UTC）。
+ */
+const SEQ_TIME_START_IS_TODAY =
+  "(() => { const el = document.querySelector('[data-seq-timestart]'); if (!el) return null;"
+  + " const d = new Date(); const p = (n) => String(n).padStart(2, '0');"
+  + " return el.value === d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); })()";
+
+/** 时间类型的示例名：默认样式是「YYYY年MM月DD日」，所以期望值同样现算 */
+const SEQ_TIME_DEMO_EXPR =
+  "(() => { const d = new Date(); const p = (n) => String(n).padStart(2, '0');"
+  + " return '【素材】' + d.getFullYear() + '年' + p(d.getMonth() + 1) + '月' + p(d.getDate()) + '日'; })()";
+
 const FEATURES = [
   feature('窗口出现、界面就绪', (c) =>
     c.see(READY_SELECTOR, `界面就绪元素可见（${READY_SELECTOR}）`)
   ),
-
   feature('空列表：空态引导可见', (c) =>
     c.see('.md-empty', '空态引导卡可见（且有尺寸、在视口内）')
      .seeText('.md-empty__title', '把文件拖进来，或者点左边的按钮', '空态文案正确')
@@ -310,6 +346,10 @@ const FEATURES = [
   feature('变量提示：前缀用了 {d} 但未勾日期', (c) =>
     c.click('input[placeholder="如 {d}-发票-"]')
      .type('{d}-')
+     // P3-1 起，规则区多了一行常显的「跨天提示」（设计 §6），把这条警告挤到了折叠线以下。
+     // 所以先滚动到它 —— 与 P1 正则那条 `.scroll('.md-rulepanel__regerr')` 是同一个做法，
+     // 断言本身一个字没改（`see` 要求元素真的在视口内，这条要求不放松）。
+     .scroll('.md-rulepanel__warn')
      .see('.md-rulepanel__warn', '出现"日期会展开成空"的提示')
   ),
 
@@ -576,10 +616,12 @@ const FEATURES = [
        + " return !!l && l.querySelector('input').checked; })()", 8000)
      .seeAttr('.md-tabs .md-tab:nth-child(3)', 'aria-selected', 'true', '「补零编号」→ 页签跳到规则化')
      .seeThat(
+       // P3-1 把这格的界面用词从「补零」改成了「位数」（设计 §7.3：与「增量」一道对齐大白话）。
+       // 找的是**渲染出来的标签**，所以这里跟着改；断言的值仍是 3，一个字没放宽。
        "(() => { const i = Array.from(document.querySelectorAll('.md-rulepanel__numitem'))"
-       + ".find((e) => e.textContent.includes('补零'));"
+       + ".find((e) => e.textContent.includes('位数'));"
        + " return i ? i.querySelector('input').value : null; })()",
-       '3', '补零位数 = 3（出来的是 001、002 而不是 1、2）')
+       '3', '位数 = 3（出来的是 001、002 而不是 1、2）')
      // 预览重算有 200ms 防抖 + Worker 一次往返，所以先等它算出来再断言。
      // 等的是**逐字符相等**这个结果本身，不是"等一会儿"—— 没有放宽标准。
      .waitUntil(seqPreviewExpr('(1)(2)报告', '.docx'), 8000)
@@ -966,6 +1008,147 @@ const FEATURES = [
      // ★ 读的是**状态栏那个元素**，不是 body.innerText（见本段开头那段警告）
      .notSee('.md-statusbar__notice', '★ 清空后不该出现淘汰提示：用户自己点的清空不是系统淘汰（P2-C §2.6）')
      .seeContains('.md-history__empty', '还没有改过名呢', '清空后列表走既有空态')
+  ),
+
+  // ══ P3-1 第四版：编号系统升级（EL-121 ~ EL-125）════════════════════════
+  // 设计来源：《P3-1编号系统升级轻量设计确认.md》v1.1（§3 四种类型 / §5 交互 / §6 边界）。
+  //
+  // 这一段盯三件最容易"看着像好了"的事：
+  //   ① **换类型 → 参数行真的换**（不是四个框一直摆着、填了白填）；
+  //   ② **示例行走的是同一个 `applyRuleMode`**，所以它不可能与真改下去的结果不一致 ——
+  //      钉的期望值是用**真引擎**离线算出来再抄进来的（每条都注明了）；
+  //   ③ 「换一批」点一次**必然换到下一批**（种子单调 +1），不是碰运气重掷。
+  //
+  // 状态承接：上一段（P2-C）结束时停在**历史页**（两个 view 是 v-if 互斥的），
+  // 所以第一步先点「返回」回主界面。规则本身承接 P2-B 最后一个模板「全部小写」：
+  // rule 模式 + 保留原文件名 + 序号默认关着。
+
+  feature('P3-1 从历史页返回主界面：规则区仍在「规则化」页签', (c) =>
+    c.see('.md-history__head', '当前确实停在历史页（上一条用例留下的状态）')
+     .click('.md-history__head .md-btn--ghost')
+     .waitUntil("!!document.querySelector('.md-rulepanel__form')", 8000)
+     .click('.md-tabs .md-tab:nth-child(3)')
+     .waitUntil("document.querySelector('.md-tabs .md-tab:nth-child(3)')"
+       + ".getAttribute('aria-selected') === 'true'", 8000)
+     .see('.md-rulepanel__form', '回到了主界面，规则区在「规则化」')
+  ),
+
+  feature('P3-1 起始态：序号没启用 → 两个下拉与参数框全禁用、示例行整块不在', (c) =>
+    c.seeThat(SEQ_ENABLED_EXPR, false, '「启用序号」未勾选（承接上段：模板整份替换回默认）')
+     .seeCount('[data-seq-position]:disabled', 1, '「位置」下拉禁用')
+     .seeCount('[data-seq-kind]:disabled', 1, '「类型」下拉禁用')
+     .seeCount('[data-seq-start]:disabled', 1, '「起始」框禁用')
+     .seeCount('[data-seq-demo]', 0, '★ 没启用就没有示例行（v-if 真移除，不是藏起来留个空壳）')
+     .seeCount('[data-seq-at]', 0, '★ 位置不是第三档时，那个内联数字框也不该在')
+  ),
+
+  feature('P3-1 EL-124 勾上「启用序号」：整组解禁，示例行出现并明说"不是你的文件"', (c) =>
+    c.click('.md-rulepanel__group:nth-of-type(1) .md-check')
+     .waitUntil("!!document.querySelector('[data-seq-demo]')", 8000)
+     .seeThat(SEQ_ENABLED_EXPR, true, '勾选生效')
+     .seeCount('[data-seq-start]:disabled', 0, '参数框全部解禁')
+     .seeContains('.md-rulepanel__demotitle', '不是你列表里的文件',
+       '★ 文案必须说清这不是真实预览，否则用户会以为"我的文件被改成这样了"')
+     .seeText(seqDemoSel(0), '【素材】001', '默认（数字 / 位数 3）第 1 个示例 = 【素材】001')
+     .seeText(seqDemoSel(2), '【素材】003', '第 3 个 = 【素材】003（序号按 1/2/3 递增）')
+     .seeStyle('[data-seq-demo] code', 'color', 'rgb(224, 139, 51)',
+       '示例里的新名走橘色高亮 —— 这条同时钉住那个**两级选择器**（单写类名会被上面的规则盖掉）')
+  ),
+
+  feature('P3-1 EL-123 位置第三档：原地长出 64px 数字框，示例真的插进名字中间', (c) =>
+    // ① 先把「位数」清成 0（**真实用户动作**：聚焦 → End → Backspace，不是程序化改 state）。
+    //    这同时覆盖设计 §5.3 那条「位数 = 0 也要示例得出来」—— 清空后不该出现空白示例。
+    c.scroll('[data-seq-pad]')
+     .focus('[data-seq-pad]').key('End').key('Backspace')
+     .waitUntil("document.querySelector('[data-seq-pad]').value === '0'", 8000)
+     .seeText(seqDemoSel(0), '【素材】1', '★ 位数 0 时示例是【素材】1（不补零，也不是空白）')
+    // ② 位置切到第三档：默认在「排在最后」，往下一格是「排在最前」，再一格才是第三档
+     .focus('[data-seq-position]').key('Down').key('Down')
+     .waitUntil("document.querySelector('[data-seq-position]').value === 'at'", 8000)
+     .see('[data-seq-at]', '选中第三档后，内联数字框出现（不另开一行）')
+     .seeStyle('[data-seq-at]', 'width', '64px', '★ 框宽 64px：数字短，104px 会看着像"还没填"')
+     .seeStyle('[data-seq-at]', 'textAlign', 'center', '数字居中')
+     .seeText('[data-seq-at-hint]', '数字超出名字长度时，会自动放到末尾。',
+       '越界规则写在前面，省掉一次「为什么没生效」')
+     // ③ 默认 n=1：示例应该插在第 1 个字符后面（这一步同时也是「插入真的发生了」的判据）
+     .seeText(seqDemoSel(0), '【1素材】', '默认 n=1 → 插在「【」和「素」之间')
+     // ④ 用**真实方向键**把 n 从 1 加到 3（数字框原生支持上下键，Chromium 自己发 input 事件）。
+     //    不用「清空再打 3」：清空会让它短暂变成空串 → store 的钳制把它拉回 1 → Vue 又把 DOM 写回 '1'，
+     //    接着打的 '3' 会变成 '13'。上下键没有这个中间态。
+     .focus('[data-seq-at]').key('Up').key('Up')
+     .waitUntil("document.querySelector('[data-seq-at]').value === '3'", 8000)
+     .seeText(seqDemoSel(0), '【素材1】', '★ 位置 3 = 插在「材」和「】」之间 → 【素材1】（不是加在末尾）')
+     .seeText(seqDemoSel(2), '【素材3】', '第 3 个 = 【素材3】')
+    // ⑤ 切回「排在最后」：那个框必须**消失**，而不是留在那儿灰着
+     .focus('[data-seq-position]').key('Up').key('Up')
+     .waitUntil("document.querySelector('[data-seq-position]').value === 'suffix'", 8000)
+     .seeCount('[data-seq-at]', 0, '★ 切回末尾档后内联数字框消失（只对第三档有意义，留着会让人以为填了能用）')
+     .seeCount('[data-seq-at-hint]', 0, '越界说明也跟着消失')
+     .seeText(seqDemoSel(0), '【素材】1', '示例回到「加在末尾」的样子')
+  ),
+
+  feature('P3-1 EL-122 换类型 → 参数行跟着换（不是四个框永远摆着）', (c) =>
+    c.seeCount('[data-seq-pad]', 1, '「数字」有「位数」框')
+     .seeCount('[data-seq-len]', 0, '「数字」没有「长度」框（那是随机字符的）')
+     .seeCount('[data-seq-reroll]', 0, '「数字」没有「换一批」按钮')
+    // → 字母
+     .focus('[data-seq-kind]').key('Down')
+     .waitUntil("document.querySelector('[data-seq-kind]').value === 'letter'", 8000)
+     .seeCount('[data-seq-start]', 1, '「字母」仍有「起始」')
+     .seeCount('[data-seq-pad]', 0, '★ 「字母」下「位数」框消失（字母不补零，摆着只会让人怀疑自己填错了）')
+     .seeText(seqDemoSel(0), '【素材】A', '字母示例 = 【素材】A')
+     .seeText(seqDemoSel(2), '【素材】C', '第 3 个 = 【素材】C（就是 Excel 列标那套序列）')
+    // → 随机字符
+     .focus('[data-seq-kind]').key('Down')
+     .waitUntil("document.querySelector('[data-seq-kind]').value === 'random'", 8000)
+     .seeCount('[data-seq-len]', 1, '「随机字符」有「长度」框')
+     .seeCount('[data-seq-reroll]', 1, '「随机字符」有「换一批」按钮')
+     .seeCount('[data-seq-start]', 0, '★ 「随机字符」下「起始」框消失')
+     .seeText(seqDemoSel(0), '【素材】7hhwvl',
+       '第 0 批示例（种子来源 demo-0 + 种子 0）—— 期望值是用**真引擎**离线算出来的，不是随手编的')
+     .seeText(seqDemoSel(1), '【素材】2hphjr', '第 2 个是另一个串（不是把同一个串贴三遍）')
+  ),
+
+  feature('P3-1 EL-125「换一批」：点一次就换到下一批（种子单调 +1，不靠运气）', (c) =>
+    c.scroll('[data-seq-reroll]')
+     .seeText(seqDemoSel(0), '【素材】7hhwvl', '点之前是第 0 批')
+     .click('[data-seq-reroll]')
+     .waitUntil("(() => { const c = document.querySelector('[data-seq-demo] code');"
+       + " return !!c && c.textContent.trim() !== '【素材】7hhwvl'; })()", 8000)
+     .seeText(seqDemoSel(0), '【素材】fs3kdy',
+       '★ 点一次 = 第 1 批（种子 +1）—— 三串全换，且正是引擎该算出的那一批')
+     .seeText(seqDemoSel(1), '【素材】4zx071', '第 2 个也换了')
+     .seeText(seqDemoSel(2), '【素材】rixbqd', '第 3 个也换了')
+     .seeThat("(() => { const c = Array.from(document.querySelectorAll('[data-seq-demo] code'))"
+       + ".map((e) => e.textContent.trim());"
+       + " return c.every((s) => /^【素材】[a-z0-9]{6}$/.test(s)) && new Set(c).size === c.length; })()",
+       true, '★ 每串都是「6 位、只含小写字母与数字」且互不相同（相同会让人以为"所有文件会改成同一个名字"）')
+  ),
+
+  feature('P3-1 时间类型：起点自动填今天、样式共用同一张 5 档表、跨天提示常显', (c) =>
+    c.seeCount('[data-date-format] option', 5, '「启用日期」的样式下拉是 5 档（新增 09月11日 / 260911）')
+     .focus('[data-seq-kind]').key('Down')
+     .waitUntil("document.querySelector('[data-seq-kind]').value === 'time'", 8000)
+     .seeCount('[data-seq-timestart]', 1, '「时间」有「起点」日历框')
+     .seeCount('[data-seq-daystep]', 1, '「时间」的增量写作「增量（天）」')
+     .seeCount('[data-seq-timeformat] option', 5, '「时间」与「启用日期」共用同一张样式表（两处不各写一份，否则必漂移）')
+     .seeThat(SEQ_TIME_START_IS_TODAY, true,
+       '★ 切到「时间」时起点自动填成**本机今天**（本地时区；用 UTC 会差一天）')
+     .seeThat(`(${SEQ_TIME_DEMO_EXPR}) === ${seqDemoText(0)}`, true,
+       '★ 示例 = 【素材】+ 今天的日期（按当前样式）—— 起点填进去后就冻结成规则里的字面值，不再跟着执行日漂移')
+     .seeText('[data-date-hint]', '日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。',
+       '跨天提示常显：把"23:58 预览、00:01 执行会差一天"讲在前面')
+  ),
+
+  feature('P3-1 取消「启用序号」：整组回到禁用、示例行整块消失（临时状态必须归位）', (c) =>
+    c.click('.md-rulepanel__group:nth-of-type(1) .md-check')
+     .waitUntil("!document.querySelector('[data-seq-demo]')", 8000)
+     .seeThat(SEQ_ENABLED_EXPR, false, '「启用序号」已取消')
+     .seeCount('[data-seq-demo]', 0, '★ 示例行整块消失，不留空壳')
+     .seeCount('[data-seq-kind]:disabled', 1, '「类型」下拉回到禁用')
+     .seeCount('[data-seq-timestart]:disabled', 1, '时间类的参数框一起禁用（不是只灰了一部分）')
+     .seeText('[data-date-hint]', '日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。',
+       '跨天提示与「启用序号」无关，照旧常显')
   ),
 ];
 

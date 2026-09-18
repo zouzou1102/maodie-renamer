@@ -8,16 +8,22 @@
  * 所有变更都是「改 store → files 里的 watch 触发 200ms 防抖重算」，
  * 组件里**不写**预览刷新逻辑，保证刷新入口只有一处。
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import MdIcon from './MdIcon.vue'
 import { useRuleStore } from '../stores/rule'
 import { useFilesStore } from '../stores/files'
-import { CASE_TRANSFORM_OPTIONS } from '@shared/labels'
+import {
+  CASE_TRANSFORM_OPTIONS,
+  DATE_FORMAT_OPTIONS,
+  SEQ_KIND_OPTIONS,
+  SEQ_POSITION_OPTIONS,
+} from '@shared/labels'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
 import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
 import { joinName, splitName } from '@shared/name-split'
-import { applyDelete, applyReplace } from '@shared/rule-engine'
-import type { CaseTransform, DateFormat, RuleMode, SeqPosition } from '@shared/types'
+import { applyDelete, applyReplace, applyRuleMode } from '@shared/rule-engine'
+import { todayYmd } from '@shared/today'
+import type { CaseTransform, DateFormat, RuleMode, SeqKind, SeqPosition } from '@shared/types'
 
 const rule = useRuleStore()
 /** 套用模板后要给状态栏一句话，用既有的 3 秒轻提示位（不弹窗、不打断）*/
@@ -104,7 +110,71 @@ const needsSeqHint = computed(
     (rule.rule.rule.prefix.includes('{n}') || rule.rule.rule.suffix.includes('{n}')),
 )
 
-function setNumber(key: 'seqStart' | 'seqStep' | 'seqPad', raw: string): void {
+/* ══ P3-1 · 序号组（EL-121 ~ EL-125）═══════════════════════════════════ */
+
+const seqOn = computed(() => rule.rule.rule.seqEnabled)
+const seqKind = computed(() => rule.rule.rule.seqKind)
+const seqAtMode = computed(() => rule.rule.rule.seqPosition === 'at')
+
+/** 本机今天（本地时区）。只用于「示例行」——引擎自己从不读时钟（DEC-03）*/
+const TODAY = todayYmd()
+
+/**
+ * EL-124 示例行：拿固定示例名 `【素材】` 试前三个位置。
+ *
+ * 三个刻意的选择（设计 §5.2）：
+ *  1. **常显在规则化模式**，不藏进进阶折叠 —— 编号是所有人都会配的东西，
+ *     参数一改就必须立刻看到结果；藏起来等于让用户去文件列表里自己找。
+ *  2. 示例名**固定用 `【素材】`**，不跟随列表里的真实文件 —— 用真实文件的话
+ *     示例会跟着列表变，用户想对照「改了参数会怎样」时就失去了参照物。
+ *     所以文案里必须**明说**它不是真实预览。
+ *  3. 走 `applyRuleMode` —— **与预览 Worker、与主进程执行器同一个函数**
+ *     （ADR-001），所以示例不可能与真正改下去的结果不一致。
+ */
+const DEMO_SEQ_STEM = '【素材】'
+const demoSeqNames = computed<string[]>(() =>
+  [0, 1, 2].map((i) =>
+    applyRuleMode(DEMO_SEQ_STEM, rule.rule.rule, {
+      index: i,
+      total: 3,
+      date: TODAY,
+      // 三个位置用不同的种子：随机字符类型下会显示三个不同的串，而不是把同一个串
+      // 贴三遍 —— 后者会让人误以为「所有文件都会被改成同一个名字」
+      seedKey: `demo-${i}`,
+    }),
+  ),
+)
+
+/** 选中第三档时把焦点自动送进那个内联数字框（IX-109）*/
+const seqAtInput = ref<HTMLInputElement | null>(null)
+watch(seqAtMode, async (on) => {
+  if (!on) return
+  await nextTick()
+  seqAtInput.value?.focus()
+})
+
+/** EL-121 / IX-107：切换编号类型（切到「时间」且起点为空时由 store 填本机今天）*/
+function onSeqKind(e: Event): void {
+  rule.switchSeqKind((e.target as HTMLSelectElement).value as SeqKind)
+}
+
+/** EL-125 / IX-108：「换一批」= 随机种子 +1（单调递增，所以点一次必然与上一批不同）*/
+function onReroll(): void {
+  rule.bumpRandomSeed()
+}
+
+function onSeqTimeStart(e: Event): void {
+  rule.patchInner({ seqTimeStart: (e.target as HTMLInputElement).value })
+}
+
+/**
+ * 数字框统一入口。越界钳制交给 store 的 `clamp()` —— 组件不自己算，
+ * 免得界面一套范围、主进程 `sanitizeRule` 又一套（那就是「预览对、执行错」）。
+ */
+function setNumber(
+  key: 'seqStart' | 'seqStep' | 'seqPad' | 'seqAt' | 'seqRandomLen',
+  raw: string,
+): void {
   const n = Number(raw)
   rule.patchInner({ [key]: Number.isFinite(n) ? n : 0 } as Partial<typeof rule.rule.rule>)
 }
@@ -210,6 +280,10 @@ function setNumber(key: 'seqStart' | 'seqStep' | 'seqPad', raw: string): void {
           支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期 —— 变量需先勾选下方对应开关
         </p>
 
+        <!-- ── 序号组（EL-121 ~ EL-125）────────────────────────────────────
+             P3-1 的组内顺序：启用序号 → 位置 → 类型 → 参数（随类型）→ 示例。
+             位置放在类型上面：沿用 P0 的排布（改动最小），也正是列需求时的语序。
+             组标题仍叫「启用序号」—— 它是这个组的开关，不跟着类型改名。 -->
         <div class="md-rulepanel__group">
           <label class="md-check">
             <input
@@ -221,55 +295,183 @@ function setNumber(key: 'seqStart' | 'seqStep' | 'seqPad', raw: string): void {
             <span class="md-check__label">启用序号</span>
           </label>
 
-          <div class="md-rulepanel__nums">
-            <label class="md-rulepanel__numitem">
-              <span>起始</span>
-              <input
-                class="md-input md-input--num"
-                type="number"
-                min="0"
-                :disabled="!rule.rule.rule.seqEnabled"
-                :value="rule.rule.rule.seqStart"
-                @input="setNumber('seqStart', ($event.target as HTMLInputElement).value)"
-              />
+          <!-- EL-123 位置（三档）。选中第三档时就地长出一个数字框，**不另开一行**；
+               选别的两档这个框**不显示**（不是置灰）—— 它只对第三档有意义，
+               摆一个常驻的灰框会让人以为「填了就能用」。 -->
+          <div class="md-rulepanel__seqline">
+            <label class="md-rulepanel__picker">
+              <span>位置</span>
+              <select
+                class="md-select"
+                data-seq-position
+                :disabled="!seqOn"
+                :value="rule.rule.rule.seqPosition"
+                @change="rule.patchInner({ seqPosition: ($event.target as HTMLSelectElement).value as SeqPosition })"
+              >
+                <option v-for="o in SEQ_POSITION_OPTIONS" :key="o.value" :value="o.value">
+                  {{ o.label }}
+                </option>
+              </select>
             </label>
-            <label class="md-rulepanel__numitem">
-              <span>步长</span>
+            <input
+              v-if="seqAtMode"
+              ref="seqAtInput"
+              class="md-input md-input--num md-input--at"
+              data-seq-at
+              type="number"
+              min="1"
+              max="200"
+              aria-label="插在第几个字符后"
+              :disabled="!seqOn"
+              :value="rule.rule.rule.seqAt"
+              @input="setNumber('seqAt', ($event.target as HTMLInputElement).value)"
+            />
+          </div>
+          <!-- 一句话把越界规则说在前面，省掉一次「为什么没生效」 -->
+          <p v-if="seqAtMode" class="md-hint md-rulepanel__span" data-seq-at-hint>
+            数字超出名字长度时，会自动放到末尾。
+          </p>
+
+          <!-- EL-121 编号类型。它是规则化模式**内部**的参数（与位置 / 起始同级），
+               不是第四种模式 —— 等到第 5 批把模式拆成五个，这个下拉照样待在这儿。 -->
+          <label class="md-rulepanel__picker">
+            <span>类型</span>
+            <select
+              class="md-select"
+              data-seq-kind
+              :disabled="!seqOn"
+              :value="rule.rule.rule.seqKind"
+              @change="onSeqKind"
+            >
+              <option v-for="o in SEQ_KIND_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
+            </select>
+          </label>
+
+          <!-- EL-122 参数行：随类型切换。「位数」在三种类型下**不显示**（不是置灰）——
+               字母没有补零、随机字符的长度是另一个字段、时间的补零由样式决定；
+               摆一个填了也没用的框，只会让人怀疑自己填错了。 -->
+          <div class="md-rulepanel__nums" data-seq-params>
+            <template v-if="seqKind === 'number' || seqKind === 'letter'">
+              <label class="md-rulepanel__numitem">
+                <span>起始</span>
+                <input
+                  class="md-input md-input--num"
+                  data-seq-start
+                  type="number"
+                  min="0"
+                  :disabled="!seqOn"
+                  :value="rule.rule.rule.seqStart"
+                  @input="setNumber('seqStart', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+              <label class="md-rulepanel__numitem">
+                <span>增量</span>
+                <input
+                  class="md-input md-input--num"
+                  data-seq-step
+                  type="number"
+                  min="1"
+                  :disabled="!seqOn"
+                  :value="rule.rule.rule.seqStep"
+                  @input="setNumber('seqStep', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+            </template>
+
+            <label v-if="seqKind === 'number'" class="md-rulepanel__numitem">
+              <span>位数</span>
               <input
                 class="md-input md-input--num"
-                type="number"
-                min="1"
-                :disabled="!rule.rule.rule.seqEnabled"
-                :value="rule.rule.rule.seqStep"
-                @input="setNumber('seqStep', ($event.target as HTMLInputElement).value)"
-              />
-            </label>
-            <label class="md-rulepanel__numitem">
-              <span>补零</span>
-              <input
-                class="md-input md-input--num"
+                data-seq-pad
                 type="number"
                 min="0"
                 max="6"
-                :disabled="!rule.rule.rule.seqEnabled"
+                :disabled="!seqOn"
                 :value="rule.rule.rule.seqPad"
                 @input="setNumber('seqPad', ($event.target as HTMLInputElement).value)"
               />
             </label>
+
+            <template v-if="seqKind === 'random'">
+              <label class="md-rulepanel__numitem">
+                <span>长度</span>
+                <input
+                  class="md-input md-input--num"
+                  data-seq-len
+                  type="number"
+                  min="1"
+                  max="16"
+                  :disabled="!seqOn"
+                  :value="rule.rule.rule.seqRandomLen"
+                  @input="setNumber('seqRandomLen', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+              <button
+                type="button"
+                class="md-seqbtn"
+                data-seq-reroll
+                :disabled="!seqOn"
+                @click="onReroll"
+              >
+                换一批
+              </button>
+            </template>
+
+            <template v-if="seqKind === 'time'">
+              <label class="md-rulepanel__numitem">
+                <span>起点</span>
+                <input
+                  class="md-input md-input--date"
+                  data-seq-timestart
+                  type="date"
+                  :disabled="!seqOn"
+                  :value="rule.rule.rule.seqTimeStart"
+                  @input="onSeqTimeStart"
+                />
+              </label>
+              <label class="md-rulepanel__picker">
+                <span>样式</span>
+                <select
+                  class="md-select"
+                  data-seq-timeformat
+                  :disabled="!seqOn"
+                  :value="rule.rule.rule.seqTimeFormat"
+                  @change="rule.patchInner({ seqTimeFormat: ($event.target as HTMLSelectElement).value as DateFormat })"
+                >
+                  <option v-for="o in DATE_FORMAT_OPTIONS" :key="o.value" :value="o.value">
+                    {{ o.label }}
+                  </option>
+                </select>
+              </label>
+              <label class="md-rulepanel__numitem">
+                <span>增量（天）</span>
+                <input
+                  class="md-input md-input--num"
+                  data-seq-daystep
+                  type="number"
+                  min="1"
+                  :disabled="!seqOn"
+                  :value="rule.rule.rule.seqStep"
+                  @input="setNumber('seqStep', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+            </template>
           </div>
 
-          <label class="md-rulepanel__picker">
-            <span>序号位置</span>
-            <select
-              class="md-select"
-              :disabled="!rule.rule.rule.seqEnabled"
-              :value="rule.rule.rule.seqPosition"
-              @change="rule.patchInner({ seqPosition: ($event.target as HTMLSelectElement).value as SeqPosition })"
-            >
-              <option value="suffix">排在最后</option>
-              <option value="prefix">排在最前</option>
-            </select>
-          </label>
+          <!-- EL-124 示例行。未勾「启用序号」时整块不显示（没启用就没什么可示例的）-->
+          <div v-if="seqOn" class="md-rulepanel__demo" data-seq-demo>
+            <p class="md-rulepanel__demotitle">
+              示例（拿「{{ DEMO_SEQ_STEM }}」这个名字试的，不是你列表里的文件）
+            </p>
+            <p class="md-rulepanel__demoline">
+              <template v-for="(name, i) in demoSeqNames" :key="i">
+                <span v-if="i > 0" class="md-rulepanel__demodot" aria-hidden="true">·</span>
+                <code class="md-rulepanel__demonew">{{ name }}</code>
+              </template>
+            </p>
+          </div>
         </div>
 
         <div class="md-rulepanel__group">
@@ -287,16 +489,25 @@ function setNumber(key: 'seqStart' | 'seqStep' | 'seqPad', raw: string): void {
             <span>日期格式</span>
             <select
               class="md-select"
+              data-date-format
               :disabled="!rule.rule.rule.dateEnabled"
               :value="rule.rule.rule.dateFormat"
               @change="rule.patchInner({ dateFormat: ($event.target as HTMLSelectElement).value as DateFormat })"
             >
-              <option value="YYYY-MM-DD">2026-09-11</option>
-              <option value="YYYYMMDD">20260911</option>
-              <option value="YYYY年MM月DD日">2026年09月11日</option>
+              <option v-for="o in DATE_FORMAT_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
             </select>
           </label>
         </div>
+
+        <!-- P3-1 §6 跨天提示。做成常显：「启用日期」取的是**执行当天**，
+             23:58 预览、00:01 执行就会差一天；好在主进程有挡板（`date` 必须
+             等于本机今天），跨过零点后会要求重新预览。这条行为此前只活在主进程的
+             一行校验里，文档与界面都没有 —— 现在把它显式讲出来。 -->
+        <p class="md-hint md-rulepanel__span" data-date-hint>
+          日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。
+        </p>
 
         <label class="md-check md-rulepanel__span">
           <input
@@ -795,5 +1006,101 @@ code {
   border-width: 2px;
   border-color: var(--md-bad);
   box-shadow: none;
+}
+
+/* ══ P3-1 · 序号组的新控件（设计 §7.4）═════════════════════════════════
+   规格要点：**零新增令牌、零新增色值** —— 下面全部复用既有令牌，
+   所以 `tokens.css` 的深色块里一个值都不用补（也就不会漏补）。 */
+
+/* 「位置」与第三档的内联数字框同一行 —— 选中第三档时就地长出来，不另开一行 */
+.md-rulepanel__seqline {
+  display: flex;
+  align-items: center;
+  gap: var(--md-space-2);
+  flex-wrap: wrap;
+}
+
+/* 「第 n 个字符后」的框：64px、居中。
+   （数字很短，左对齐会看着像「还没填」；`.md-input--num` 给的 104px 太宽）*/
+.md-input--at {
+  width: 64px;
+  text-align: center;
+}
+
+/* 时间类型的「起点」日期框 */
+.md-input--date {
+  width: 142px;
+  font-family: var(--md-font-num);
+}
+
+/* EL-125「换一批」。高 28px 是**单独给的**：既有按钮类只有 22px，够不上
+   WCAG 2.5.8 AA 要求的 24×24 CSS px —— 所以这个新按钮不复用它们的高度。 */
+.md-seqbtn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--md-line-strong);
+  border-radius: var(--md-radius-badge);
+  background: var(--md-bg-card);
+  color: var(--md-ink-2);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--md-dur-hover) ease,
+    border-color var(--md-dur-hover) ease;
+}
+
+.md-seqbtn:hover:not(:disabled) {
+  color: var(--md-orange-dark);
+  border-color: var(--md-orange-dark);
+}
+
+.md-seqbtn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* EL-124 示例行。凹槽规格与 P1 的「当场演示」(.md-adv__demo) **完全同构**，
+   刻意不新造样式：凹槽底 bg-sunken、圆角 radius-input、槽内 code 提亮回 bg-card。 */
+.md-rulepanel__demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-space-1);
+  padding: var(--md-space-2) var(--md-space-3);
+  border-radius: var(--md-radius-input);
+  background: var(--md-bg-sunken);
+}
+
+.md-rulepanel__demotitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--md-ink-3);
+}
+
+.md-rulepanel__demoline {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+}
+
+.md-rulepanel__demodot {
+  color: var(--md-ink-4);
+}
+
+.md-rulepanel__demo code {
+  background: var(--md-bg-card);
+}
+
+/* ★ 选择器**刻意写成两级**（`code.md-rulepanel__demonew`）。
+   `.md-rulepanel__demo code` 的特异性是 (0,1,1)，单写 `.md-rulepanel__demonew`
+   只有 (0,1,0) —— 会被上面那条盖掉，橘色高亮底根本不生效。
+   （P1 的「当场演示」就有这个现象；那是既有界面，本批不动，只保证**新的这一处**是对的。）*/
+.md-rulepanel__demo code.md-rulepanel__demonew {
+  color: var(--md-orange-dark);
+  background: var(--md-highlight-bg);
 }
 </style>

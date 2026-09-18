@@ -30,7 +30,17 @@ function rule(
   return { ...DEFAULT_RULE, ...patch, rule: { ...DEFAULT_RULE.rule, ...rulePatch } }
 }
 
-const ctx = (index = 0, total = 1, date = '2026-09-11') => ({ index, total, date })
+/**
+ * 规则上下文工厂。
+ * P3-1 给 `RuleContext` 加了必填的 `seedKey`（「随机字符」类型的种子来源）。
+ * 本文件用的都是数字 / 日期，用不到它，所以给一个固定值 —— **断言本身一个字没改**。
+ */
+const ctx = (index = 0, total = 1, date = '2026-09-11', seedKey = 'seed-fixed') => ({
+  index,
+  total,
+  date,
+  seedKey,
+})
 
 /* ── TC-21 正则删除 ─────────────────────────────────────────────────── */
 

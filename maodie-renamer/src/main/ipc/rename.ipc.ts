@@ -8,53 +8,18 @@
 import { ipcMain } from 'electron'
 import { CH } from '@shared/channels'
 import { MD_ERROR, MdError } from '@shared/errors'
-import { DEFAULT_RULE, type ExecuteRequest, type RuleConfig } from '@shared/types'
+import { sanitizeRule } from '@shared/sanitize-rule'
+import type { ExecuteRequest } from '@shared/types'
 import { cancelRenameTask, runRenameTask } from '../services/rename-service'
 import { getMainWindow } from '../window'
 import { business } from './result'
 
-/** 不信任渲染层：把入参逐字段收敛成合法形状 */
-function sanitizeRule(raw: unknown): RuleConfig {
-  const src = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
-  const r = (typeof src.rule === 'object' && src.rule !== null ? src.rule : {}) as Record<string, unknown>
-  const del = (typeof src.delete === 'object' && src.delete !== null ? src.delete : {}) as Record<string, unknown>
-  const rep = (typeof src.replace === 'object' && src.replace !== null ? src.replace : {}) as Record<string, unknown>
-
-  const str = (v: unknown, d = ''): string => (typeof v === 'string' ? v : d)
-  const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d)
-  const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : d)
-
-  const mode = src.mode === 'replace' || src.mode === 'rule' ? src.mode : 'delete'
-  const seqPosition = r.seqPosition === 'prefix' ? 'prefix' : 'suffix'
-  const dateFormat =
-    r.dateFormat === 'YYYYMMDD' || r.dateFormat === 'YYYY年MM月DD日' ? r.dateFormat : 'YYYY-MM-DD'
-  const caseTransform =
-    src.caseTransform === 'lower' || src.caseTransform === 'upper' || src.caseTransform === 'capitalize'
-      ? src.caseTransform
-      : 'none'
-
-  return {
-    mode,
-    caseSensitive: bool(src.caseSensitive, DEFAULT_RULE.caseSensitive),
-    autoResolveConflict: bool(src.autoResolveConflict, DEFAULT_RULE.autoResolveConflict),
-    regexEnabled: bool(src.regexEnabled, DEFAULT_RULE.regexEnabled),
-    caseTransform,
-    delete: { text: str(del.text) },
-    replace: { find: str(rep.find), to: str(rep.to) },
-    rule: {
-      prefix: str(r.prefix),
-      suffix: str(r.suffix),
-      seqEnabled: bool(r.seqEnabled, false),
-      seqStart: Math.max(0, Math.trunc(num(r.seqStart, 1))),
-      seqStep: Math.max(1, Math.trunc(num(r.seqStep, 1))),
-      seqPad: Math.min(6, Math.max(0, Math.trunc(num(r.seqPad, 3)))),
-      seqPosition,
-      dateEnabled: bool(r.dateEnabled, false),
-      dateFormat,
-      keepOriginal: bool(r.keepOriginal, true),
-    },
-  }
-}
+/* P3-1：`sanitizeRule` 本体已挪到 `@shared/sanitize-rule.ts`。
+   它是纯函数，而住在 main/ 里时 `node --test` 根本 import 不动这个模块
+   （顶层 `import { ipcMain } from 'electron'`），于是本项目**最容易出错的一处**
+   反而一条单测都写不了。挪到共享层后 `tests/p3-1-seq.test.ts` 能直接盯住它，
+   用的是「喂进去 → 取出来」这种最直接的形状。
+   它的钳制范围必须与 `stores/rule.ts` 的 `clamp()` **完全一致**。 */
 
 function sanitizeExecute(raw: unknown): ExecuteRequest {
   const src = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>

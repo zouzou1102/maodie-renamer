@@ -85,7 +85,26 @@ P1 能力：
   maodie.exe --rename --dir "D:\\下载\\素材" --delete "广告" --yes
 `
 
-const DATE_FORMATS: readonly string[] = ['YYYY-MM-DD', 'YYYYMMDD', 'YYYY年MM月DD日']
+/**
+ * `--date-format` 的白名单。
+ *
+ * P3-1 从 3 档扩到 5 档：新格式对「启用日期」同时生效，命令行自然也要认。
+ *
+ * ⚠️ 与设计文档 §7.3 第 3 条的一处出入（已核实）：那里写的是「`--rule '{...}'`
+ *    的解析同样要认这 6 个字段与 `'at'`」—— 但**本文件从来没有 `--rule` 这个开关**
+ *    （参数是 `--delete` / `--prefix` / `--seq` 这类，逐个落进 `RuleConfig`）。
+ *    真正带 `--rule <JSON>` 的是开发用的 `scripts/cli-verify.ts`，它把 JSON 直接
+ *    当 `RuleConfig` 用，多出来的字段本来就跟着走。
+ *    所以这里**只需要补日期样式白名单**：新增的 6 个字段由 `DEFAULT_RULE` 的展开
+ *    自动带上默认值，命令行也就天然保持 P0/P1 的老行为。
+ */
+const DATE_FORMATS: readonly string[] = [
+  'YYYY-MM-DD',
+  'YYYYMMDD',
+  'YYYY年MM月DD日',
+  'MM月DD日',
+  'YYMMDD',
+]
 
 export function parseCliArgs(
   argv: string[],
