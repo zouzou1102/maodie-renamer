@@ -11,6 +11,7 @@ import { computed, ref } from 'vue'
 import { DEFAULT_RULE, type RuleConfig, type RuleMode } from '@shared/types'
 import { buildRuleSummary } from '@shared/rule-summary'
 import { compileRegex } from '@shared/rule-engine'
+import { cloneTemplateRule, type RuleTemplate } from '@shared/templates'
 
 function cloneDefault(): RuleConfig {
   return { ...DEFAULT_RULE, delete: { ...DEFAULT_RULE.delete }, replace: { ...DEFAULT_RULE.replace }, rule: { ...DEFAULT_RULE.rule } }
@@ -82,5 +83,27 @@ export const useRuleStore = defineStore('rule', () => {
     rule.value = cloneDefault()
   }
 
-  return { rule, summary, activeMode, regexError, setMode, patch, patchInner, reset }
+  /**
+   * P2-B（F-12）套用常用规则模板：**整份替换** RuleConfig。
+   *
+   * 为什么是整份替换、而不是「只补不覆盖」：那样"套用"的语义就模糊了 ——
+   * 用户不知道点下去会改什么、不会改什么，还会出现「一半来自模板、一半是上次填的」。
+   * 整份替换，点完就知道自己现在的完整状态（设计 §4.1）。页签不用特意去动，
+   * 它读的是 `rule.mode`，会自己跟上。
+   *
+   * ⚠️ **必须走 `cloneTemplateRule()` 深拷贝。** 直接 `rule.value = t.rule`
+   *    是把模板常量的引用交了出去：用户随后每一次改参数都会改到 `RULE_TEMPLATES`
+   *    本身，第二次点这个模板拿到的就不是原始模板了。那种 bug 的表现是
+   *    「模板越用越怪」，而**界面永远不报错**（TC-41 专门钉它）。
+   *
+   * 为什么在这里再 `clamp()` 一次：模板虽是内置的、值本来就合法，但规则越界钳制
+   * （IX-044）是**任何**写入路径都不能绕过的底线。将来若有人给模板填个 99，
+   * 这里能兜住，不用去翻每个模板的数值。
+   */
+  function applyTemplate(t: RuleTemplate): void {
+    rule.value = cloneTemplateRule(t)
+    clamp()
+  }
+
+  return { rule, summary, activeMode, regexError, setMode, patch, patchInner, reset, applyTemplate }
 })

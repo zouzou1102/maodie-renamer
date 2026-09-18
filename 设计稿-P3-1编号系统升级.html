@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设计稿 · 第 1 批 编号系统升级（耄耋改名）</title>
+<style>
+/* ══ 设计令牌：与 src/renderer/src/styles/tokens.css 逐字一致 ══════════
+   本稿所有颜色 / 圆角 / 间距都取自令牌，**不引入任何新色值**。
+   深色块挂在 prefers-color-scheme 上（与产品实现一致）。 */
+:root{
+  color-scheme: light;
+  --md-orange-primary:#f5a623; --md-orange-accent:#ff8a3d; --md-orange-dark:#e08b33; --md-orange-soft:#fff3e2;
+  --md-bg-cream:#fffbf5; --md-bg-card:#ffffff; --md-bg-warm:#fff6e9; --md-bg-titlebar:#fff4e4;
+  --md-bg-sunken:#f7efe3; --md-bg-disabled:#e8dcd0; --md-line:#f0e4d4; --md-line-strong:#c8bbae;
+  --md-ink-1:#3a2a20; --md-ink-2:#6b5b4d; --md-ink-3:#8a8178; --md-ink-4:#b9ac9e;
+  --md-ok:#4caf7d; --md-bad:#e5544b; --md-warn:#f0a020; --md-neutral-bg:#eae3d8; --md-highlight-bg:#fff0dc;
+  --md-on-brand:#2a1a10;
+  --md-switch-thumb:#ffffff; --md-switch-track-line:transparent;
+  --md-focus-ring:rgba(245,166,35,.18);
+  --md-bg-muted:#f7f3ec; --md-line-disabled:#e0d6c8;
+  --md-space-1:4px; --md-space-2:8px; --md-space-3:12px; --md-space-4:16px; --md-space-5:20px; --md-space-6:24px;
+  --md-radius-card:16px; --md-radius-input:10px; --md-radius-tabwrap:14px; --md-radius-tab:10px; --md-radius-badge:6px;
+  --md-shadow-card:0 4px 16px rgba(180,120,60,.12); --md-shadow-tab:0 2px 6px rgba(180,120,60,.16);
+  --md-shadow-btn-hover:0 4px 12px rgba(180,120,60,.28);
+  --md-font-ui:'Noto Sans SC','Microsoft YaHei','PingFang SC',system-ui,sans-serif;
+  --md-font-num:Inter,'Noto Sans SC',system-ui,sans-serif;
+  --md-ctrl-h:40px; --md-dur-hover:180ms;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --md-orange-soft:#3a2a1c;
+    --md-bg-cream:#251a14; --md-bg-card:#2e2119; --md-bg-warm:#211710; --md-bg-titlebar:#211710;
+    --md-bg-sunken:#1a1210; --md-bg-disabled:#3b2c24; --md-line:#3a2b22; --md-line-strong:#584236;
+    --md-ink-1:#f2e9e0; --md-ink-2:#cbb9a8; --md-ink-3:#9c8a7b; --md-ink-4:#6e5d50;
+    --md-bad:#ff6b60; --md-neutral-bg:#362820; --md-highlight-bg:#3d2c18;
+    --md-switch-track-line:#5e4a3b;
+    --md-focus-ring:rgba(255,177,61,.28);
+    --md-bg-muted:#362820; --md-line-disabled:#4e3d32;
+    --md-shadow-card:0 4px 16px rgba(0,0,0,.4); --md-shadow-tab:0 2px 6px rgba(0,0,0,.4);
+    --md-shadow-btn-hover:0 4px 12px rgba(0,0,0,.5);
+  }
+}
+
+/* ══ 稿纸本身 ══════════════════════════════════════════════════════ */
+*{box-sizing:border-box}
+body{
+  margin:0;padding:28px 24px 64px;background:var(--md-bg-cream);color:var(--md-ink-1);
+  font-family:var(--md-font-ui);font-size:13px;line-height:1.6;
+}
+.wrap{max-width:1040px;margin:0 auto}
+.sheet-h{font-size:20px;font-weight:700;margin:0 0 4px}
+.sheet-sub{color:var(--md-ink-2);font-size:12.5px;margin:0 0 6px}
+.sheet-meta{color:var(--md-ink-3);font-size:12px;margin:0}
+.banner{
+  margin:18px 0 30px;padding:10px 14px;border-radius:var(--md-radius-input);
+  background:var(--md-bg-sunken);color:var(--md-ink-2);font-size:12.5px;
+}
+h2.sec{
+  font-size:14px;font-weight:700;margin:38px 0 4px;padding-top:16px;
+  border-top:1px solid var(--md-line);
+}
+h2.sec:first-of-type{border-top:0;padding-top:0}
+p.sec-sub{color:var(--md-ink-3);font-size:12.5px;margin:0 0 18px}
+
+figure{margin:0 0 34px}
+figcaption{margin:0 0 10px}
+.cap-t{font-size:13px;font-weight:600;display:block;margin-bottom:4px}
+.cap-t .no{
+  display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;
+  background:var(--md-orange-soft);color:var(--md-orange-dark);border-radius:5px;
+  font-family:var(--md-font-num);font-size:11px;font-weight:700;margin-right:6px;padding:0 4px;
+}
+ul.notes{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:3px}
+ul.notes li{font-size:12.5px;color:var(--md-ink-2);padding-left:15px;position:relative}
+ul.notes li::before{content:'';position:absolute;left:4px;top:8px;width:4px;height:4px;border-radius:50%;background:var(--md-orange-primary)}
+ul.notes li code{font-family:var(--md-font-num);background:var(--md-bg-sunken);border-radius:4px;padding:0 4px;font-size:12px}
+.bad{color:var(--md-bad)}
+.mono{font-family:var(--md-font-num)}
+
+/* ══ 面板复刻（与 RulePanel.vue / base.css 同构）════════════════════ */
+.panel{
+  background:var(--md-bg-card);border-radius:var(--md-radius-card);box-shadow:var(--md-shadow-card);
+  padding:var(--md-space-3);display:flex;flex-direction:column;gap:var(--md-space-3);width:700px;max-width:100%;
+}
+.tabs{display:flex;gap:var(--md-space-1);padding:var(--md-space-1);border-radius:var(--md-radius-tabwrap);background:var(--md-bg-sunken)}
+.tab{
+  flex:1;height:34px;border:0;border-radius:var(--md-radius-tab);background:transparent;font-family:inherit;
+  font-size:13px;font-weight:500;color:var(--md-ink-3);cursor:pointer;
+}
+.tab.active{background:var(--md-bg-card);color:var(--md-orange-dark);font-weight:600;box-shadow:var(--md-shadow-tab)}
+.form{display:grid;grid-template-columns:68px minmax(0,1fr);align-items:center;gap:var(--md-space-2)}
+.lbl{font-size:12.5px;font-weight:500;color:var(--md-ink-2)}
+.span{grid-column:1 / -1}
+.input{
+  height:var(--md-ctrl-h);width:100%;padding:0 12px;border:1px solid var(--md-line);
+  border-radius:var(--md-radius-input);background:var(--md-bg-card);font-family:inherit;
+  font-size:13px;color:var(--md-ink-1);
+}
+.input::placeholder{color:var(--md-ink-4)}
+.input.num{width:104px;font-family:var(--md-font-num);font-weight:500}
+.input.date{width:142px;font-family:var(--md-font-num)}
+.input.at{width:64px;font-family:var(--md-font-num);font-weight:500;text-align:center}
+.select{
+  height:var(--md-ctrl-h);padding:0 12px;border:1px solid var(--md-line);border-radius:var(--md-radius-input);
+  background:var(--md-bg-card);font-family:inherit;font-size:13px;color:var(--md-ink-1);cursor:pointer;
+}
+.hint{font-size:11.5px;line-height:16px;color:var(--md-ink-3);margin:0}
+.group{
+  grid-column:1 / -1;display:flex;flex-direction:column;gap:var(--md-space-2);
+  padding:var(--md-space-2);border-radius:var(--md-radius-input);background:var(--md-bg-warm);
+}
+.nums{display:flex;gap:var(--md-space-3);flex-wrap:wrap;align-items:center}
+.numitem,.picker{display:flex;align-items:center;gap:var(--md-space-2);font-size:12.5px;color:var(--md-ink-2)}
+.check{display:inline-flex;align-items:center;gap:var(--md-space-2);font-size:12.5px;font-weight:500;color:var(--md-ink-2)}
+.check .box{
+  width:18px;height:18px;border:1.5px solid var(--md-line-strong);border-radius:5px;background:var(--md-bg-card);
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.check .box.on{background:var(--md-orange-primary);border-color:var(--md-orange-primary)}
+.check .box .tick{width:11px;height:11px;opacity:0;display:inline-flex}
+.check .box.on .tick{opacity:1}
+
+/* 示例行（新增 EL-124）：与 .md-adv__demo 同款凹槽 */
+.demo{display:flex;flex-direction:column;gap:var(--md-space-1);padding:var(--md-space-2) var(--md-space-3);
+  border-radius:var(--md-radius-input);background:var(--md-bg-sunken)}
+.demo-t{font-size:12px;color:var(--md-ink-3);margin:0}
+.demo-l{margin:0;display:flex;align-items:center;gap:var(--md-space-2);flex-wrap:wrap;font-size:12.5px}
+.demo code{font-family:var(--md-font-num);background:var(--md-bg-card);border-radius:4px;padding:1px 5px;font-size:12.5px;color:var(--md-ink-1)}
+.demo code.new{color:var(--md-orange-dark);background:var(--md-highlight-bg);font-weight:500}
+.demo .sep{color:var(--md-ink-4)}
+.demo .tiny{font-size:11.5px;color:var(--md-ink-3)}
+
+/* 换一批（新增 EL-125）：自带高 28px，满足 WCAG 2.5.8 AA（≥24px） */
+.reroll{
+  min-height:28px;padding:0 10px;border:1px solid var(--md-line-strong);background:var(--md-bg-card);
+  color:var(--md-ink-2);border-radius:var(--md-radius-badge);font-family:inherit;font-size:12px;
+  cursor:pointer;display:inline-flex;align-items:center;gap:4px;
+}
+.reroll:hover{color:var(--md-orange-dark);border-color:var(--md-orange-dark)}
+
+/* 进阶折叠条 + 底部开关（仅为图 1 的上下文）*/
+.adv{display:flex;align-items:center;gap:var(--md-space-2);color:var(--md-orange-dark);font-size:12.5px;font-weight:500}
+.adv .badge{background:var(--md-orange-soft);color:var(--md-orange-dark);border-radius:var(--md-radius-badge);padding:3px 8px;font-size:11px;line-height:1}
+.adv .caret{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:5px solid currentColor}
+.foot{border-top:1px solid var(--md-line);padding-top:var(--md-space-3);display:flex;flex-direction:column;gap:var(--md-space-1)}
+.switch{display:inline-flex;align-items:center;gap:var(--md-space-2);font-size:12.5px;font-weight:500;color:var(--md-ink-2)}
+.switch .track{width:46px;height:26px;border-radius:13px;background:var(--md-bg-disabled);border:1px solid var(--md-switch-track-line);position:relative;display:inline-block}
+.switch .thumb{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--md-switch-thumb);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+
+/* ══ 规格表 ══════════════════════════════════════════════════════ */
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin:6px 0 0}
+th,td{border:1px solid var(--md-line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--md-bg-sunken);font-weight:600;color:var(--md-ink-2)}
+td code{font-family:var(--md-font-num);background:var(--md-bg-sunken);border-radius:4px;padding:0 4px}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;border:1px solid var(--md-line-strong);vertical-align:-1px;margin-right:4px}
+.foot-note{margin-top:34px;padding-top:14px;border-top:1px solid var(--md-line);color:var(--md-ink-3);font-size:12px}
+
+/* 用行内样式钉住深色值的对照块（仅本页需要）*/
+.dk{background:#2e2119;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.dk-group{background:#211710}
+.dk-ink{color:#cbb9a8}
+.dk-t{color:#9c8a7b}
+.dk-ctrl{background:#2e2119;border-color:#3a2b22;color:#f2e9e0}
+.dk-demo{background:#1a1210}
+.dk-code{background:#2e2119;color:#3a2a20}
+.dk-new{background:#3d2c18;color:#e08b33}
+
+/* 窄屏（预览面板里可能只有 700 出头）*/
+@media (max-width:820px){
+  .panel{width:100%}
+  body{padding:16px 12px 48px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1 class="sheet-h">第 1 批 · 编号系统升级</h1>
+  <p class="sheet-sub">耄耋改名（MaoDie Renamer）· 规则化模式 · 序号组增量设计</p>
+  <p class="sheet-meta">规格稿 v1.0 · 2026-09-18 · 对应文档 <span class="mono">P3-1编号系统升级轻量设计确认.md</span></p>
+
+  <div class="banner">
+    <strong>关于本稿：</strong>这是一份<b>规格稿（HTML 规格页）</b>，不是画布画板 —— 本轮画布服务连不上，先用能直接打开、能逐像素核对的方式出稿。
+    所有颜色 / 圆角 / 间距均取自 <span class="mono">tokens.css</span> 既有令牌，<b>零新增色值</b>；深色块与产品实现一样挂在 <span class="mono">prefers-color-scheme</span> 上。
+    画布恢复后我会把同样的内容原样搬成画板。<br>
+    <b>全稿统一把示例文件名取作「【素材】」</b> —— 与你举的例子同一个名字，这样一眼就能核对结果对不对。
+  </div>
+
+  <h2 class="sec">一 · 这张稿要解决什么</h2>
+  <p class="sec-sub">现在的序号只有「数字 + 补零」一种，位置只有「最前 / 最后」两档。这一批把它扩成 <b>4 种类型 × 3 档位置</b>，并加一行「当场算给你看」的示例。</p>
+
+  <figure>
+    <figcaption>
+      <span class="cap-t"><span class="no">1</span>整体位置 —— 新增的东西全都待在「序号组」里面</span>
+      <ul class="notes">
+        <li>组内顺序：<b>启用序号 → 位置 → 类型 → 参数（随类型变）→ 示例</b>。</li>
+        <li>「前缀 / 后缀 / 启用日期 / 保留原文件名 / 进阶设置 / 自动处理重名」<b>一个字都没动</b>。</li>
+        <li>示例行（EL-124）在规则化模式下<b>常显</b> —— 不像 P1 的「当场演示」藏在进阶折叠里。理由：P1 的演示是给「想用正则的进阶用户」看的，而编号是所有人都要配的东西，参数一改就必须立刻看到结果。</li>
+      </ul>
+    </figcaption>
+
+    <div class="panel">
+      <div class="tabs">
+        <button class="tab">删除字符</button>
+        <button class="tab">替换字符</button>
+        <button class="tab active">规则化</button>
+      </div>
+      <div class="form">
+        <label class="lbl">前缀</label>
+        <input class="input" placeholder="如 {d}-发票-">
+        <label class="lbl">后缀</label>
+        <input class="input" placeholder="加在扩展名之前">
+        <p class="hint span">支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期 —— 变量需先勾选下方对应开关</p>
+
+        <div class="group">
+          <label class="check"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用序号</label>
+
+          <label class="picker"><span>位置</span>
+            <select class="select">
+              <option>排在最前</option>
+              <option>排在最后</option>
+              <option>插在第 n 个字符后</option>
+            </select>
+          </label>
+
+          <label class="picker"><span>类型</span>
+            <select class="select">
+              <option>数字</option><option>字母</option><option>随机字符</option><option>时间</option>
+            </select>
+          </label>
+
+          <div class="nums">
+            <label class="numitem"><span>起始</span><input class="input num" value="4"></label>
+            <label class="numitem"><span>增量</span><input class="input num" value="4"></label>
+            <label class="numitem"><span>位数</span><input class="input num" value="0"></label>
+          </div>
+
+          <div class="demo">
+            <p class="demo-t">示例（拿「【素材】」这个名字试的，不是你列表里的文件）</p>
+            <p class="demo-l">
+              <code class="new">4【素材】</code><span class="sep">·</span>
+              <code class="new">8【素材】</code><span class="sep">·</span>
+              <code class="new">12【素材】</code>
+            </p>
+          </div>
+        </div>
+
+        <div class="group">
+          <label class="check"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用日期（取执行当天）</label>
+          <label class="picker"><span>日期格式</span>
+            <select class="select">
+              <option>2026-09-18</option><option>20260918</option><option>2026年09月18日</option>
+              <option>09月18日</option><option>260918</option>
+            </select>
+          </label>
+          <p class="hint">日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。</p>
+        </div>
+
+        <label class="check span"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>保留原文件名（取消则丢弃原主体）</label>
+      </div>
+
+      <div class="adv">
+        <span>⚙</span><span>进阶设置</span>
+        <span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px"><span class="badge">已启用 1 项</span><span class="caret"></span></span>
+      </div>
+
+      <div class="foot">
+        <label class="switch"><span class="track"><span class="thumb"></span></span>自动处理重名冲突</label>
+        <p class="hint">关闭时冲突项会被跳过。无论开关如何，都「不会覆盖」任何已有文件。</p>
+      </div>
+    </div>
+  </figure>
+
+  <h2 class="sec">二 · 四种编号类型</h2>
+  <p class="sec-sub">「类型」就是这个新下拉的全部内容。切类型只换<b>参数行</b>，位置、示例、其他开关都不动。下面四张是同一个序号组的四个状态（其余部分同图 1，不再重复）。位置统一取「排在最前」，好跟你的例子对齐。</p>
+
+  <figure>
+    <figcaption>
+      <span class="cap-t"><span class="no">2</span>类型 = 数字（默认，与现在的行为一模一样）</span>
+      <ul class="notes">
+        <li>参数照旧三项：<b>起始 / 增量 / 位数</b>。只是「步长」按你的说法改叫<b>增量</b>、「补零」改叫<b>位数</b>。</li>
+        <li>位数填 0 = 不补零 → <code>4 / 8 / 12</code>（正是你举的那个例子）；填 3 → <code>004 / 008 / 012</code>。位数一填，示例行立刻跟着变，不用去猜这个框干嘛的。</li>
+        <li>三个框的<b>底层字段一个没改</b>，所以 P0 / P1 的老任务行为逐字节不变 —— 这一批对数字类型是纯改名（改标签），不是改逻辑。</li>
+      </ul>
+    </figcaption>
+    <div class="panel">
+      <div class="group">
+        <label class="check"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用序号</label>
+        <label class="picker"><span>位置</span><select class="select"><option>排在最前</option><option>排在最后</option><option>插在第 n 个字符后</option></select></label>
+        <label class="picker"><span>类型</span><select class="select"><option>数字</option><option>字母</option><option>随机字符</option><option>时间</option></select></label>
+        <div class="nums">
+          <label class="numitem"><span>起始</span><input class="input num" value="4"></label>
+          <label class="numitem"><span>增量</span><input class="input num" value="4"></label>
+          <label class="numitem"><span>位数</span><input class="input num" value="0"></label>
+        </div>
+        <div class="demo">
+          <p class="demo-t">示例（拿「【素材】」这个名字试的，不是你列表里的文件）</p>
+          <p class="demo-l"><code class="new">4【素材】</code><span class="sep">·</span><code class="new">8【素材】</code><span class="sep">·</span><code class="new">12【素材】</code></p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <span class="cap-t"><span class="no">3</span>类型 = 字母</span>
+      <ul class="notes">
+        <li>走 <b>Excel 列标</b>那套：1 → <code>A</code>、26 → <code>Z</code>、27 → <code>AA</code>、702 → <code>ZZ</code>、703 → <code>AAA</code>。中国人最熟的字母编号就是 Excel 的列标。</li>
+        <li>只有两个参数：<b>起始 / 增量</b>。「位数」直接不显示 —— 字母没有补零这回事，与其摆一个填了也没用的框，不如收起来。</li>
+        <li><b>起始会被钳到 1</b>：字母编号里 0 没有意义，填 0 自动变 1，不报错。</li>
+        <li>输出默认<b>大写</b>。想要小写不用在这里找开关 —— 进阶设置里的「大小写 → 全部小写」会把整个名字一起转过去，包括这几个字母。</li>
+      </ul>
+    </figcaption>
+    <div class="panel">
+      <div class="group">
+        <label class="check"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用序号</label>
+        <label class="picker"><span>位置</span><select class="select"><option>排在最前</option><option>排在最后</option><option>插在第 n 个字符后</option></select></label>
+        <label class="picker"><span>类型</span><select class="select"><option>字母</option><option>数字</option><option>随机字符</option><option>时间</option></select></label>
+        <div class="nums">
+          <label class="numitem"><span>起始</span><input class="input num" value="1"></label>
+          <label class="numitem"><span>增量</span><input class="input num" value="1"></label>
+        </div>
+        <div class="demo">
+          <p class="demo-t">示例（拿「【素材】」这个名字试的，不是你列表里的文件）</p>
+          <p class="demo-l"><code class="new">A【素材】</code><span class="sep">·</span><code class="new">B【素材】</code><span class="sep">·</span><code class="new">C【素材】</code></p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <span class="cap-t"><span class="no">4</span>类型 = 随机字符</span>
+      <ul class="notes">
+        <li>参数变成 <b>长度</b>（1–16 位）+ 一个 <b>「换一批」</b> 按钮。原来的「起始 / 增量」在这里无从谈起，所以收起来。</li>
+        <li><b>字符集只用 <span class="mono">a–z</span> 和 <span class="mono">0–9</span>（36 个）</b>。两个理由：① 不含 <span class="mono">&lt; &gt; : " / \ | ? *</span> 和空格，生成的名字天然合法；② <b>不掺大写</b> —— Windows 文件名不认大小写，一旦掺进大写，就可能出现「两个随机名只差大小写」而互相撞名，从来源上直接把这类冲突排除掉。</li>
+        <li><b>同一个文件每次预览拿到的随机串是同一个</b>（拿文件自己的 id 当种子算出来的）。这不是偷懒，是硬要求 —— 项目有条底线叫「预览 ≡ 执行」，随机值如果每次预览都重掷，用户看到的和真正改下去的就成了两个东西。想换一批，点「换一批」。</li>
+        <li>「换一批」做到 <b>28px 高</b>：无障碍标准（WCAG 2.5.8 AA）要求可点击目标至少 24×24 CSS px，而按钮类的既有样式只有 22px 高，够不上，所以这个新按钮单独给高度 —— <b>只加高度，不加色值</b>。</li>
+      </ul>
+    </figcaption>
+    <div class="panel">
+      <div class="group">
+        <label class="check"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用序号</label>
+        <label class="picker"><span>位置</span><select class="select"><option>排在最前</option><option>排在最后</option><option>插在第 n 个字符后</option></select></label>
+        <label class="picker"><span>类型</span><select class="select"><option>随机字符</option><option>数字</option><option>字母</option><option>时间</option></select></label>
+        <div class="nums">
+          <label class="numitem"><span>长度</span><input class="input num" value="6"></label>
+          <button class="reroll">↻ 换一批</button>
+        </div>
+        <div class="demo">
+          <p class="demo-t">示例（拿「【素材】」这个名字试的，不是你列表里的文件）</p>
+          <p class="demo-l"><code class="new">k7f2q9【素材】</code><span class="sep">·</span><code class="new">p3m8ax【素材】</code><span class="sep">·</span><code class="new">w1n6ht【素材】</code></p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <span class="cap-t"><span class="no">5</span>类型 = 时间（按你说的：定一个起点，每个文件往后推）</span>
+      <ul class="notes">
+        <li>三个参数：<b>起点 / 样式 / 增量（天）</b>。起点默认是「你点选『时间』那一刻」的本机日期，你可以改成任意一天。</li>
+        <li>增量单位是<b>天</b>，默认 1 —— 第 1 个文件用起点，第 2 个 +1 天，第 3 个 +2 天，以此类推。填 7 就是一周一个，填 0 就是所有文件同一天。</li>
+        <li>「位数」在时间类型下不显示 —— 补不补零是<b>样式</b>说了算（<span class="mono">MM</span> = 09、<span class="mono">M</span> = 9），再摆一个位数框只会打架。</li>
+        <li><b>起点会被冻结进规则本身</b>，所以它<b>永远不会漂移</b>：23:58 预览、00:01 执行，时间串还是照那个起点算，与预览逐字节一致。</li>
+        <li>样式比现在多两档：<code>09月18日</code>（适合按月建文件夹）和 <code>260918</code>。这两档对上面的「启用日期」也一起生效 —— 用的是同一个样式表。</li>
+        <li class="bad"><b>⚠️ 真正会漂移的是上面的「启用日期」</b>（它取的是执行当天）。这个坑<b>现在就存在</b>，与这一批无关；而且已经有挡板：主进程会校验「传进来的日期必须等于本机今天」，跨过零点会被挡下并要求重新预览。这一批不顺带改它，只在文档里写清、并在日期组下面加一句提示。</li>
+      </ul>
+    </figcaption>
+    <div class="panel">
+      <div class="group">
+        <label class="check"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用序号</label>
+        <label class="picker"><span>位置</span><select class="select"><option>排在最前</option><option>排在最后</option><option>插在第 n 个字符后</option></select></label>
+        <label class="picker"><span>类型</span><select class="select"><option>时间</option><option>数字</option><option>字母</option><option>随机字符</option></select></label>
+        <div class="nums">
+          <label class="numitem"><span>起点</span><input class="input date" value="2026-09-18"></label>
+          <label class="numitem"><span>样式</span><select class="select"><option>2026年09月18日</option><option>2026-09-18</option><option>20260918</option><option>09月18日</option><option>260918</option></select></label>
+          <label class="numitem"><span>增量（天）</span><input class="input num" value="1"></label>
+        </div>
+        <div class="demo">
+          <p class="demo-t">示例（拿「【素材】」这个名字试的，不是你列表里的文件）</p>
+          <p class="demo-l"><code class="new">2026年09月18日【素材】</code><span class="sep">·</span><code class="new">2026年09月19日【素材】</code><span class="sep">·</span><code class="new">2026年09月20日【素材】</code></p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <h2 class="sec">三 · 位置：两档变三档</h2>
+  <p class="sec-sub">新增第三档「插在第 n 个字符后」。选中它时，右边就地长出一个数字框 —— <b>不另开一行</b>，因为位置本身还是一个控件。</p>
+
+  <figure>
+    <figcaption>
+      <span class="cap-t"><span class="no">6</span>第三档的位置与边界</span>
+      <ul class="notes">
+        <li><b>排在最前</b> → 序号在名字前面；<b>排在最后</b> → 序号在名字后面。这两档与现在完全一样，没动。</li>
+        <li><b>插在第 n 个字符后</b>：n 数的是<b>原文件名的字</b>，中文一个字算 1 个，空格也算 1 个。<code>【素材】</code> 有 4 个字，n = 3 → <code>【素材1】</code>（插在「材」和「】」之间）。</li>
+        <li><b>数字数在「主体」上，扩展名永远不参与</b>（EX-07 扩展名保护）—— <code>【素材】.docx</code> 里 <span class="mono">.docx</span> 既不算长度、也不会被插进去。</li>
+        <li><b>越界自动落到末尾，不报错</b>：名字只有 2 个字却填「第 3 个字符后」→ 等价于「排在最后」。宁可按最接近的意思办，也不弹一个用户看不懂的错。</li>
+        <li>连 emoji 或生僻字也不会被劈成半个 —— 数字按<b>码点</b>切，不按字节切。半个字符会生成出非法文件名，这是必须挡掉的。</li>
+      </ul>
+    </figcaption>
+    <div class="panel">
+      <div class="group">
+        <label class="check"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用序号</label>
+        <label class="picker"><span>位置</span>
+          <select class="select"><option>插在第 n 个字符后</option><option>排在最前</option><option>排在最后</option></select>
+          <input class="input at" value="3">
+        </label>
+        <label class="picker"><span>类型</span><select class="select"><option>数字</option><option>字母</option><option>随机字符</option><option>时间</option></select></label>
+        <div class="nums">
+          <label class="numitem"><span>起始</span><input class="input num" value="1"></label>
+          <label class="numitem"><span>增量</span><input class="input num" value="1"></label>
+          <label class="numitem"><span>位数</span><input class="input num" value="0"></label>
+        </div>
+        <p class="hint">数字超出名字长度时，会自动放到末尾。</p>
+        <div class="demo">
+          <p class="demo-t">示例（第 3 个字符后）</p>
+          <p class="demo-l">
+            <code class="plain">【素材】</code><span class="sep">→</span><code class="new">【素材1】</code>
+            <span class="sep">｜</span>
+            <code class="plain">素材</code><span class="sep">→</span><code class="new">素材1</code><span class="tiny">（只有 2 个字，落到末尾）</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <h2 class="sec">四 · 深色模式</h2>
+  <p class="sec-sub">新控件全部复用既有类，<b>没有新增一个色值</b>，所以深色自动成立。下面两张是深色下的实际取值。</p>
+
+  <figure>
+    <figcaption>
+      <span class="cap-t"><span class="no">7</span>深色 · 数字类型</span>
+      <ul class="notes">
+        <li>层级方向与浅色一致：<b>卡片最亮（<span class="mono">#2E2119</span>）→ 组底（<span class="mono">#211710</span>）→ 示例凹槽最暗（<span class="mono">#1A1210</span>）</b>，所以示例行仍然「凹」得下去。方向一旦弄反，凹槽会比底色还亮，等于没有。</li>
+        <li>示例里的新名用橘色字 + <span class="mono">highlight-bg #3D2C18</span>，与文件列表里「新名高亮」同色系。</li>
+        <li>输入框、下拉、复选框、开关全是既有类 —— 深色下的边框、禁用态、焦点环不用另写一行。</li>
+      </ul>
+    </figcaption>
+    <div class="panel dk">
+      <div class="group dk-group">
+        <label class="check dk-ink"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用序号</label>
+        <label class="picker dk-ink"><span>位置</span><select class="select dk-ctrl"><option>排在最前</option><option>排在最后</option><option>插在第 n 个字符后</option></select></label>
+        <label class="picker dk-ink"><span>类型</span><select class="select dk-ctrl"><option>数字</option><option>字母</option><option>随机字符</option><option>时间</option></select></label>
+        <div class="nums">
+          <label class="numitem dk-ink"><span>起始</span><input class="input num dk-ctrl" value="4"></label>
+          <label class="numitem dk-ink"><span>增量</span><input class="input num dk-ctrl" value="4"></label>
+          <label class="numitem dk-ink"><span>位数</span><input class="input num dk-ctrl" value="0"></label>
+        </div>
+        <div class="demo dk-demo">
+          <p class="demo-t dk-t">示例（拿「【素材】」这个名字试的，不是你列表里的文件）</p>
+          <p class="demo-l">
+            <code class="dk-code">4【素材】</code><span class="sep">·</span>
+            <code class="dk-code">8【素材】</code><span class="sep">·</span>
+            <code class="dk-code">12【素材】</code>
+          </p>
+        </div>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:6px">※ 这一段为了在同一页里同时展示两种主题，用行内样式钉住了深色值；产品里由 <span class="mono">prefers-color-scheme</span> 自动切换，组件内不写任何颜色。</p>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <span class="cap-t"><span class="no">8</span>深色 · 时间类型（含新增的日期输入框）</span>
+      <ul class="notes">
+        <li><b>唯一要盯一眼的地方：原生日期框（<span class="mono">&lt;input type="date"&gt;</span>）里的日历图标和小三角是浏览器自己画的</b>，不受我们的 CSS 管，只能靠 <span class="mono">color-scheme: dark</span> 让它变深。产品里 root 上已经设了这行，理论上是对的，但<b>必须真机上肉眼确认一次</b> —— 我把它列进「未验到」清单，不当成已通过。</li>
+      </ul>
+    </figcaption>
+    <div class="panel dk">
+      <div class="group dk-group">
+        <label class="check dk-ink"><span class="box on"><span class="tick"><svg width="11" height="11" viewBox="0 0 11 11"><path fill="#2a1a10" d="M1 5.6 4 8.6 10 2.2 8.7 1 4 5.9 2.3 4.2z"/></svg></span></span>启用序号</label>
+        <label class="picker dk-ink"><span>位置</span><select class="select dk-ctrl"><option>排在最前</option><option>排在最后</option><option>插在第 n 个字符后</option></select></label>
+        <label class="picker dk-ink"><span>类型</span><select class="select dk-ctrl"><option>时间</option><option>数字</option><option>字母</option><option>随机字符</option></select></label>
+        <div class="nums">
+          <label class="numitem dk-ink"><span>起点</span><input class="input date dk-ctrl" value="2026-09-18"></label>
+          <label class="numitem dk-ink"><span>样式</span><select class="select dk-ctrl"><option>2026年09月18日</option><option>2026-09-18</option><option>20260918</option><option>09月18日</option><option>260918</option></select></label>
+          <label class="numitem dk-ink"><span>增量（天）</span><input class="input num dk-ctrl" value="1"></label>
+        </div>
+        <div class="demo dk-demo">
+          <p class="demo-t dk-t">示例（拿「【素材】」这个名字试的，不是你列表里的文件）</p>
+          <p class="demo-l">
+            <code class="dk-new">2026年09月18日【素材】</code><span class="sep">·</span>
+            <code class="dk-new">2026年09月19日【素材】</code><span class="sep">·</span>
+            <code class="dk-new">2026年09月20日【素材】</code>
+          </p>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <h2 class="sec">五 · 规格与状态</h2>
+
+  <table>
+    <thead><tr><th style="width:30%">项</th><th>规格</th></tr></thead>
+    <tbody>
+      <tr><td>字号 / 字重</td><td>标签与既有「起始 / 步长」一致：<code>12.5px / 500</code>；输入框 <code>13px / 400</code>；数字与日期框用 <code>font-num</code>（Inter 等宽数字，位数对齐才看得清）</td></tr>
+      <tr><td>控件高度</td><td>全部沿用 <code>--md-ctrl-h = 40px</code>。可点击目标 ≥ 24×24 CSS px（WCAG 2.5.8 AA）达标</td></tr>
+      <tr><td>「换一批」按钮</td><td>高 <code>28px</code>、内边距 <code>0 10px</code>、圆角 <code>radius-badge 6px</code>、底 <code>bg-card</code>、描边 <code>line-strong</code>、字 <code>12px ink-2</code>；悬停时字与描边转 <code>orange-dark</code>。既有按钮类只有 22px 高，够不上 AA，所以这个新按钮单独给 28px</td></tr>
+      <tr><td>输入框宽度</td><td>起始 / 增量 / 位数 / 长度 / 增量（天）：<code>104px</code>（沿用既有 <code>md-input--num</code>）；「第 n 个字符后」<code>64px</code> 居中；起点日期框 <code>142px</code></td></tr>
+      <tr><td>间距</td><td>组内行间 <code>space-2 = 8px</code>；参数行内项间距 <code>space-3 = 12px</code>；组内边距 <code>space-2 = 8px</code>。全部沿用既有台阶，不新造 5 / 7 / 9 这类随手值</td></tr>
+      <tr><td>示例凹槽</td><td>底 <code>bg-sunken</code>、圆角 <code>radius-input 10px</code>、内边距 <code>8×12px</code>、槽内 <code>code</code> 提亮回 <code>bg-card</code>（与 P1 的「当场演示」同一套做法，不新造样式）</td></tr>
+      <tr><td>颜色</td><td><span class="swatch" style="background:var(--md-orange-dark)"></span>新名 / 激活 <code>orange-dark</code>　<span class="swatch" style="background:var(--md-highlight-bg)"></span>新名底 <code>highlight-bg</code>　<span class="swatch" style="background:var(--md-bg-sunken)"></span>凹槽 <code>bg-sunken</code>　<span class="swatch" style="background:var(--md-ink-3)"></span>说明字 <code>ink-3</code>　<span class="swatch" style="background:var(--md-bad)"></span>警示 <code>bad</code>。<b>全部为既有令牌</b></td></tr>
+      <tr><td>对比度</td><td>标签 <code>ink-2</code> on 组底 <code>bg-warm</code>：浅色 <b>7.0:1</b>、深色 <b>7.5:1</b>，都远超 AA 正文线（4.5:1）。说明字 <code>ink-3</code>：浅色 <b>4.9:1</b>、深色 <b>5.1:1</b>，也过线。示例里的新名 <code>orange-dark</code> on <code>highlight-bg</code>：浅色 <b>3.6:1</b>、深色 <b>3.5:1</b> —— 它是<b>强调而不是正文</b>（正文是左边那个原名字），且已加粗到 500，属装饰性强调；如果你希望它也更硬，我可以把它换成 <code>ink-1</code> + 橘色底纹，那就到 8:1 以上</td></tr>
+      <tr><td>禁用态</td><td>「启用序号」未勾选时，位置 / 类型 / 参数 / 换一批<b>整组置灰不可点</b>（沿用 <code>md-input:disabled</code> / <code>md-select:disabled</code>），示例行<b>整块不显示</b> —— 没启用就没什么可示例的，显示一行空槽只会让人以为坏了</td></tr>
+      <tr><td>键盘</td><td>Tab 顺序：位置 → 类型 → 起始 → 增量 → 位数（或长度 → 换一批）；选中「插在第 n 个字符后」时焦点自动落到那个数字框。焦点环沿用 <code>2px orange-primary + focus-ring</code></td></tr>
+      <tr><td>动效</td><td>只有参数行增减带来的高度变化，时长沿用 <code>dur-hover 180ms</code>。开启「减少动画」后归零（既有全局规则覆盖，无需新增）</td></tr>
+      <tr><td>主题</td><td>本批<b>不新增任何令牌</b>，因此也不需要在 <code>tokens.css</code> 的深色块里补任何值 —— 这是「零新增令牌」最实际的好处</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">六 · 必须一起改到的地方（漏一处就出静默 bug）</h2>
+  <p class="sec-sub">这一节不是给你看的，是留给实现的：详细理由见文档 §7。</p>
+  <table>
+    <thead><tr><th style="width:40%">位置</th><th>不改会发生什么</th></tr></thead>
+    <tbody>
+      <tr><td><code>src/main/ipc/rename.ipc.ts</code> 的 <code>sanitizeRule</code></td><td class="bad"><b>最阴的一处。</b>那里是逐字段白名单，新字段会被<b>静默丢掉</b> —— 预览是对的、执行是错的，而<b>界面上一点异常都没有</b>。这个项目已经被同一类问题坑过一次</td></tr>
+      <tr><td><code>src/shared/preview.ts</code> 构造 <code>RuleContext</code> 那一行</td><td>随机字符拿不到种子 → 每个文件算出同一个随机串，或者预览与执行不一致</td></tr>
+      <tr><td><code>src/shared/rule-engine.ts</code> 里的 <code>seqBefore</code> 布尔判断</td><td>第三档位置会<b>静默退化成「排在最后」</b>，而界面照常显示「插在第 n 个字符后」</td></tr>
+      <tr><td><code>src/shared/cli-args.ts</code> 的 <code>--rule</code> 解析</td><td>命令行改这几个新参数会被忽略，界面与命令行行为不一致</td></tr>
+      <tr><td><code>src/renderer/src/stores/rule.ts</code> 的 <code>clamp()</code></td><td>新的数值项失去越界保护，可以填出负数、超长</td></tr>
+      <tr><td><code>src/shared/rule-summary.ts</code></td><td>历史记录摘要说不清当时用了哪种编号、插在哪</td></tr>
+    </tbody>
+  </table>
+  <p class="hint" style="margin-top:8px">※ 日期加法<b>不能用 <span class="mono">new Date()</span></b>：时区与夏令时会把日期挪一天。要用纯整数的公历日序算法（年月日 → 天数 → 加 n 天 → 还原回去），这样跨月、跨年、闰年都确定，也才写得出单测。</p>
+
+  <p class="foot-note">
+    规格稿 v1.0 · 2026-09-18 · 耄耋改名 —— 本页所有数值取自 <span class="mono">tokens.css</span> / <span class="mono">base.css</span> / <span class="mono">RulePanel.vue</span> 的实际实现，不是示意性占位值。
+  </p>
+</div>
+</body>
+</html>

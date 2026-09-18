@@ -11,13 +11,29 @@
 import { computed, ref } from 'vue'
 import MdIcon from './MdIcon.vue'
 import { useRuleStore } from '../stores/rule'
+import { useFilesStore } from '../stores/files'
 import { CASE_TRANSFORM_OPTIONS } from '@shared/labels'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
+import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
 import { joinName, splitName } from '@shared/name-split'
 import { applyDelete, applyReplace } from '@shared/rule-engine'
 import type { CaseTransform, DateFormat, RuleMode, SeqPosition } from '@shared/types'
 
 const rule = useRuleStore()
+/** 套用模板后要给状态栏一句话，用既有的 3 秒轻提示位（不弹窗、不打断）*/
+const files = useFilesStore()
+
+/**
+ * P2-B EL-120 / IX-106：点一下 chip = 套用整份模板。
+ *
+ * 状态栏那句「已套用模板：X（已自动开启正则）」必须在**组件层**发起：
+ * `rule` store 刻意不 import `files` store（依赖方向只有 files → rule 一条，
+ * 见该文件开头），所以让 store 去弹提示会把依赖绕成环。
+ */
+function useTemplate(t: RuleTemplate): void {
+  rule.applyTemplate(t)
+  files.showTransient(templateAppliedMessage(t))
+}
 
 const TABS: Array<{ mode: RuleMode; label: string }> = [
   { mode: 'delete', label: '删除字符' },
@@ -96,6 +112,29 @@ function setNumber(key: 'seqStart' | 'seqStep' | 'seqPad', raw: string): void {
 
 <template>
   <section class="md-rulepanel">
+    <!-- ── P2-B · EL-120 常用规则（F-12 模板库）───────────────────────────
+         为什么长在**最上面、页签之前**：它是给「根本不知道该怎么配规则的人」
+         准备的一键入口。藏进下面的「⚙ 进阶设置」折叠区，就正好把目的反过来
+         —— 折叠区是给进阶用户做隔离用的（P2-B 设计 §2.1 / DEC-14）。
+         规格：小标题 12px Medium ink-3；chip 高 26px、内边距 4×11px、
+         圆角复用 --md-radius-chip 9px；底色橙三件套，**本批零新增令牌**。 -->
+    <div class="md-tpl" data-rule-templates>
+      <span class="md-tpl__title">常用规则</span>
+      <div class="md-tpl__row">
+        <button
+          v-for="t in RULE_TEMPLATES"
+          :key="t.id"
+          type="button"
+          class="md-tpl__chip"
+          :data-template="t.id"
+          :title="t.hint"
+          @click="useTemplate(t)"
+        >
+          {{ t.name }}
+        </button>
+      </div>
+    </div>
+
     <!-- EL-040 页签组（三选一，互斥）-->
     <div class="md-tabs" role="tablist">
       <button
@@ -420,6 +459,56 @@ function setNumber(key: 'seqStart' | 'seqStep' | 'seqPad', raw: string): void {
   /* ★ 按内容完整展开，**自己不做滚动**（滚动交给外层 .md-main__right-body 整块滚）。
      规则化模式内容再长也只是把整块工作区撑高，不去压缩列表、也不出现嵌套滚动条。 */
   flex: 0 0 auto;
+}
+
+/* ── P2-B · EL-120 常用规则条 ────────────────────────────────────────
+   与下面「⚙ 进阶设置」是两种相反的东西，视觉上也要分得开：
+   这里是常显的一键入口（橘色 chip），那里是折起的进阶开关区。
+   下边框把它和页签分开 —— 它是**独立一行**，不是页签组的一部分。 */
+.md-tpl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-space-1);
+  padding-bottom: var(--md-space-3);
+  border-bottom: 1px solid var(--md-line);
+}
+
+.md-tpl__title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--md-ink-3);
+}
+
+.md-tpl__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.md-tpl__chip {
+  height: 26px;
+  padding: 4px 11px;
+  border: 0;
+  border-radius: var(--md-radius-chip);
+  background: var(--md-orange-soft);
+  color: var(--md-orange-dark);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--md-dur-hover) ease,
+    color var(--md-dur-hover) ease,
+    box-shadow var(--md-dur-hover) ease;
+}
+
+/* 悬停：底转品牌橘，字转深棕（橘底上的前景色，对比 8.3:1，两主题同值）*/
+.md-tpl__chip:hover {
+  background: var(--md-orange-primary);
+  color: var(--md-on-brand);
+  box-shadow: var(--md-shadow-btn-hover);
 }
 
 .md-rulepanel__form {

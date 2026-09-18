@@ -76,12 +76,23 @@ function mkTask(id, status, count, createdAt, summary) {
   };
 }
 
+/**
+ * 套用「去掉括号」模板之后，`buildRuleSummary` 真实会产出的那一行原文
+ * （P2-B 轻量设计确认 §5.2 举的例子，一字不差）。
+ *
+ * 为什么要它当夹具：长正则会把历史卡片糊成一串符号，这正是 P2-B 要解决的
+ * 那个问题。冒烟得拿真实的产物去验显示层截断，才不是"自己编一个长字符串"。
+ */
+const P2B_LONG_SUMMARY = '替换「[（(【\\[](?:[^）)】\\]]*)[）)】\\]]」→（删除）（正则）';
+
 const base = Date.now();
 const FIXTURE_TASKS = [
   // 3 项的小任务：验 TC-33 明细展开（"查看全部 3 项"）
   mkTask('smoke-t1', HISTORY_MODE === 'allUndone' ? 'undone' : 'active', 3, base - 3000, '删除「广告」'),
-  // 已撤销的卡片：验「已撤销的也能展开」
-  mkTask('smoke-t2', 'undone', 3, base - 2000, '替换「旧」→「新」'),
+  // 已撤销的卡片：验「已撤销的也能展开」；★ 它的摘要刻意用「套用去掉括号后真实的产物」
+  // 来验 P2-B §5.2 的显示层截断（用第二条而不是新加第四条：历史卡片的下标被
+  // P2-C 的用例钉着，加一条要连改一串断言，得不偿失）
+  mkTask('smoke-t2', 'undone', 3, base - 2000, P2B_LONG_SUMMARY),
   // 5000 项的大任务：验 TC-34 渲染上限（只渲染 100 条 + 「还有 4900 项未显示」）
   mkTask('smoke-t3', HISTORY_MODE === 'allUndone' ? 'undone' : 'active', 5000, base - 1000, '前缀「{d}-」'),
 ];
@@ -120,13 +131,39 @@ const sampleDirs = [];
 })(sampleDir);
 console.log(`样本副本：${sampleFiles.length} 个文件 / ${sampleDirs.length} 个文件夹（源：${SAMPLE_SRC}）`);
 
+// ── P2-B：专用夹具 ──────────────────────────────────────────────────────
+// 「去掉括号要一次去掉两组」「全部小写不许动扩展名」这类结论，必须拿**名字已知**
+// 的文件来验 —— 样本目录里的文件名是用户的，事先不可知，那就只能断言"变了没变"，
+// 验不出"变成了什么"。所以另造 4 个（只写进**临时副本**，绝不碰桌面原件）：
+//   (1)(2)报告.docx   → 一个名字里两组括号：引擎少个 g 标志就只会去掉第一组
+//   【某某公众号】x.mp4 → 全角括号（同一串正则要覆盖中英文四种括号写法）
+//   IMG_0001.JPG      → 带大小写：验「全部小写」时扩展名 .JPG 必须原样留着
+//   my file name.txt  → 带空格：验「空格换下划线」换的是不是**全部**空格
+// 刻意放在 walk **之后**创建：这样它们不进 sampleFiles，前面那些用例看到的样本
+// 清单一个字节都没变（P2-B 的用例自己把这 4 个文件加进列表）。
+const P2B_DIR = path.join(sampleDir, '_p2b');
+fs.mkdirSync(P2B_DIR, { recursive: true });
+const P2B_FILES = ['(1)(2)报告.docx', '【某某公众号】x.mp4', 'IMG_0001.JPG', 'my file name.txt'].map(
+  (name) => {
+    const p = path.join(P2B_DIR, name);
+    fs.writeFileSync(p, 'p2b fixture', 'utf8');
+    return p;
+  },
+);
+console.log(`P2-B 专用夹具：${P2B_FILES.length} 个（${P2B_FILES.map((p) => path.basename(p)).join('、')}）`);
+
 // ── 原生对话框 stub（仅运行时替换；不动生产代码）──────────────────────
 // 说明：系统原生对话框是 OS 组件，sendInputEvent 驱动不了。这里让「添加文件/文件夹」
 // 返回临时副本路径，从而真实走通"点击 → 入列 → 预览"的链路。报告里会标注这一代价。
 // 注：此处不保留原生 showOpenDialog 引用——冒烟进程用完即退，无需还原，留引用反而是死代码。
 dialog.showOpenDialog = async (_win, opts) => {
   const isDir = Array.isArray(opts && opts.properties) && opts.properties.includes('openDirectory');
-  return { canceled: false, filePaths: isDir ? sampleDirs.slice(0, 3) : sampleFiles.slice(0, 5) };
+  // ★ P2-B：文件选择**追加**那 4 个专用夹具（插在原有 5 个之后，前面用例依赖的
+  //   样本一个没挤掉）。理由同上：只有名字已知，才能断言"新名正好等于什么"。
+  return {
+    canceled: false,
+    filePaths: isDir ? sampleDirs.slice(0, 3) : [...sampleFiles.slice(0, 5), ...P2B_FILES],
+  };
 };
 
 // ── ② 先装窗口钩子，再加载被测应用 ───────────────────────────────────
@@ -174,6 +211,50 @@ const MODAL_VISIBLE = "(() => { const m = document.querySelector('.md-modal');"
 /** 主列表卡片的底色 —— 深浅两主题差得最明显的一块，用它当"真的换主题了"的探针 */
 const CARD_BG = "(() => { const el = document.querySelector('.md-filelist');"
   + " return el ? getComputedStyle(el).backgroundColor : ''; })()";
+
+/* ── P2-B 用到的两个表达式工厂 ─────────────────────────────────────────── */
+
+/** 渲染层"今天"的 YYYY-MM-DD。不写死日期 —— 写死的话明天再跑必红，而它本来没坏。 */
+const TODAY_EXPR =
+  "(() => { const d = new Date(); const p = (n) => String(n).padStart(2, '0');"
+  + " return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); })()";
+
+/**
+ * 按「原名」在文件列表里找到那一行，返回它渲染出来的新名（找不到返回 null）。
+ *
+ * 为什么按名字找、不按下标：列表里还有样本目录带进来的文件，下标会随样本内容变。
+ * 返回值是一段**表达式字符串**（喂给 seeThat / waitUntil），不是值本身。
+ * 读的是渲染后的文字（含 DiffText 拆出来的高亮片段拼回去的结果）。
+ */
+const newNameOf = (from) => `(() => {
+    const rows = Array.from(document.querySelectorAll('.md-filelist__row'));
+    const row = rows.find((r) => { const n = r.querySelector('.md-filelist__name');
+      return !!n && n.textContent.trim() === ${JSON.stringify(from)}; });
+    if (!row) return null;
+    const nn = row.querySelector('.md-filelist__newname');
+    return nn ? nn.textContent.trim() : null;
+  })()`;
+
+/** 「去掉括号」模板里那串正则的原文（照 templates.ts 的 BRACKET_RE 抄，不另编一份） */
+const P2B_BRACKET_RE = '[（(【\\[](?:[^）)】\\]]*)[）)】\\]]';
+
+/**
+ * 「新名 === 前缀 + 原主体 + 补零编号 + 扩展名」的表达式。
+ *
+ * 编号不写死：表达式自己数出这一项在列表里排第几行，按「起始 1 + 序号」算出期望值。
+ * 于是夹具文件插在第几位都不会测歪，而判定仍是**逐字符相等** —— 不是"看起来像有编号"。
+ * `prefixExpr` 传一段 JS 表达式（日期这种动态前缀用它，例如 `TODAY()` 那种）。
+ */
+const seqPreviewExpr = (stem, ext, prefixExpr = "''") => `(() => {
+    const rows = Array.from(document.querySelectorAll('.md-filelist__row'));
+    const i = rows.findIndex((r) => { const n = r.querySelector('.md-filelist__name');
+      return !!n && n.textContent.trim() === ${JSON.stringify(stem + ext)}; });
+    if (i < 0) return null;
+    const nn = rows[i].querySelector('.md-filelist__newname');
+    if (!nn) return null;
+    return nn.textContent.trim()
+      === (${prefixExpr}) + ${JSON.stringify(stem)} + String(1 + i).padStart(3, '0') + ${JSON.stringify(ext)};
+  })()`;
 
 const FEATURES = [
   feature('窗口出现、界面就绪', (c) =>
@@ -364,6 +445,172 @@ const FEATURES = [
      .seeText('.md-adv__demonew', '发票 2026-08-01.pdf', '示例名字里没有 ZZ，匹配不上 → 如实显示"没变"')
      .seeContains('.md-adv__demo', '没找到能匹配的内容', '并明确提示「没找到能匹配的内容」')
      .seeStyle('.md-adv__demonew', 'color', 'rgb(185, 172, 158)', '未变化时用灰字 #B9AC9E，而不是"变了"的橘色（不骗人）')
+  ),
+
+  /* ══ P2-B（F-12 常用规则模板库）════════════════════════════════════════
+     设计来源：《P2-B轻量设计确认.md》v1.0（画板「P2-B 增量设计 · 常用规则模板」）。
+     这一批**只多了一样东西**：规则区顶部一行「常用规则」+ 6 个 chip。
+     但它长的位置、以及"点下去会怎样"，都容易做成"界面不报错、值却是错的"，所以断言一律打真值：
+       · 形态：读**算出来的底色 / 圆角**，不是"有没有这个 class"；
+       · 套用：读**参数框里的值 + 预览真算出来的新名**，不是"点了有没有反应"；
+       · TC-40 必须看到**两组括号全被去掉**（引擎少个 g 就只去一组）；
+       · TC-41 必须**先手改乱、再点第二次** —— 那一步专抓「模板常量被污染」，
+         它的症状是「模板越用越怪」，而界面永远不报错。
+     前置状态：本段跑在 P1 段之后 —— 列表里已有 9 项（5 个样本 + 4 个 P2-B 夹具），
+     规则区停在「替换 + 正则开着」，进阶折叠区是展开的。 */
+
+  feature('P2-B EL-120 模板条：长在规则区顶部（页签之前）、6 个 chip、样式复用既有令牌', (c) =>
+    c.scroll('[data-rule-templates]')
+     .see('[data-rule-templates]', '规则区顶部出现「常用规则」模板条')
+     .seeText('[data-rule-templates] .md-tpl__title', '常用规则', '小标题是「常用规则」')
+     .seeCount('[data-rule-templates] .md-tpl__chip', 6, '6 个模板 chip 就位（EL-120）')
+     .seeThat(
+       "(() => { const t = document.querySelector('[data-rule-templates]');"
+       + " const tabs = document.querySelector('.md-rulepanel .md-tabs');"
+       + ' return !!t && !!tabs'
+       + ' && (t.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING) > 0; })()',
+       true,
+       '★ 模板条排在页签**之前** —— 它是给「不会配规则的人」的一键入口，'
+       + '藏进折叠区就正好把目的反过来（P2-B §2.1 / DEC-14 纠正了 P1 文档里那句）'
+     )
+     .seeAttr('[data-template="datePrefix"]', 'title', '在名字最前面加上今天的日期，原名字保留',
+       '每个 chip 带 title：点下去会发生什么，先悬停说清楚')
+     .seeStyle('[data-template="datePrefix"]', 'borderRadius', '9px',
+       'chip 圆角 9px（复用既有 --md-radius-chip，本批零新增令牌）')
+     .seeStyle('[data-template="datePrefix"]', 'backgroundColor', 'rgb(255, 243, 226)',
+       'chip 默认底色 orange-soft #FFF3E2')
+     .seeStyle('[data-template="datePrefix"]', 'color', 'rgb(224, 139, 51)',
+       'chip 默认文字 orange-dark #E08B33')
+     .hover('[data-template="datePrefix"]')
+     .waitUntil(
+       "getComputedStyle(document.querySelector('[data-template=\"datePrefix\"]')).backgroundColor"
+       + " === 'rgb(245, 166, 35)'", 4000)
+     .seeStyle('[data-template="datePrefix"]', 'backgroundColor', 'rgb(245, 166, 35)',
+       '悬停底色转 orange-primary #F5A623')
+     .seeStyle('[data-template="datePrefix"]', 'color', 'rgb(42, 26, 16)',
+       '悬停文字转深棕 #2A1A10（橘底上对比度 8.3:1）')
+  ),
+
+  feature('P2-B TC-38 套用「加日期前缀」：页签跳到规则化、参数框被填满、预览真的跟着变', (c) =>
+    c.click('[data-template="datePrefix"]')
+     .seeContains('.md-statusbar__text', '已套用模板：加日期前缀',
+       '状态栏给一句反馈（3 秒回常态，不弹窗、不打断操作）')
+     .waitUntil("(() => { const i = document.querySelector('input[placeholder=\"如 {d}-发票-\"]');"
+       + " return !!i && i.value === '{d} '; })()", 8000)
+     .seeAttr('.md-tabs .md-tab:nth-child(3)', 'aria-selected', 'true', '★ 页签自动跳到「规则化」')
+     .seeThat("document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value", '{d} ',
+       '前缀框出现 {d} ')
+     .seeThat(
+       "(() => { const l = Array.from(document.querySelectorAll('.md-rulepanel__group .md-check'))"
+       + ".find((e) => e.textContent.includes('启用日期'));"
+       + " return l ? l.querySelector('input').checked : null; })()",
+       true, '★「启用日期」被自动勾上 —— 模板把「日期从哪来」这一步也替用户办了')
+     .seeThat(
+       "(() => { const l = Array.from(document.querySelectorAll('.md-rulepanel__picker'))"
+       + ".find((e) => e.textContent.includes('日期格式'));"
+       + " return l ? l.querySelector('select').value : null; })()",
+       'YYYY-MM-DD', '日期格式 = YYYY-MM-DD')
+     .waitUntil(
+       `(() => { const v = ${newNameOf('IMG_0001.JPG')};`
+       + ` return !!v && v.startsWith(${TODAY_EXPR} + ' '); })()`, 8000)
+     .seeThat(
+       `(() => { const v = ${newNameOf('IMG_0001.JPG')};`
+       + ` return v === ${TODAY_EXPR} + ' IMG_0001.JPG'; })()`,
+       true,
+       '★ 预览里的新名 = 今天的日期 + 原名字（日期取执行当天，所以用表达式比，不写死年月日）')
+  ),
+
+  feature('P2-B TC-41 模板常量没被污染：手改乱之后再点一次，拿到的仍是原始模板', (c) =>
+    c.click('input[placeholder="如 {d}-发票-"]')
+     .key('End')
+     .type('ZZ')
+     .waitUntil("document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value.endsWith('ZZ')", 8000)
+     .seeThat("document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value.endsWith('ZZ')", true,
+       '先把前缀改乱（模拟"套用之后自己又调了参数"）')
+     .click('[data-template="datePrefix"]')
+     .waitUntil("document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value === '{d} '", 8000)
+     .seeThat("document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value", '{d} ',
+       '★ 第二次点仍然是原始模板的 `{d} `。若 applyTemplate 少了深拷贝，'
+       + '这里会读出上一轮改乱的 `{d} ZZ` —— 那种 bug 界面永不报错，只表现为「模板越用越怪」')
+  ),
+
+  feature('P2-B TC-39 套用「去掉括号」：自动替用户开正则、折叠条亮起、状态栏讲清这件事', (c) =>
+    // 前置归一化：这条断言的是「模板**替用户把正则开了**」。若正则本来就开着，
+    // 那就等于什么都没验（折叠条本来就亮着）。所以先把「现在确实没开」钉下来：
+    // 上一条用的是「加日期前缀」，它把整份规则恢复成默认值，而默认是**不用正则**。
+    c.seeAttr('.md-adv__bar', 'aria-expanded', 'true',
+       '前置：进阶折叠区是展开的（P1 段留下的状态；顺序一改这行会当场红，不会静默测歪）')
+     .click('.md-tabs .md-tab:nth-child(2)')
+     .waitUntil("!!document.querySelector('.md-adv__body .md-check input')", 8000)
+     .seeThat("document.querySelector('.md-adv__body .md-check input').checked", false,
+       '★ 套用前「用正则匹配」是**没勾**的 —— 前提不成立的话，后面那句「模板帮我开了正则」就是空话')
+     .seeCount('.md-adv__badge', 0, '套用前折叠条没有「已启用 N 项」徽标')
+     .seeStyle('.md-adv__bar', 'color', 'rgb(138, 129, 120)', '套用前折叠条是常态灰 #8A8178')
+     .click('[data-template="stripBrackets"]')
+     .seeContains('.md-statusbar__text', '已套用模板：去掉括号（已自动开启正则）',
+       '★ 状态栏必须说清「已自动开启正则」—— 不说的话用户会以为软件自己乱动了他的设置')
+     .waitUntil("!!document.querySelector('.md-adv__badge')", 8000)
+     .seeAttr('.md-tabs .md-tab:nth-child(2)', 'aria-selected', 'true', '页签停在「替换字符」')
+     .seeThat("document.querySelector('input[placeholder=\"例如：最终版\"]').value", P2B_BRACKET_RE,
+       '查找框被填成模板里那串正则（不是留空、也不是上次填的内容）')
+     .seeContains('.md-adv__badge', '已启用 1 项',
+       '★ 折叠条徽标出现「已启用 1 项」—— 模板顺手替用户开了一个进阶开关，看得见')
+     // 折叠条的颜色是 180ms 过渡过去的，刚点完读到的是起始帧（还是灰的）。
+     // 用 seeStyleSettled：等它过渡到稳定值再判，不是放宽，是等它本来就会到的地方。
+     .seeStyleSettled('.md-adv__bar', 'color', 'rgb(224, 139, 51)', '折叠条转橘 #E08B33')
+  ),
+
+  feature('P2-B TC-40 「去掉括号」要匹配全部：一个名字里两组括号必须全去掉', (c) =>
+    c.waitUntil(`(() => { const v = ${newNameOf('(1)(2)报告.docx')}; return v === '报告.docx'; })()`, 8000)
+     .seeThat(newNameOf('(1)(2)报告.docx'), '报告.docx',
+       '★ (1)(2)报告.docx → 报告.docx：**两组括号都去掉**。只去掉第一组，就是引擎少了 g 标志')
+     .seeThat(newNameOf('【某某公众号】x.mp4'), 'x.mp4',
+       '全角【】照样吃得掉（同一串正则覆盖中英文四种括号写法）')
+  ),
+
+  feature('P2-B 其余 4 个模板逐个点：页签与关键参数都对得上（不是「点了没反应」）', (c) =>
+    // ① 补零编号
+    c.click('[data-template="seqPad"]')
+     .waitUntil("(() => { const l = Array.from(document.querySelectorAll('.md-rulepanel__group .md-check'))"
+       + ".find((e) => e.textContent.includes('启用序号'));"
+       + " return !!l && l.querySelector('input').checked; })()", 8000)
+     .seeAttr('.md-tabs .md-tab:nth-child(3)', 'aria-selected', 'true', '「补零编号」→ 页签跳到规则化')
+     .seeThat(
+       "(() => { const i = Array.from(document.querySelectorAll('.md-rulepanel__numitem'))"
+       + ".find((e) => e.textContent.includes('补零'));"
+       + " return i ? i.querySelector('input').value : null; })()",
+       '3', '补零位数 = 3（出来的是 001、002 而不是 1、2）')
+     // 预览重算有 200ms 防抖 + Worker 一次往返，所以先等它算出来再断言。
+     // 等的是**逐字符相等**这个结果本身，不是"等一会儿"—— 没有放宽标准。
+     .waitUntil(seqPreviewExpr('(1)(2)报告', '.docx'), 8000)
+     .seeThat(seqPreviewExpr('(1)(2)报告', '.docx'), true,
+       '★ 预览的新名 = 原主体 + 补零编号（编号按「起始 1 + 该项序号」算出来，逐字符相等）')
+    // ② 日期+编号
+     .click('[data-template="dateSeq"]')
+     .waitUntil("document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value === '{d}-'", 8000)
+     .seeThat("document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value", '{d}-',
+       '「日期+编号」前缀 = {d}-')
+     .waitUntil(seqPreviewExpr('(1)(2)报告', '.docx', `${TODAY_EXPR} + '-'`), 8000)
+     .seeThat(seqPreviewExpr('(1)(2)报告', '.docx', `${TODAY_EXPR} + '-'`), true,
+       '★ 预览 = 日期 + 「-」 + 原主体 + 补零编号（日期取执行当天，所以用表达式比，不写死年月日）')
+    // ③ 空格换下划线
+     .click('[data-template="spaceToUnderscore"]')
+     .waitUntil("document.querySelector('input[placeholder=\"例如：最终版\"]').value === ' '", 8000)
+     .seeAttr('.md-tabs .md-tab:nth-child(2)', 'aria-selected', 'true', '「空格换下划线」→ 页签跳到替换字符')
+     .seeThat("document.querySelector('input[placeholder=\"例如：最终版\"]').value", ' ', '查找框 = 一个空格')
+     .seeThat("document.querySelector('input[placeholder=\"留空 = 删除\"]').value", '_', '替换框 = 下划线')
+     .waitUntil(`(() => { const v = ${newNameOf('my file name.txt')}; return v === 'my_file_name.txt'; })()`, 8000)
+     .seeThat(newNameOf('my file name.txt'), 'my_file_name.txt',
+       '★ 两个空格**全换成**下划线（换的是全部出现位置，不是只换第一个）')
+    // ④ 全部小写
+     .click('[data-template="lowercase"]')
+     .waitUntil("(() => { const s = document.querySelector('.md-adv__case .md-select');"
+       + " return !!s && s.value === 'lower'; })()", 8000)
+     .seeAttr('.md-tabs .md-tab:nth-child(3)', 'aria-selected', 'true', '「全部小写」→ 页签跳到规则化')
+     .seeThat("document.querySelector('.md-adv__case .md-select').value", 'lower', '大小写 = 全部小写')
+     .waitUntil(`(() => { const v = ${newNameOf('IMG_0001.JPG')}; return v === 'img_0001.JPG'; })()`, 8000)
+     .seeThat(newNameOf('IMG_0001.JPG'), 'img_0001.JPG',
+       '★ 主体变成 img_0001，扩展名 .JPG **原样保留** —— 扩展名保护没被大小写规则绕过去')
   ),
 
   // ══ P2-A 第三版：设置面（SCR-07）+ 深色模式（F-14）════════════════════
@@ -667,6 +914,20 @@ const FEATURES = [
      .seeText('.md-history__body .md-history-card:nth-child(1) .md-detail__more',
        '还有 4900 项未显示（共 5000 项）', '末行如实告诉用户还有多少没显示，不是默默截断')
      .click('.md-history__body .md-history-card:nth-child(1) .md-detail__bar')
+  ),
+
+  /* P2-B §5.2：摘要截断。
+     夹具第 2 条（已撤销那张）的摘要就是「套用『去掉括号』之后真实会有的那一行」，
+     长正则糊在卡片上正是要解决的问题。这里同时验两件事：
+       ① 卡面显示的是**截断后**的文字；② `title` 里躺着**完整原文**。
+     第 ② 条是重点 —— 它证明截断只发生在这一个组件里，写进 history.json 的仍是全文。 */
+  feature('P2-B §5.2 历史摘要截断：长正则不糊在卡片上，完整原文留给悬停', (c) =>
+    c.seeText('.md-history__body .md-history-card:nth-child(2) .md-history-card__summary',
+      '替换「[（(【\\[](?:[^…」→（删除）（正则）',
+      '★ 卡面只显示截断后的摘要（每段引号内超过 14 字就取前 12 字 + …）')
+     .seeAttr('.md-history__body .md-history-card:nth-child(2) .md-history-card__summary', 'title',
+       P2B_LONG_SUMMARY,
+       '★ 完整原文一个字没丢，悬停可见 —— 截断只发生在渲染层，history.json 里存的仍是全文')
   ),
 
   // 两支确认文案要分别验，用夹具模式切换（同一轮里只可能有一种状态）
