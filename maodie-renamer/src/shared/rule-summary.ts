@@ -61,3 +61,31 @@ function buildBaseSummary(rule: RuleConfig): string {
       return '未知规则'
   }
 }
+
+/* ── 显示层截断（P2-B §5.2）───────────────────────────────────────────── */
+
+/** 引号内内容超过这个长度就该截断 */
+export const SUMMARY_QUOTE_MAX = 14
+/** 截断后保留前几个字符 */
+export const SUMMARY_QUOTE_KEEP = 12
+
+/**
+ * 把摘要里**过长的引号内容**截断，供历史卡片展示。
+ *
+ * 「去掉括号」这类模板会往规则里塞一条长正则，摘要就成了
+ * `替换「[（(【\[](?:[^）)】\]]*)[）)】\]]」→（删除）（正则）`
+ * —— 一长串符号糊在卡片上，用户根本读不懂当时用了什么规则。
+ * 截断后是 `替换「[（(【\[](?:[^…」→（删除）（正则）`，完整原文放 `title` 悬停可见。
+ *
+ * ⚠️⚠️ **只改显示，绝不动 `buildRuleSummary`。**
+ *    `buildRuleSummary` 的返回值会被写进 `history.json`。在那一层截断等于
+ *    **改变了持久化的数据** —— 新记录是截断的、老记录是完整的，同一份文件里
+ *    两种格式，数据就不一致了。**原始数据一个字都不动，只改显示。**
+ *
+ * 这也意味着：**不需要、也不允许**为了这个功能写数据迁移。
+ */
+export function truncateSummaryForDisplay(summary: string): string {
+  return summary.replace(/「([^」]*)」/g, (whole, inner: string) =>
+    inner.length > SUMMARY_QUOTE_MAX ? `「${inner.slice(0, SUMMARY_QUOTE_KEEP)}…」` : whole,
+  )
+}

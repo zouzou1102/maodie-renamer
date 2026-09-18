@@ -6,12 +6,26 @@
  */
 import { computed, ref } from 'vue'
 import { hiddenDetailText, visibleDetailRows } from '@shared/history-detail'
+import { truncateSummaryForDisplay } from '@shared/rule-summary'
 import type { RenameTask } from '@shared/types'
 
 const props = defineProps<{ task: RenameTask }>()
 const emit = defineEmits<{ (e: 'undo', id: string): void }>()
 
 const undone = computed(() => props.task.status === 'undone')
+
+/**
+ * P2-B §5.2：摘要里过长的引号内容（典型是「去掉括号」那串正则）要截断。
+ *
+ * ⚠️ 截断**只在这里发生**。`task.ruleSummary` 是从 `history.json` 读出来的持久化字段，
+ *    `buildRuleSummary` 一个字都不能动 —— 那一层截断等于改变了持久化数据，
+ *    新记录截断、老记录完整，同一份文件里两种格式。完整原文放 `title`，悬停可见。
+ */
+const summaryText = computed(() => truncateSummaryForDisplay(props.task.ruleSummary))
+/** 只有真被截断时才挂 title（没截断时 tooltip 与正文一模一样，纯噪音）*/
+const summaryTitle = computed(() =>
+  summaryText.value === props.task.ruleSummary ? undefined : props.task.ruleSummary,
+)
 
 const timeText = computed(() => {
   const d = new Date(props.task.createdAt)
@@ -48,7 +62,7 @@ const moreText = computed(() => hiddenDetailText(detail.value.hidden, detail.val
       </span>
     </div>
 
-    <h3 class="md-history-card__summary">{{ task.ruleSummary }}</h3>
+    <h3 class="md-history-card__summary" :title="summaryTitle">{{ summaryText }}</h3>
     <p class="md-history-card__counts">{{ countsText }}</p>
 
     <p v-if="firstExample" class="md-history-card__example">
