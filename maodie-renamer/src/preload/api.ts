@@ -14,6 +14,8 @@ import type {
   ClearHistoryResult,
   ExecuteRequest,
   ExecuteResult,
+  ExportListRequest,
+  ExportListResult,
   MaoDieAPI,
   MdResult,
   Prefs,
@@ -64,6 +66,11 @@ export function buildMaodieApi(bridge: PreloadBridge): MaoDieAPI {
         bridge.invoke(CH.FS_PICK_DIRECTORY) as Promise<MdResult<{ canceled: boolean; paths: string[] }>>,
       resolvePaths: (req: ResolvePathsRequest) =>
         bridge.invoke(CH.FS_RESOLVE_PATHS, req) as Promise<MdResult<ResolvedBatch>>,
+      // ★ P3-2：导出清单。这里用的是**强转**（`as`），所以 `MaoDieAPI` 里
+      //   若漏声明这个方法，typecheck 照样 0 错、编译照过 —— 只有渲染层调用时
+      //   才会拿到 `undefined` 并在运行时炸（设计 §7.5 第 2 行）。
+      exportList: (req: ExportListRequest) =>
+        bridge.invoke(CH.FS_EXPORT_LIST, req) as Promise<MdResult<ExportListResult>>,
     },
 
     rename: {

@@ -7,6 +7,7 @@ import type {
   CaseTransform,
   ConflictKind,
   DateFormat,
+  ExportFormat,
   ItemStatus,
   SeqKind,
   SeqPosition,
@@ -59,6 +60,20 @@ export const CASE_TRANSFORM_OPTIONS: Array<{ value: CaseTransform; label: string
   { value: 'lower', label: '全部小写' },
   { value: 'upper', label: '全部大写' },
   { value: 'capitalize', label: '首字母大写' },
+]
+
+/**
+ * P3-2 导出格式四选一（顺序即界面顺序）。
+ *
+ * ★ 默认值是 `'xlsx'`，但**不由这张表决定** —— 表只负责「有哪些选项、叫什么」，
+ *   默认值写在组件里（设计 §3.3：Excel 是默认档，因为收表的人多半要用它打开）。
+ *   把默认值塞进选项表会让「排序」和「默认」两件事耦在一起。
+ */
+export const EXPORT_FORMAT_OPTIONS: Array<{ value: ExportFormat; label: string }> = [
+  { value: 'xlsx', label: 'Excel (.xlsx)' },
+  { value: 'txt', label: '文本 (.txt)' },
+  { value: 'csv', label: 'CSV (.csv)' },
+  { value: 'docx', label: 'Word (.docx)' },
 ]
 
 /** F-14 主题三选一的选项（顺序即界面顺序：跟随系统 / 始终浅色 / 始终深色）*/

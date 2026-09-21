@@ -12,7 +12,9 @@ import { dirname } from 'node:path'
 import { dialog, ipcMain } from 'electron'
 import { CH } from '@shared/channels'
 import { MD_ERROR, MdError } from '@shared/errors'
-import type { ResolvePathsRequest, ResolvedBatch } from '@shared/types'
+import { sanitizeExport } from '@shared/sanitize-export'
+import type { ExportListResult, ResolvePathsRequest, ResolvedBatch } from '@shared/types'
+import { exportList } from '../services/export-list'
 import { resolvePaths } from '../services/fs-scan'
 import { getMainWindow } from '../window'
 import { business } from './result'
@@ -65,5 +67,19 @@ export function registerFsIpc(): void {
 
   ipcMain.handle(CH.FS_RESOLVE_PATHS, (_e, req: unknown) =>
     business<ResolvedBatch>(() => resolvePaths(sanitize(req))),
+  )
+
+  /**
+   * ★ P3-2（DEC-17）：导出文件名清单 —— 本批**唯一**新增的通道。
+   *
+   * 为什么非得破例开通道：「另存为」对话框只能在主进程调，落盘也必须在主进程
+   * （渲染层没有 fs 能力）。两者绑在一起，无法复用任何既有通道。
+   *
+   * 注意这里**只做一次收口**（`sanitizeExport`）、不写业务逻辑 ——
+   * 表头文案与列的取舍全在渲染层完成（`shared/export-rows.ts`），
+   * 主进程不认识「序号 / 原名 / 新名」这些词。
+   */
+  ipcMain.handle(CH.FS_EXPORT_LIST, (_e, req: unknown) =>
+    business<ExportListResult>(() => exportList(sanitizeExport(req))),
   )
 }

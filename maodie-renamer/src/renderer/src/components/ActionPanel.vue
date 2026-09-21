@@ -8,12 +8,26 @@
  */
 import { ref } from 'vue'
 import MdIcon from './MdIcon.vue'
+import ExportOptionsModal from './ExportOptionsModal.vue'
 import { useFilesStore } from '../stores/files'
 import { useTaskStore } from '../stores/task'
 
 const files = useFilesStore()
 const task = useTaskStore()
 const busy = ref(false)
+
+/**
+ * EL-127 导出选项气泡的开合（P3-2）。
+ *
+ * ★ 用**组件本地状态**而不是 `task.modal`：这个气泡只被左栏那一个按钮打开、
+ *   只用一次，没有跨组件协调的需求；塞进全局模态状态机只会给 `task.ts`
+ *   增加一个永远只有一处用到的分支。
+ *
+ * 为什么不需要 P2-C 那样的「关窗复位」watch：`ActionPanel` 由 `MainView` 的
+ * `v-if="view === 'main'"` 控制，切到历史页会整体卸载，`exportOpen` 随之销毁 ——
+ * 不存在跨视图的状态泄漏（`cliOpen` 是因为设置弹窗**常驻挂载**才必须手动复位）。
+ */
+const exportOpen = ref(false)
 
 async function pickFiles(): Promise<void> {
   if (busy.value) return
@@ -49,6 +63,20 @@ async function pickDirectory(): Promise<void> {
       <MdIcon name="folder" :size="15" />
       添加文件夹
     </button>
+    <!-- EL-126 导出清单（P3-2）。
+         放在「清空列表」**上面**：两个都是幽灵级操作，但导出是「产出」、
+         清空是「销毁」—— 产出放前面，从上往下越来越「轻」（设计 §2.1）。
+         为什么不放底部动作区：那里主按钮是「开始改名」，是全程序唯一会改文件的
+         动作；把不改任何文件的导出塞进去，会糊掉「主按钮 = 危险动作」这条约定。 -->
+    <button
+      class="md-btn md-btn--ghost md-actionpanel__wide"
+      data-export-open
+      :disabled="files.items.length === 0"
+      @click="exportOpen = true"
+    >
+      导出清单
+    </button>
+
     <button
       class="md-btn md-btn--ghost md-actionpanel__wide"
       :disabled="files.items.length === 0"
@@ -58,6 +86,10 @@ async function pickDirectory(): Promise<void> {
     </button>
 
     <p class="md-actionpanel__tip">拖到窗口里也行哦～</p>
+
+    <!-- EL-127 导出选项气泡。AppModal 内部会 Teleport 到 body，
+         所以挂在这里只是「就近」，对呈现位置没有影响。 -->
+    <ExportOptionsModal :open="exportOpen" @close="exportOpen = false" />
   </section>
 </template>
 
