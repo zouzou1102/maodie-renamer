@@ -215,6 +215,38 @@ export interface ResolvedBatch {
   }
 }
 
+/* ══ 导出清单（md:fs:exportList · P3-2 / DEC-17）═══════════════════ */
+
+export type ExportFormat = 'xlsx' | 'txt' | 'csv' | 'docx'
+
+/**
+ * 导出请求。
+ *
+ * ★ `header` / `rows` 由**渲染层组装**（只有它拿着 items、勾选状态与列的取舍），
+ *   主进程只做「转格式 + 写盘」——**不重算、不判断、也不认识表头文案**。
+ *
+ * ⚠️ 这与设计文档 §7.1 初稿的形状（`rows: ExportRow[]`）不同，是刻意的：
+ *   若让主进程按 `ExportRow` 的字段去拼表头与列序，那么「表头文案」「列的顺序」
+ *   「哪几列启用」这些**业务知识就跑到主进程**了 —— 改一次文案要改两处，
+ *   而漏改只表现为「导出文件里的表头与界面勾选框不一致」。
+ *   现在的形状让这些只有一处真源（`export-rows.ts`）。
+ */
+export interface ExportListRequest {
+  format: ExportFormat
+  /** 表头行（渲染层按勾选的列生成；「序号」列恒有、不可取消）*/
+  header: string[]
+  /** 数据行的单元格文本，每行长度与 header 一致 */
+  rows: string[][]
+  /** 建议文件名（**不含目录**），由主进程丢进「另存为」对话框当 defaultPath */
+  suggestedName: string
+}
+
+/** 与既有 `pickFiles` 同形：取消时 `canceled = true` 且 `filePath` 为空串 */
+export interface ExportListResult {
+  canceled: boolean
+  filePath: string
+}
+
 /* ══ 改名执行（md:rename:execute）══════════════════════════════════════ */
 
 export interface ExecuteItem {
@@ -471,6 +503,14 @@ export interface MaoDieAPI {
     /** 可多选；返回的是「选中的那几个文件夹本身」，绝不展开它们内部（DEC-01） */
     pickDirectory(): Promise<MdResult<{ canceled: boolean; paths: string[] }>>
     resolvePaths(req: ResolvePathsRequest): Promise<MdResult<ResolvedBatch>>
+    /**
+     * ★ P3-2：导出文件名清单（原名 / 新名对照表）。
+     *
+     * ⚠️ 这一行是**本批最易漏的一处**：`preload/api.ts` 里是强转
+     * （`as MaoDieAPI`），所以接口声明漏了它**照样编译过、typecheck 也是 0 错**，
+     * 但渲染层调用时拿到 `undefined` —— 运行时才炸。见设计 §7.5 第 2 行。
+     */
+    exportList(req: ExportListRequest): Promise<MdResult<ExportListResult>>
   }
   rename: {
     execute(req: ExecuteRequest): Promise<MdResult<ExecuteResult>>

@@ -566,6 +566,16 @@ function makeRecorder(ops) {
   rec.drag = (a, b) => add('drag', `${a} 拖到 ${b}`, [a, b]);
   rec.type = (text) => add('type', `输入「${cut(text, 30)}」`, [text]);
   rec.key = (k) => add('key', `按 ${k}`, [k]);
+  /**
+   * 把 `<select>` 选成指定值。
+   *
+   * ⚠️ 它**不是**真实鼠标操作：原生下拉的弹出层不在 DOM 里，
+   * `sendInputEvent` 点不到它。所以这里直接改 value 并派发一个**真实的
+   * `change` 事件** —— Vue 的 `@change` 处理器照常触发，走的是与用户点选之后
+   * **完全同一条**业务代码路径。
+   * 局限要记住：它验不了「鼠标能不能点开下拉」。
+   */
+  rec.select = (sel, value) => add('select', `把 ${sel} 选成「${value}」`, [sel, value]);
   rec.focus = (sel) => add('focus', `聚焦 ${sel}`, [sel]);
   rec.scroll = (sel) => add('scroll', `滚动到 ${sel}`, [sel]);
   rec.wait = (ms) => add('wait', `等 ${ms}ms`, [ms]);
@@ -617,6 +627,30 @@ function feature(name, build, opts = {}) {
 // 9 · 执行功能清单
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * 把 `<select>` 选成指定值，并派发一个**真实的 change 事件**。
+ *
+ * ⚠️ 局限：原生下拉的弹出层不在 DOM 里，`sendInputEvent` 点不到它 ——
+ * 所以这一步不是「真实鼠标操作」。但派发的 `change` 会触发 Vue 的 `@change`，
+ * 走的是与用户点选之后**完全同一条**业务代码路径：
+ * 能验「选项生效了没」，验不了「鼠标能不能点开下拉」。
+ */
+async function selectOption(win, selector, value) {
+  const got = await evalIn(
+    win,
+    `(() => {
+       const el = document.querySelector(${JSON.stringify(selector)});
+       if (!el) throw new Error('找不到元素：' + ${JSON.stringify(selector)});
+       el.value = ${JSON.stringify(String(value))};
+       el.dispatchEvent(new Event('change', { bubbles: true }));
+       return el.value;
+     })()`,
+  );
+  if (String(got) !== String(value)) {
+    throw new Error(`下拉没能选成 ${value}（实际 ${got}）：${selector}`);
+  }
+}
+
 /** 执行一个 op。断言类 op 把结果交给 assert。 */
 async function runOp(win, op, assert) {
   const [a, b, c] = op.args;
@@ -628,6 +662,7 @@ async function runOp(win, op, assert) {
     case 'drag': await dragTo(win, a, b); break;
     case 'type': await typeText(win, a); break;
     case 'key': await pressKey(win, a); break;
+    case 'select': await selectOption(win, a, b); break;
     case 'focus': await focusEl(win, a); break;
     case 'scroll': await scrollIntoView(win, a); break;
     case 'wait': await sleep(a); break;

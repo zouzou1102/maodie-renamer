@@ -45,6 +45,17 @@ app.setPath('sessionData', path.join(tmpRoot, 'userData'));
 app.setPath('appData', tmpRoot);
 process.env.APP_DATA_DIR = path.join(tmpRoot, 'data');
 fs.mkdirSync(process.env.APP_DATA_DIR, { recursive: true });
+
+/**
+ * ★ P3-2：导出清单的落点注入。
+ *
+ * 冒烟**无法操作系统原生「另存为」对话框**（不在 DOM 里，点不到），
+ * 不注入的话「生成 → 写盘」这段真实代码在冒烟里永远走不到。
+ * 与 APP_DATA_DIR 是同一类做法（都只在测试时存在）。
+ */
+const EXPORT_DIR = path.join(tmpRoot, 'exported');
+fs.mkdirSync(EXPORT_DIR, { recursive: true });
+process.env.SMOKE_EXPORT_PATH = path.join(EXPORT_DIR, '文件名清单.csv');
 if (process.env.CI) app.commandLine.appendSwitch('disable-gpu');
 
 // ── P2-C：历史数据夹具 ──────────────────────────────────────────────────
@@ -308,7 +319,9 @@ const FEATURES = [
   ),
 
   feature('空列表："清空列表"置灰', (c) =>
-    c.seeCount('.md-actionpanel .md-btn--ghost:disabled', 1, '"清空列表"按钮处于禁用态')
+    // ★ P3-2 起左栏多了「导出清单」（同为幽灵级），空列表时两个一起置灰，
+    //   所以计数从 1 变成 2 —— 这是**改动导致的同步**，不是把标准放宽。
+    c.seeCount('.md-actionpanel .md-btn--ghost:disabled', 2, '空列表时「导出清单」与「清空列表」一起置灰')
   ),
 
   feature('切到"规则化"页签生效', (c) =>
@@ -1150,7 +1163,69 @@ const FEATURES = [
      .seeText('[data-date-hint]', '日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。',
        '跨天提示与「启用序号」无关，照旧常显')
   ),
+
+  // ══ P3-2：导出清单（《P3-2提取文件名轻量设计确认》§2 / §9 / §10）══════════
+
+  feature('P3-2 EL-126：「导出清单」在左栏、位于「清空列表」之上', (c) =>
+    c.scroll('[data-export-open]')
+     .see('[data-export-open]', '「导出清单」按钮可见（有尺寸、在视口内）')
+     .seeContains('[data-export-open]', '导出清单', '按钮文案正确')
+     .seeThat(
+       "(function(){var a=[].slice.call(document.querySelectorAll('.md-actionpanel button')).map(function(x){return x.textContent.trim()});return JSON.stringify([a[2],a[3]])})()",
+       JSON.stringify(['导出清单', '清空列表']),
+       '第 3、4 个按钮依次是「导出清单」「清空列表」（产出在销毁之上）'
+     )
+  ),
+
+  feature('P3-2 EL-127：点开后气泡出现，三个默认值都对', (c) =>
+    c.click('[data-export-open]')
+     .waitUntil("!!document.querySelector('[data-export-format]')", 8000)
+     .see('[data-export-format]', '导出气泡已展开')
+     .seeText('.md-modal__title', '导出清单', '气泡标题正确')
+     .seeThat("document.querySelector('[data-export-format]').value", 'xlsx', '格式默认 Excel (.xlsx)')
+     .seeThat("document.querySelector('[data-export-scope]').value", 'all', '范围默认「全部」')
+     .seeThat(
+       "JSON.stringify([].slice.call(document.querySelectorAll('[data-export-col]')).map(function(x){return x.checked}))",
+       JSON.stringify([true, true, true, false]),
+       '★ 列默认：原名/新名/状态 勾上，「所在文件夹」不勾（隐私，默认不外传路径）'
+     )
+     .seeThat(
+       "document.querySelector('[data-export-scope] option[value=selected]').disabled",
+       true,
+       '★ 没有勾选任何文件时，「仅选中项」这一档置灰不可选'
+     )
+  ),
+
+  feature('P3-2：气泡可以取消关掉，不留痕迹', (c) =>
+    c.click('.md-modal__foot .md-btn--secondary')
+     .waitUntil("!document.querySelector('[data-export-format]')", 8000)
+     .seeCount('[data-export-format]', 0, '点「取消」后气泡消失')
+  ),
+
+  feature('P3-2 ★ 真导出一次 CSV（仅选中 1 项）：通道打通、真的落盘', (c) =>
+    c.click('.md-filelist__check input')
+     .click('[data-export-open]')
+     .waitUntil("!!document.querySelector('[data-export-confirm]')", 8000)
+     .seeThat(
+       "document.querySelector('[data-export-scope] option[value=selected]').disabled",
+       false,
+       '勾选 1 项后，「仅选中项」可选了'
+     )
+     .select('[data-export-scope]', 'selected')
+     .seeThat("document.querySelector('[data-export-scope]').value", 'selected', '范围切到「仅选中项」')
+     .select('[data-export-format]', 'csv')
+     .seeThat("document.querySelector('[data-export-format]').value", 'csv', '格式切到 CSV')
+     .click('[data-export-confirm]')
+     .waitUntil("document.querySelector('.md-statusbar__text').textContent.indexOf('已导出') >= 0", 10000)
+     .seeContains(
+       '.md-statusbar__text',
+       '已导出 1 项到',
+       '★ 状态栏说「已导出 1 项到 …」—— 列表有多项、只勾了 1 项，导出的就是 1 项'
+     )
+     .seeContains('.md-statusbar__text', '清单.csv', '提示里带出了真实落盘文件名（主进程返回的路径）')
+  ),
 ];
+
 
 // ── 主流程 ───────────────────────────────────────────────────────────
 app.whenReady().then(async () => {

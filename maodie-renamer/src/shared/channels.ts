@@ -5,7 +5,10 @@
  * 杜绝「一边写 `md:fs:pickFiles`、另一边写 `md:fs:pickfiles`」这类拼写事故。
  *
  * 命名规范：`md:<域>:<动作>`；事件通道用过去式 / 名词表示「已发生」。
- * 合计 15 个请求响应通道 + 3 个事件通道。
+ * 合计 **17** 个请求响应通道 + 3 个事件通道。
+ *
+ * ⚠️ 这个数字曾经滞后：P2-C 加 `HISTORY_CLEAR` 之后实际是 16 个，
+ *    但文件头一直写着 15。P3-2 加 `FS_EXPORT_LIST` 时一并校正为 17。
  */
 
 export const CH = {
@@ -24,6 +27,10 @@ export const CH = {
   FS_PICK_FILES: 'md:fs:pickFiles',
   FS_PICK_DIRECTORY: 'md:fs:pickDirectory',
   FS_RESOLVE_PATHS: 'md:fs:resolvePaths',
+  // P3-2（DEC-17）：导出文件名清单 —— **本批唯一新增的通道，也是唯一的破例**。
+  // 理由：「另存为」对话框只能在主进程调，落盘也必须在主进程，两者绑在一起，
+  // 无法复用任何既有通道。请求响应通道 16 → 17。
+  FS_EXPORT_LIST: 'md:fs:exportList',
 
   /* ── md:rename:* ── 改名执行（业务通道）── */
   RENAME_EXECUTE: 'md:rename:execute',
