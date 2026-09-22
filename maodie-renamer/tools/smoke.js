@@ -1316,19 +1316,24 @@ const FEATURES = [
 
   // ══ P3-4：导入表格（《P3-4导入Excel轻量设计确认》§2 / §9）══
 
-  feature('P3-4 EL-132/EL-133：点「导入表格」→ 弹窗开出，三个下拉都有值', (c) =>
+  feature('P3-4 EL-132/EL-133：点「导入表格」→ 弹窗开出，两个下拉都有值', (c) =>
     c.click('[data-import-open]')
      // ★ 弹窗有入场动画：刚点开那一帧它的盒子可能还是 0，直接判「可见」会偶发红灯。
+     //   ★★ 还要等**透明度**：入场是 fade-in（opacity 0 → 1），而「有尺寸」在第一帧就成立 ——
+     //   `see` 判的是 `checkVisibility({checkOpacity:true})`（含透明度），所以只等尺寸会撞在动画中间。
+     //   这不是放宽断言，是把「动画还没跑完」从断言里排除掉。
      //   这里先等盒子真的立起来（与既有 `seeStyleSettled` 同一个思路），再判可见 ——
      //   不是在放宽标准，是把「动画还没跑完」从断言里排除掉。
      .waitUntil(
-      "(() => { const b = document.querySelector('[data-import-confirm]'); if (!b) return false; const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0; })()",
+      "(() => { const b = document.querySelector('[data-import-confirm]'); if (!b) return false; const r = b.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) return false; return typeof b.checkVisibility === 'function' ? b.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : true; })()",
       8000
     )
      .see('[data-import-confirm]', '导入预览弹窗出现（EL-133）')
      .seeThat("document.querySelector('[data-import-name-col]').value", '1', '原文件名列认在第 1 列')
      .seeThat("document.querySelector('[data-import-new-col]').value", '2', '新文件名列认在第 2 列')
-     .seeThat("document.querySelector('[data-import-mode]').value", 'byName', '两列都认出 → 默认「按文件名匹配」')
+     // ★ P3-4 改动（设计 §16 第 3 项）：「匹配方式」下拉已删，只剩两个列下拉
+     //   —— 这条断言就是为了抓「下拉没删干净」
+     .seeThat("document.querySelectorAll('.md-import__select').length", 2, '★ 只剩两个下拉（「匹配方式」那个已删）')
      .seeContains('[data-import-why]', '按文件名匹配', '★ 说明里写清了「我这样读的」—— 认错在这里等于改错文件')
   ),
 
@@ -1339,24 +1344,6 @@ const FEATURES = [
       '★ 默认只列「对不上 / 有问题」的行 —— 静默丢掉未匹配的行是这功能最危险的失败方式'
     )
      .seeContains('[data-import-stats]', '能改', '三行统计在（一眼知道能改几个）')
-  ),
-
-  feature('P3-4 EL-133：改「匹配方式」→ 对照表与按钮数字跟着变', (c) =>
-    c.select('[data-import-mode]', 'byOrder')
-     .wait(200)
-     .seeThat(
-      "(() => { const rows = Array.from(document.querySelectorAll('[data-import-row]')); return rows.length + '|' + document.querySelector('[data-import-confirm]').textContent.replace(/\\s+/g, ''); })()",
-      '1|导入这8项',
-      '切到「按行顺序」：9 行配上 9 个文件 → 只剩 1 行「有问题」，能改的从 7 变 8'
-    )
-     .see('[data-import-order-warn]', '★ 第二道闸：表里也有原名列时，顺序对不上要**明确警告**')
-     .select('[data-import-mode]', 'byName')
-     .wait(200)
-     .seeThat(
-      "document.querySelector('[data-import-confirm]').textContent.replace(/\\s+/g, '')",
-      '导入这7项',
-      '切回「按文件名匹配」→ 回到 7 项'
-    )
   ),
 
   feature('P3-4 TC-61：点「导入这 N 项」→ 列表出现「表」徽标与来源提示条', (c) =>
@@ -1398,6 +1385,35 @@ const FEATURES = [
       'all',
       '清除后 9 项**全部**回到按规则算（新名都又是 x_ 开头）'
     )
+  ),
+
+  // ★ P3-4 改动（设计 §16 第 1/5 项，对应 TC-66 改后）：
+  //   没指定「原文件名」列 → **不导入**（不再退化成「按行顺序」），并告诉用户怎么办。
+  //   手法：把「原文件名列」下拉改成「没有这一列」—— 这正是真实用户在认错列时会做的动作，
+  //   也顺便验了下拉真的能手动改（设计 §2.4：两个下拉都在原地）。
+  //   ⚠️ 不能用 `process.env.SMOKE_IMPORT_PATH` 在回调里换表：
+  //      `feature()` 的回调是**定义时就执行**的（只为收集 ops），会污染前面所有用例。
+  feature('P3-4 TC-66：把「原文件名列」设成「没有这一列」→ 不导入，并告诉用户怎么办', (c) =>
+    c
+      .click('[data-import-open]')
+      .waitUntil(
+        "(() => { const b = document.querySelector('[data-import-confirm]'); if (!b) return false; const r = b.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) return false; return typeof b.checkVisibility === 'function' ? b.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : true; })()",
+        8000
+      )
+      // 把「原文件名列」改成「没有这一列」→ 应该立刻转成整体拒绝
+      .select('[data-import-name-col]', '0')
+      .wait(200)
+      // ★「拒绝」必须在界面上看得见 —— 不能只在日志里
+      .see('[data-import-reject]', '★ 拒绝提示出现（整体拒绝 = 不导入）')
+      .seeContains('[data-import-reject]', '原文件名', '说清了缺哪一列')
+      .seeContains('[data-import-reject]', '放进表里', '★ 还告诉了用户**怎么办**（设计 §16 第 5 项）')
+      .seeThat("document.querySelector('[data-import-confirm]').disabled", true, '★ 主按钮置灰 —— 真的导不进去')
+      .seeThat("document.querySelectorAll('.md-import__select').length", 2, '两个列下拉还在（给用户手动指定的路）')
+      .seeThat(
+        "(() => { const d = document.querySelector('[data-import-name-col]'); return d ? d.value : 'no-el'; })()",
+        '0',
+        '★ 原文件名列已被改成「没有这一列」'
+      )
   ),
 ];
 

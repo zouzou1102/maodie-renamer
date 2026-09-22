@@ -54,8 +54,6 @@ export function normalizeHeader(raw: string): string {
     .trim()
 }
 
-export type MatchMode = 'byName' | 'byOrder'
-
 export interface ColumnInfo {
   /** 列号（1 起） */
   col: number
@@ -69,13 +67,12 @@ export interface ColumnChoice {
   nameCol: number
   /** 新文件名列（1 起） */
   newCol: number
-  mode: MatchMode
   /** 表头行在 `rows` 里的**下标**；-1 = 没有表头（每一行都是数据） */
   headerRow: number
 }
 
 export interface ColumnGuess extends ColumnChoice {
-  /** 是否真的认出了表头（false = 走了「第一列 = 新名列」的兜底） */
+  /** 是否认出了**新文件名列**（只是个信号，不代表能导） */
   headerFound: boolean
   /** 参与下拉的列（含每列表头文字） */
   columns: ColumnInfo[]
@@ -168,7 +165,6 @@ export function detectColumns(rows: TableRow[]): ColumnGuess {
     return {
       nameCol,
       newCol,
-      mode: 'byName',
       headerRow,
       headerFound,
       columns,
@@ -176,38 +172,25 @@ export function detectColumns(rows: TableRow[]): ColumnGuess {
     }
   }
 
-  if (headerFound) {
-    return {
-      nameCol,
-      newCol,
-      mode: 'byOrder',
-      headerRow,
-      headerFound,
-      columns,
-      why: `只认出「${labelOf(columns, newCol)}」，没找到原文件名列 → 按行顺序配（顺序一错就全错）`,
-    }
-  }
-
-  // 都认不出 → 退化成「第一列 = 新文件名」+ 按行顺序（设计 §2.4）
-  // ★ 原名列若认出来了就**留着** —— 按行顺序的第二道闸（顺序校验）正好用它
-  const fallbackNew = nameCol === 1 ? 2 : 1
+  // ★ 没找到「原文件名」列 → **整体拒绝，不导入**（设计 §16 第 1 项）。
+  //   不猜的理由：猜错列 = 把文件改成别人的名字，而对照表看着挺整齐 —— 用户不会发现。
+  //   不按行顺序的理由：拖进来的文件不一定按表里原文件名的顺序排列。
   return {
     nameCol,
-    newCol: fallbackNew,
-    mode: 'byOrder',
+    newCol,
     headerRow,
-    headerFound: false,
+    headerFound,
     columns,
     why:
       nameCol > 0
-        ? `只认出「${labelOf(columns, nameCol)}」、没认出新文件名列 → 先按「第 ${fallbackNew} 列 = 新文件名」+「按行顺序」试（不对就在上面改）`
-        : `我没认出表头，先按「第 ${fallbackNew} 列 = 新文件名」+「按行顺序」理解 —— 不对就在上面改`,
+        ? `我只认出了「${labelOf(columns, nameCol)}」，没找到原文件名列 —— 请在上面指定它是哪一列`
+        : '我没认出表头 —— 需要你在下面指定哪一列是原文件名、哪一列是新文件名',
   }
 }
 
 /* ══ 2. 行 ↔ 文件 配对 ════════════════════════════════════════════════ */
 
-/** 配对用的文件清单（**顺序即列表顺序**，按行顺序就靠它） */
+/** 配对用的文件清单 */
 export interface MappingFile {
   id: string
   name: string
@@ -234,15 +217,6 @@ export interface MappingRow {
   reason: string
 }
 
-export interface OrderCheck {
-  /** 是否真的做了这次校验（表里恰好也有原名列时才做） */
-  checked: boolean
-  ok: boolean
-  /** 第一个不吻合的行号（1 起）；没做或全吻合为 0 */
-  firstBadRow: number
-  message: string
-}
-
 export interface MappingResult {
   rows: MappingRow[]
   counts: Record<MappingVerdict, number>
@@ -250,16 +224,13 @@ export interface MappingResult {
   matchedFiles: number
   /** 列表里**有**、表里没有的文件个数 —— 它们**继续按规则算**（§3.5 的「表外」） */
   outsideFiles: number
-  /** 非空 = **整体拒绝**（按行顺序时行数不等）；此时 `rows` 为空 */
+  /** 非空 = **整体拒绝（不导入）** —— 原因：没指定「原文件名」列；此时 `rows` 为空 */
   rejected: string
   /** 表里一行数据都没有（只有表头） */
   empty: boolean
   /** 列表里一个文件都没有（允许导入，但全部进「对不上」，主按钮置灰） */
   listEmpty: boolean
-  orderCheck: OrderCheck
 }
-
-const NO_ORDER_CHECK: OrderCheck = { checked: false, ok: true, firstBadRow: 0, message: '' }
 
 /** Windows 文件名不区分大小写 —— 两边都用这个函数归一化后再比 */
 function normName(s: string): string {
@@ -319,128 +290,81 @@ export function buildMapping(
     rejected: '',
     empty: items.length === 0,
     listEmpty: files.length === 0,
-    orderCheck: NO_ORDER_CHECK,
   }
   if (items.length === 0) return base
+
+  // ★ 没指定「原文件名」列 → **整体拒绝（不导入）**（设计 §16 第 1 项）。
+  //   没有它就没法知道每一行该配给哪个文件 —— **不猜**：
+  //   猜错列 = 把文件改成别人的名字，而对照表看着挺整齐，用户不会发现。
+  if (choice.nameCol <= 0) {
+    return {
+      ...base,
+      empty: false,
+      rejected:
+        '表里没指定「原文件名」列 —— 没有它没法知道每一行该配给哪个文件。' +
+        '请把原文件名也放进表里，或在上面手动指定哪一列是原文件名。',
+    }
+  }
 
   /* ── ① 配对 ─────────────────────────────────────────────────────── */
 
   const pairs: (MappingRow & { file: MappingFile })[] = []
 
-  if (choice.mode === 'byOrder') {
-    const validRows = items.filter((x) => x.rawNew !== '')
+  /* 按文件名匹配：列定位 → 按「原文件名」找同名文件（忽略大小写）→ 取**同一行**的新名。
+     ⚠️ **不靠顺序** —— 拖进来的文件不一定按表里原文件名的顺序排列（设计 §16）。 */
+  const byName = new Map<string, MappingFile[]>()
+  for (const f of files) {
+    const k = normName(f.name)
+    const list = byName.get(k)
+    if (list === undefined) byName.set(k, [f])
+    else list.push(f)
+  }
 
-    // ★ 第一道闸（设计 §5 ⑤）：行数不等 → **整体拒绝**，不进入对照表。
-    //   这是本批唯一「顺序错就全错」的方式，所以宁可挡住，也不给一份错位的对照表。
-    if (files.length > 0 && validRows.length !== files.length) {
-      return {
-        ...base,
-        empty: false,
-        rejected:
-          `表里有 ${validRows.length} 行、列表里有 ${files.length} 个文件 —— 数量不等，` +
-          `按行顺序没法配（可以改成「按文件名匹配」，或在表里补齐/删掉多余的行）`,
-      }
-    }
+  const tableHits = new Map<string, number>()
+  for (const x of items) {
+    if (x.rawName === '') continue
+    const k = normName(x.rawName)
+    tableHits.set(k, (tableHits.get(k) ?? 0) + 1)
+  }
 
-    const queue = [...files]
-    for (const x of items) {
-      if (x.rawNew === '') {
-        pairs.push({
-          rowNumber: x.row.rowNumber,
-          rawName: x.rawName,
-          rawNew: x.rawNew,
-          fileId: '',
-          fileName: '',
-          newStem: '',
-          verdict: 'problem',
-          reason: '表格里这一行没有名字',
-          file: { id: '', name: '', isDir: false },
-        })
-        continue
-      }
-      const file = queue.shift()
-      if (file === undefined) {
-        pairs.push({
-          rowNumber: x.row.rowNumber,
-          rawName: x.rawName,
-          rawNew: x.rawNew,
-          fileId: '',
-          fileName: '',
-          newStem: '',
-          verdict: 'unmatched',
-          reason: '列表里还没有文件，先把文件拖进来',
-          file: { id: '', name: '', isDir: false },
-        })
-        continue
-      }
+  for (const x of items) {
+    const put = (verdict: MappingVerdict, reason: string, file?: MappingFile): void => {
       pairs.push({
         rowNumber: x.row.rowNumber,
         rawName: x.rawName,
         rawNew: x.rawNew,
-        fileId: file.id,
-        fileName: file.name,
+        fileId: file === undefined ? '' : file.id,
+        fileName: file === undefined ? '' : file.name,
         newStem: '',
-        verdict: 'ok',
-        reason: '',
-        file,
+        verdict,
+        reason,
+        file: file ?? { id: '', name: '', isDir: false },
       })
     }
-  } else {
-    // 按文件名匹配
-    const byName = new Map<string, MappingFile[]>()
-    for (const f of files) {
-      const k = normName(f.name)
-      const list = byName.get(k)
-      if (list === undefined) byName.set(k, [f])
-      else list.push(f)
-    }
 
-    const tableHits = new Map<string, number>()
-    for (const x of items) {
-      if (x.rawName === '') continue
-      const k = normName(x.rawName)
-      tableHits.set(k, (tableHits.get(k) ?? 0) + 1)
+    if (x.rawNew === '') {
+      put('problem', '表格里这一行没有名字')
+      continue
     }
-
-    for (const x of items) {
-      const put = (verdict: MappingVerdict, reason: string, file?: MappingFile): void => {
-        pairs.push({
-          rowNumber: x.row.rowNumber,
-          rawName: x.rawName,
-          rawNew: x.rawNew,
-          fileId: file === undefined ? '' : file.id,
-          fileName: file === undefined ? '' : file.name,
-          newStem: '',
-          verdict,
-          reason,
-          file: file ?? { id: '', name: '', isDir: false },
-        })
-      }
-
-      if (x.rawNew === '') {
-        put('problem', '表格里这一行没有名字')
-        continue
-      }
-      if (x.rawName === '') {
-        put('unmatched', '表里这一行没写原文件名，按文件名匹配时不知道配给谁')
-        continue
-      }
-      const k = normName(x.rawName)
-      if ((tableHits.get(k) ?? 0) > 1) {
-        put('unmatched', `表里有 ${tableHits.get(k)} 行都写着「${x.rawName}」，不猜谁是谁`)
-        continue
-      }
-      const hit = byName.get(k)
-      if (hit === undefined) {
-        put('unmatched', `列表里没有「${x.rawName}」`)
-        continue
-      }
-      if (hit.length > 1) {
-        put('unmatched', `列表里有 ${hit.length} 个同名文件，请先删掉多余的`)
-        continue
-      }
-      put('ok', '', hit[0])
+    if (x.rawName === '') {
+      put('unmatched', '表里这一行没写原文件名，按文件名匹配时不知道配给谁')
+      continue
     }
+    const k = normName(x.rawName)
+    if ((tableHits.get(k) ?? 0) > 1) {
+      put('unmatched', `表里有 ${tableHits.get(k)} 行都写着「${x.rawName}」，不猜谁是谁`)
+      continue
+    }
+    const hit = byName.get(k)
+    if (hit === undefined) {
+      put('unmatched', `列表里没有「${x.rawName}」`)
+      continue
+    }
+    if (hit.length > 1) {
+      put('unmatched', `列表里有 ${hit.length} 个同名文件，请先删掉多余的`)
+      continue
+    }
+    put('ok', '', hit[0])
   }
 
   /* ── ② 定名字（配上的才定）─────────────────────────────────────── */
@@ -480,31 +404,6 @@ export function buildMapping(
     out.push(row)
   }
 
-  /* ── ③ 第二道闸：按行顺序时顺带校验顺序（表里也有原名列才做）────── */
-
-  let orderCheck: OrderCheck = NO_ORDER_CHECK
-  if (choice.mode === 'byOrder' && choice.nameCol > 0) {
-    let firstBadRow = 0
-    let seq = 0
-    let message = ''
-    for (const p of pairs) {
-      if (p.fileId === '') continue
-      seq++
-      if (firstBadRow === 0 && normName(p.rawName) !== normName(p.file.name)) {
-        firstBadRow = p.rowNumber
-        message =
-          `第 ${p.rowNumber} 行的原名是「${p.rawName}」，但列表第 ${seq} 个是「${p.file.name}」` +
-          ` —— 顺序可能对不上，先看一眼再导`
-      }
-    }
-    orderCheck = {
-      checked: true,
-      ok: firstBadRow === 0,
-      firstBadRow,
-      message,
-    }
-  }
-
   return {
     rows: out,
     counts,
@@ -513,7 +412,6 @@ export function buildMapping(
     rejected: '',
     empty: false,
     listEmpty: files.length === 0,
-    orderCheck,
   }
 }
 

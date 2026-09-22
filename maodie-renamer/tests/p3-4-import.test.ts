@@ -13,7 +13,8 @@
  *  3. `csv / txt`：带引号的逗号、`""` 双写、带 BOM 与不带 BOM、GBK 回退、Tab 分隔。
  *  4. `detectColumns`：识别词、三条决策树分支、前 5 行内找表头、
  *     ★「文件名」这种**不在词表里**的词**不能**被误认成原名列。
- *  5. `buildMapping`：按名匹配的四种失败 / 按行顺序的两道闸 / 四种结果分类 / 扩展名的四种情形。
+ *  5. `buildMapping`：按名匹配的四种失败 / 四种结果分类 / 扩展名的四种情形 / 没指定原名列的整体拒绝。
+ *     ★ 「按行顺序」整档已去掉（2026-09-22）—— 拖进来的文件不一定按表里原文件名的顺序排列。
  *  6. ★★ **预览 ≡ 执行**（TC-64）：`PreviewItemInput` 那条路上 `override` **不是 undefined**，
  *     且与执行器算出的新名**逐字节相等**。**这是唯一能抓「Pick 白名单漏字段」的用例**
  *     —— `Pick` 是合法子集，漏了 `typecheck` 不报错。
@@ -255,7 +256,7 @@ function file(id: string, name: string, isDir = false): MappingFile {
 }
 
 function choice(patch: Partial<ColumnChoice> = {}): ColumnChoice {
-  return { nameCol: 1, newCol: 2, mode: 'byName', headerRow: 0, ...patch }
+  return { nameCol: 1, newCol: 2, headerRow: 0, ...patch }
 }
 
 function okIds(r: MappingResult): string[] {
@@ -444,7 +445,6 @@ test('xlsx-read：端到端 —— 用 deflate 压的 xlsx（模拟「别人用 
   )
   const t = readXlsx(bytes, { inflate: inflateRawSync })
   const g = detectColumns(t.rows)
-  assert.equal(g.mode, 'byName')
   assert.equal(g.nameCol, 1)
   assert.equal(g.newCol, 2)
   assert.equal(t.rows[1].cells[1].text, '封面.jpg')
@@ -493,13 +493,12 @@ test('txt：Tab 分隔，且支持字段里的换行与 \\r\\n', () => {
 
 /* ══ 4. detectColumns ═════════════════════════════════════════════════ */
 
-test('detectColumns：两列都认出 → 按文件名匹配（默认，推荐）', () => {
+test('detectColumns：两列都认出 → 走按文件名匹配', () => {
   const rows = sparseTable([
     ['原文件名', '新文件名'],
     ['a.txt', 'b.txt'],
   ])
   const g = detectColumns(rows)
-  assert.equal(g.mode, 'byName')
   assert.equal(g.nameCol, 1)
   assert.equal(g.newCol, 2)
   assert.equal(g.headerRow, 0)
@@ -507,21 +506,20 @@ test('detectColumns：两列都认出 → 按文件名匹配（默认，推荐�
   assert.ok(g.why.includes('按文件名匹配'))
 })
 
-test('detectColumns：只认出新名列 → 按行顺序', () => {
-  const g = detectColumns(sparseTable([['序号', '新名'], ['1', 'b.txt']]))
-  assert.equal(g.mode, 'byOrder')
-  assert.equal(g.newCol, 2)
-  assert.equal(g.nameCol, 0)
-  assert.equal(g.headerFound, true)
-})
+test('detectColumns：★ 检测不到「原文件名」列 → **不猜**（nameCol 保持 0）', () => {
+  // 只有新名列 → 以前会退化成「按行顺序」，现在**不猜**（设计 §16）：
+  //   猜错列 = 把文件改成别人的名字，而对照表看着挺整齐 —— 用户不会发现。
+  const onlyNew = detectColumns(sparseTable([['序号', '新名'], ['1', 'b.txt']]))
+  assert.equal(onlyNew.nameCol, 0, '认不出原名列就保持 0 —— 绝不退化成「第一列 = 新名」')
+  assert.equal(onlyNew.newCol, 2, '新名列还是认出来了（给用户做预填）')
+  assert.equal(onlyNew.headerFound, true)
 
-test('detectColumns：都认不出 → 第 1 列 + 按行顺序（并如实说自己没认出表头）', () => {
-  const g = detectColumns(sparseTable([['甲', '乙'], ['a.txt', 'b.txt']]))
-  assert.equal(g.mode, 'byOrder')
-  assert.equal(g.newCol, 1)
-  assert.equal(g.headerFound, false)
-  assert.equal(g.headerRow, -1, '没认出表头 → 每一行都是数据，不跳过任何行')
-  assert.ok(g.why.includes('没认出表头'))
+  // 一个字都认不出 → 同样不猜
+  const none = detectColumns(sparseTable([['甲', '乙'], ['a.txt', 'b.txt']]))
+  assert.equal(none.nameCol, 0)
+  assert.equal(none.headerFound, false)
+  assert.equal(none.headerRow, -1, '没认出表头 → 每一行都是数据，不跳过任何行')
+  assert.ok(none.why.includes('没认出表头'), none.why)
 })
 
 test('detectColumns：识别词一个个都认（含括号、全角空格、大小写）', () => {
@@ -533,9 +531,9 @@ test('detectColumns：识别词一个个都认（含括号、全角空格、大�
   }
   // 括号内容要被去掉；全角空格与大小写都无所谓。
   // ⚠️ 刻意**不**把词内部的空格当同一回事：`NEW NAME` 认成 `newname` 是「猜」，
-  //    而猜错的代价是改错文件 —— 认不出就退化成「按行顺序 + 让用户自己改」
-  assert.equal(detectColumns(sparseTable([['原文件名（必填）', '新文件名（必填）']])).mode, 'byName')
-  assert.equal(detectColumns(sparseTable([['　原文件名　', '  NeWnAmE  ']])).mode, 'byName')
+  //    而猜错的代价是改错文件 —— 认不出就**不导入**，让用户在弹窗里指定列
+  assert.equal(detectColumns(sparseTable([['原文件名（必填）', '新文件名（必填）']])).nameCol, 1)
+  assert.equal(detectColumns(sparseTable([['　原文件名　', '  NeWnAmE  ']])).nameCol, 1)
   assert.equal(
     detectColumns(sparseTable([['原文件名', 'NEW NAME']])).headerFound,
     false,
@@ -548,7 +546,6 @@ test('detectColumns：表头在前 5 行内（前面允许有标题行）', () =
     sparseTable([['2026 年 9 月订单表', null], [null, null], ['原文件名', '新文件名'], ['a', 'b']]),
   )
   assert.equal(g.headerRow, 2)
-  assert.equal(g.mode, 'byName')
   // 表头在第 6 行 → 超出扫描范围，认不出
   const far = detectColumns(
     sparseTable([[null, null], [null, null], [null, null], [null, null], [null, null], ['原文件名', '新文件名']]),
@@ -560,7 +557,8 @@ test('detectColumns：★「文件名」这种不在词表里的词不能被误�
   const g = detectColumns(sparseTable([['文件名', '新文件名'], ['a.txt', 'b.txt']]))
   assert.equal(g.nameCol, 0, '「文件名」不能当原名列（词表里只有「原文件名」这类写法）')
   assert.equal(g.newCol, 2)
-  assert.equal(g.mode, 'byOrder')
+  // ★ 认不出原名列 → 整体拒绝（不猜）
+  assert.equal(g.headerFound, true)
 })
 
 test('detectColumns：下拉用的列清单带上表头文字', () => {
@@ -619,38 +617,20 @@ test('buildMapping：按文件名匹配 —— 正常 / 忽略大小写 / 表里
   assert.ok(missing.rows[0].reason.includes('列表里没有'))
 })
 
-test('buildMapping：按行顺序 —— 行数不等 → 整体拒绝', () => {
+test('buildMapping：★ 没指定「原文件名」列 → 整体拒绝，并告诉用户怎么办', () => {
   const r = buildMapping(
     sparseTable([['新文件名'], ['a.jpg'], ['b.jpg']]),
-    choice({ nameCol: 0, newCol: 1, mode: 'byOrder', headerRow: 0 }),
+    choice({ nameCol: 0, newCol: 1, headerRow: 0 }),
     [file('f1', 'x.jpg')],
   )
-  assert.ok(r.rejected.includes('数量不等'), `实际：${r.rejected}`)
+  assert.ok(r.rejected.includes('原文件名'), `实际：${r.rejected}`)
+  // ★ 必须告诉用户**怎么办**（设计 §16 第 5 项）—— 不能只说「不行」
+  assert.ok(
+    r.rejected.includes('放进表里') || r.rejected.includes('指定'),
+    `拒绝时必须告诉用户怎么办，实际：${r.rejected}`,
+  )
   assert.equal(r.rows.length, 0, '被拒绝时不产出对照表，避免用户以为「可以导」')
   assert.equal(r.counts.ok, 0)
-})
-
-test('buildMapping：按行顺序 —— 行数相等就通过，且顺带校验顺序', () => {
-  const rows = sparseTable([
-    ['原文件名', '新文件名'],
-    ['A.txt', 'a1.txt'],
-    ['B.txt', 'b1.txt'],
-  ])
-  const c = choice({ mode: 'byOrder' })
-
-  // 顺序吻合 → 无警告
-  const ok = buildMapping(rows, c, [file('f1', 'A.txt'), file('f2', 'B.txt')])
-  assert.deepEqual(okIds(ok), ['f1', 'f2'])
-  assert.equal(ok.orderCheck.checked, true)
-  assert.equal(ok.orderCheck.ok, true)
-
-  // 顺序不吻合 → **放过但明确警告**（第 2 道闸）
-  const swapped = buildMapping(rows, c, [file('f1', 'B.txt'), file('f2', 'A.txt')])
-  assert.deepEqual(okIds(swapped), ['f1', 'f2'], '不拒绝 —— 只是警告')
-  assert.equal(swapped.orderCheck.ok, false)
-  // ★ 行号是**表里的原始行号**：表头占第 1 行，所以第一条数据是第 2 行
-  assert.equal(swapped.orderCheck.firstBadRow, 2)
-  assert.ok(swapped.orderCheck.message.includes('第 2 行'), swapped.orderCheck.message)
 })
 
 test('buildMapping：扩展名四种情形（保护原扩展名 / 不一致要挡住）', () => {
@@ -721,13 +701,6 @@ test('buildMapping：列表为空 → 全部「对不上」+ 标记 listEmpty（
   assert.equal(r.rejected, '', '列表为空不该走「整体拒绝」那条路（设计 §4 第 1 行）')
   assert.equal(r.counts.unmatched, 1)
   assert.equal(r.rows[0].reason.includes('列表里没有'), true, r.rows[0].reason)
-
-  // 按行顺序那条路上，「列表为空」也**不能**被误判成「行数不等 → 整体拒绝」
-  // （否则用户在空列表下点导入会看到一句莫名其妙的对不上）
-  const order = buildMapping(rows, choice({ nameCol: 0, newCol: 2, mode: 'byOrder' }), [])
-  assert.equal(order.listEmpty, true)
-  assert.equal(order.rejected, '')
-  assert.ok(order.rows[0].reason.includes('先把文件拖进来'), order.rows[0].reason)
 })
 
 test('buildMapping：表里只有表头 → empty', () => {
