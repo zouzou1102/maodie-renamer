@@ -20,10 +20,18 @@
  */
 
 import { isYmd } from './rule-engine'
-import { DEFAULT_RULE, type DateFormat, type RuleConfig } from './types'
+import { DEFAULT_RULE, type DateFormat, type ItemAttrs, type RuleConfig, type SizeUnit } from './types'
 
 /** 5 档日期样式白名单（「启用日期」与「时间」类型共用一份实现） */
 const DATE_FORMAT_VALUES: readonly string[] = ['YYYYMMDD', 'YYYY年MM月DD日', 'MM月DD日', 'YYMMDD']
+
+/** P3-3：大小单位 5 档。不认识的回落 `'auto'` —— 与界面侧 `clamp()` 口径一致 */
+const SIZE_UNIT_VALUES: readonly string[] = ['auto', 'B', 'KB', 'MB', 'GB']
+
+/** 不认识的大小单位一律回落到 fallback（默认 `'auto'`） */
+function sizeUnitOf(v: unknown, fallback: SizeUnit = 'auto'): SizeUnit {
+  return typeof v === 'string' && SIZE_UNIT_VALUES.includes(v) ? (v as SizeUnit) : fallback
+}
 
 /** 不认识的日期样式一律回落到 fallback（默认 `'YYYY-MM-DD'`） */
 function dateFormatOf(v: unknown, fallback: DateFormat = 'YYYY-MM-DD'): DateFormat {
@@ -37,6 +45,26 @@ function dateFormatOf(v: unknown, fallback: DateFormat = 'YYYY-MM-DD'): DateForm
  *   （写字面量就会和渲染层漂移）。`'at'` 与两个新日期样式必须**显式放行**，
  *   否则会被静默降级：`at` → `suffix`、新样式 → `YYYY-MM-DD`。
  */
+/**
+ * ★ P3-3：属性快照的逐字段收口。
+ *
+ * 与 `sanitizeRule` 同一形态 —— **主进程不信任渲染层**。
+ * 漏收的后果：`{大小}` 静默变空串 / 得到一个 NaN 的字节数，而界面无异常。
+ *
+ * ★ `sizeBytes` 的 `null` 与 `0` 是**两种含义**（不可用 vs 真空文件），
+ *   收口时必须保住这个区别 —— 把非法值归成 `0` 就等于把文件夹说成空的（设计 §1.4）。
+ */
+export function sanitizeAttrs(v: unknown): ItemAttrs {
+  const src = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>
+  const ymd = (x: unknown): string => (typeof x === 'string' && isYmd(x) ? x : '')
+  const n = src.sizeBytes
+  return {
+    created: ymd(src.created),
+    modified: ymd(src.modified),
+    sizeBytes: typeof n === 'number' && Number.isFinite(n) && n >= 0 ? Math.trunc(n) : null,
+  }
+}
+
 export function sanitizeRule(raw: unknown): RuleConfig {
   const src = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   const r = (typeof src.rule === 'object' && src.rule !== null ? src.rule : {}) as Record<string, unknown>
@@ -89,6 +117,8 @@ export function sanitizeRule(raw: unknown): RuleConfig {
       // 引擎那边会再回落到调用方传入的目标日期
       seqTimeStart: isYmd(str(r.seqTimeStart)) ? str(r.seqTimeStart) : '',
       seqTimeFormat: dateFormatOf(r.seqTimeFormat, DEFAULT_RULE.rule.seqTimeFormat),
+      // ★ P3-3：漏收这一行 → 用户选了 MB，**执行时还是按 auto 渲染**，界面无异常
+      sizeUnit: sizeUnitOf(r.sizeUnit, DEFAULT_RULE.rule.sizeUnit),
     },
   }
 }

@@ -8,7 +8,7 @@ const DIR = 'C:\\Users\\PC\\Desktop'
 const KEY = dirKey(DIR)
 
 function item(fromName: string, id = fromName, isDir = false): ResolveInput {
-  return { id, dirPath: DIR, fromName, isDir }
+  return { id, dirPath: DIR, fromName, isDir, attrs: { created: '', modified: '', sizeBytes: null } }
 }
 
 function rule(patch: Partial<RuleConfig> = {}, rulePatch: Partial<RuleConfig['rule']> = {}): RuleConfig {

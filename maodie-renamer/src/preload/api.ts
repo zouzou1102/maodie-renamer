@@ -16,6 +16,7 @@ import type {
   ExecuteResult,
   ExportListRequest,
   ExportListResult,
+  ImportTableResult,
   MaoDieAPI,
   MdResult,
   Prefs,
@@ -71,6 +72,10 @@ export function buildMaodieApi(bridge: PreloadBridge): MaoDieAPI {
       //   才会拿到 `undefined` 并在运行时炸（设计 §7.5 第 2 行）。
       exportList: (req: ExportListRequest) =>
         bridge.invoke(CH.FS_EXPORT_LIST, req) as Promise<MdResult<ExportListResult>>,
+      // ★ P3-4：导入表格。**无入参** —— 选哪个文件由系统「打开」对话框决定，
+      //   渲染层给不了任何输入（与导出对称）。少一个入参就少一处漏网的收口点。
+      importTable: () =>
+        bridge.invoke(CH.FS_IMPORT_TABLE) as Promise<MdResult<ImportTableResult>>,
     },
 
     rename: {

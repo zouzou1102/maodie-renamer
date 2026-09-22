@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "test:core": "node tests/run-unit.js tests/p1-rules.test.ts tests/p2a-theme.test.ts tests/p2c.test.ts tests/p2c-guide.test.ts tests/p2b-templates.test.ts tests/p3-1-seq.test.ts tests/p3-2-export.test.ts",
+    "test:core": "node tests/run-unit.js tests/p1-rules.test.ts tests/p2a-theme.test.ts tests/p2c.test.ts tests/p2c-guide.test.ts tests/p2b-templates.test.ts tests/p3-1-seq.test.ts tests/p3-2-export.test.ts tests/p3-3-attrs.test.ts tests/p3-4-import.test.ts",
     "lint": "eslint .",
     "cli:verify": "tsx scripts/cli-verify.ts",
     "package:win": "npm run build && electron-builder --win --config electron-builder.yml",

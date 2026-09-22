@@ -40,6 +40,7 @@ const ctx = (index = 0, total = 1, date = '2026-09-11', seedKey = 'seed-fixed') 
   total,
   date,
   seedKey,
+  attrs: { created: '', modified: '', sizeBytes: null },
 })
 
 /* ── TC-21 正则删除 ─────────────────────────────────────────────────── */

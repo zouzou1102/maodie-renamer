@@ -17,17 +17,36 @@ import {
   DATE_FORMAT_OPTIONS,
   SEQ_KIND_OPTIONS,
   SEQ_POSITION_OPTIONS,
+  SIZE_UNIT_OPTIONS,
 } from '@shared/labels'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
 import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
 import { joinName, splitName } from '@shared/name-split'
-import { applyDelete, applyReplace, applyRuleMode } from '@shared/rule-engine'
+import { applyDelete, applyReplace, applyRuleMode, dateText, sizeText } from '@shared/rule-engine'
 import { todayYmd } from '@shared/today'
-import type { CaseTransform, DateFormat, RuleMode, SeqKind, SeqPosition } from '@shared/types'
+import type {
+  CaseTransform,
+  DateFormat,
+  RuleMode,
+  SeqKind,
+  SeqPosition,
+  SizeUnit,
+} from '@shared/types'
 
 const rule = useRuleStore()
 /** 套用模板后要给状态栏一句话，用既有的 3 秒轻提示位（不弹窗、不打断）*/
 const files = useFilesStore()
+
+/**
+ * P3-4 · EL-134「清除导入」：去掉全部 `override`，那些项**立刻回到按规则算**。
+ *
+ * ⚠️ 只清「名字的来源」，**列表里的文件一个都不删** —— 所以不需要二次确认。
+ *   这与「清空列表」是完全不同的两件事，别把两者混成一句话。
+ */
+function clearImported(): void {
+  const n = files.clearOverride()
+  if (n > 0) files.showTransient(`已清除 ${n} 项表格导入的名字，它们回到按规则算`)
+}
 
 /**
  * P2-B EL-120 / IX-106：点一下 chip = 套用整份模板。
@@ -113,6 +132,43 @@ const needsSeqHint = computed(
 /* ══ P3-1 · 序号组（EL-121 ~ EL-125）═══════════════════════════════════ */
 
 const seqOn = computed(() => rule.rule.rule.seqEnabled)
+
+/* ── P3-3（第 3 批）：属性组（EL-130 / EL-131）────────────────────────── */
+
+/** 三个属性变量。**没有启用开关** —— 属性只有「用户写了才出现」（设计 §1.2 / §5.①） */
+const ATTR_VARS = [
+  { token: '{创建}', label: '创建日期' },
+  { token: '{修改}', label: '修改日期' },
+  { token: '{大小}', label: '文件大小' },
+] as const
+
+/**
+ * 点一下把变量追加到**前缀末尾**（IX-112）。
+ *
+ * 为什么做成可点而不是让用户手打：这三个变量带花括号，手打容易漏括号或写成
+ * 全角括号 —— 而**打错的变量名不会报错、会被原样留在文件名里**（设计 §5.④）。
+ */
+function insertVar(token: string): void {
+  rule.patchInner({ prefix: (rule.rule.rule.prefix ?? '') + token })
+}
+
+/** 示例用的**固定假属性值**（设计 §3.5）—— 与 P3-1「固定拿【素材】试」同一个思路 */
+const DEMO_CREATED = '2026-09-18'
+const DEMO_MODIFIED = '2026-09-02'
+const DEMO_BYTES = 2516582
+
+/**
+ * 属性示例行。★ 跟着「大小单位」实时重算 —— 改单位，示例立刻从 `2.4MB`
+ * 变成 `2516582B`，「单位是干吗的」不用讲、看一眼就懂。
+ */
+const attrDemo = computed(() => {
+  const r = rule.rule.rule
+  return [
+    dateText(DEMO_CREATED, r.dateFormat),
+    dateText(DEMO_MODIFIED, r.dateFormat),
+    sizeText(DEMO_BYTES, r.sizeUnit),
+  ].join(' · ')
+})
 const seqKind = computed(() => rule.rule.rule.seqKind)
 const seqAtMode = computed(() => rule.rule.rule.seqPosition === 'at')
 
@@ -138,6 +194,8 @@ const demoSeqNames = computed<string[]>(() =>
       index: i,
       total: 3,
       date: TODAY,
+      // P3-3：示例用**固定的假属性值**（与「固定拿【素材】试」同一个思路）
+      attrs: { created: DEMO_CREATED, modified: DEMO_MODIFIED, sizeBytes: DEMO_BYTES },
       // 三个位置用不同的种子：随机字符类型下会显示三个不同的串，而不是把同一个串
       // 贴三遍 —— 后者会让人误以为「所有文件都会被改成同一个名字」
       seedKey: `demo-${i}`,
@@ -203,6 +261,18 @@ function setNumber(
           {{ t.name }}
         </button>
       </div>
+    </div>
+
+    <!-- ── P3-4 · EL-134 名字来源提示条 ──────────────────────────────
+         为什么必须有：被导入的项**不再受规则影响**（表格给的 override 优先）。
+         不说明的话，用户改了规则发现「怎么有几个没变」—— 又是一个
+         「界面无异常但行为不对」的迷局（设计 §2.3）。这条把真相摆在原地。
+         位置与 P2-B 模板条同一处逻辑：**常显、不进折叠**。 -->
+    <div v-if="files.overrideCount > 0" class="md-srcbar" data-import-bar>
+      <span class="md-srcbar__text">
+        本批有 {{ files.overrideCount }} 个名字来自「{{ files.overrideSource }}」，规则不影响它们
+      </span>
+      <button class="md-srcbar__btn" data-import-clear @click="clearImported">清除导入</button>
     </div>
 
     <!-- EL-040 页签组（三选一，互斥）-->
@@ -276,8 +346,12 @@ function setNumber(
           @input="rule.patchInner({ suffix: ($event.target as HTMLInputElement).value })"
         />
 
-        <p class="md-hint md-rulepanel__varhint">
-          支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期 —— 变量需先勾选下方对应开关
+        <!-- ★ P3-3：这行**不改就等于功能不存在** —— 三个属性变量完全正常工作、
+             测试全绿、界面一点异常都没有，**只是没有任何用户知道有它们**。
+             这不是代码 bug，而是「功能等于不存在」。 -->
+        <p class="md-hint md-rulepanel__varhint" data-var-hint>
+          支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期（<b>需先勾选下方对应开关</b>）、
+          <code>{创建}</code> 创建日期、<code>{修改}</code> 修改日期、<code>{大小}</code> 文件大小（<b>写上就生效，不用开关</b>）
         </p>
 
         <!-- ── 序号组（EL-121 ~ EL-125）────────────────────────────────────
@@ -508,6 +582,59 @@ function setNumber(
         <p class="md-hint md-rulepanel__span" data-date-hint>
           日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。
         </p>
+
+        <!-- ── 属性组（EL-130 / EL-131 · P3-3）─────────────────────────
+             三个属性变量是**规则化模式里的变量**，不是第四种模式
+             （与 P3-1 把编号类型放进序号组同一个判断）。
+             ★ 它们**没有启用开关** —— 属性只有「用户写了才出现」，
+               不像序号 / 日期那样还有一个自动位置。加一个勾只会让人
+               以为「勾上就会自动加进名字」（设计 §1.2 / §5.①）。 -->
+        <div class="md-rulepanel__group">
+          <div class="md-attr__vars">
+            <span class="md-attr__label">属性</span>
+            <div class="md-attr__list">
+              <button
+                v-for="v in ATTR_VARS"
+                :key="v.token"
+                type="button"
+                class="md-attr__var"
+                :data-attr-insert="v.token"
+                @click="insertVar(v.token)"
+              >
+                <span>{{ v.label }}</span>
+                <code class="md-attr__token">{{ v.token }}</code>
+              </button>
+            </div>
+          </div>
+
+          <!-- 常显说明：日期格式两处共用一份
+               —— 不写的话，用户不启用日期就找不到那个下拉 -->
+          <p class="md-hint md-rulepanel__span">
+            注：创建 / 修改日期用的是上面「日期格式」那一档 —— 改那里，三处一起变。
+          </p>
+
+          <label class="md-rulepanel__picker">
+            <span>大小</span>
+            <select
+              class="md-select"
+              data-size-unit
+              :value="rule.rule.rule.sizeUnit"
+              @change="rule.patchInner({ sizeUnit: ($event.target as HTMLSelectElement).value as SizeUnit })"
+            >
+              <option v-for="o in SIZE_UNIT_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
+            </select>
+          </label>
+
+          <p class="md-hint md-rulepanel__span" data-attr-demo>
+            示例（假的文件名 + 假的属性值，不是你列表里的文件）：{{ attrDemo }}
+          </p>
+
+          <p class="md-hint md-rulepanel__span">
+            属性是你把文件拖进来那一刻读的，之后不再刷新。
+          </p>
+        </div>
 
         <label class="md-check md-rulepanel__span">
           <input
@@ -1103,4 +1230,82 @@ code {
   color: var(--md-orange-dark);
   background: var(--md-highlight-bg);
 }
+/* ── P3-3：属性组（零新增令牌 / 零新增色值，全部用既有变量）───── */
+
+.md-attr__vars {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--md-space-3);
+}
+
+.md-attr__label {
+  flex: none;
+  font-size: 12.5px;
+  line-height: var(--md-ctrl-h);
+  color: var(--md-ink-2);
+}
+
+.md-attr__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--md-space-2);
+}
+
+.md-attr__var {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--md-line);
+  border-radius: var(--md-radius-badge);
+  background: var(--md-bg-card);
+  font-size: 12.5px;
+  color: var(--md-ink-2);
+  cursor: pointer;
+}
+
+.md-attr__var:hover {
+  border-color: var(--md-orange-dark);
+  color: var(--md-orange-dark);
+}
+
+.md-attr__token {
+  padding: 0 4px;
+  border-radius: var(--md-radius-badge);
+  background: var(--md-bg-sunken);
+  font-family: var(--md-font-num);
+}
+
+
+/* ── P3-4 · EL-134 名字来源提示条 ─────────────────────────────────────
+   与 P2-B 模板条同一处逻辑：**常显、不进折叠**。因为「被导入的项不再受规则影响」
+   这件事不说明，就是一个「界面无异常但行为不对」的迷局（设计 §2.3）。 */
+.md-srcbar {
+  display: flex;
+  align-items: center;
+  gap: var(--md-space-3);
+  padding: var(--md-space-2) var(--md-space-3);
+  background: var(--md-bg-warm);
+  border-radius: var(--md-radius-input);
+}
+
+.md-srcbar__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--md-ink-2);
+}
+
+.md-srcbar__btn {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--md-orange-dark);
+  cursor: pointer;
+}
+
 </style>

@@ -3,6 +3,7 @@
  */
 
 import type { Theme } from './theme'
+import type { MatchMode, MappingVerdict } from './table-map'
 import type {
   CaseTransform,
   ConflictKind,
@@ -11,6 +12,7 @@ import type {
   ItemStatus,
   SeqKind,
   SeqPosition,
+  SizeUnit,
 } from './types'
 
 export function seqPositionLabel(v: SeqPosition): string {
@@ -76,6 +78,20 @@ export const EXPORT_FORMAT_OPTIONS: Array<{ value: ExportFormat; label: string }
   { value: 'docx', label: 'Word (.docx)' },
 ]
 
+/** P3-3：`{大小}` 的大小单位五选一（顺序即界面顺序；默认 'auto' 在组件里决定）*/
+export const SIZE_UNIT_OPTIONS: Array<{ value: SizeUnit; label: string }> = [
+  { value: 'auto', label: '自动' },
+  { value: 'B', label: '字节 B' },
+  { value: 'KB', label: 'KB' },
+  { value: 'MB', label: 'MB' },
+  { value: 'GB', label: 'GB' },
+]
+
+/** 大小单位的中文标签 */
+export function sizeUnitLabel(v: SizeUnit): string {
+  return SIZE_UNIT_OPTIONS.find((o) => o.value === v)?.label ?? '自动'
+}
+
 /** F-14 主题三选一的选项（顺序即界面顺序：跟随系统 / 始终浅色 / 始终深色）*/
 export const THEME_OPTIONS: Array<{ value: Theme; label: string }> = [
   { value: 'system', label: '跟随系统' },
@@ -103,4 +119,28 @@ export const CONFLICT_KIND_LABEL: Record<ConflictKind, string> = {
   disk: '磁盘同名',
   self: '',
   'case-only': '大小写',
+}
+
+/* ── P3-4（第 4 批）：导入表格 ────────────────────────────────────── */
+
+/** 导入弹窗里「匹配方式」下拉的两项（顺序即推荐顺序，默认第一项）*/
+export const MATCH_MODE_OPTIONS: Array<{ value: MatchMode; label: string }> = [
+  { value: 'byName', label: '按文件名匹配（推荐）' },
+  { value: 'byOrder', label: '按行顺序' },
+]
+
+/** 对照表四个标记的**文字**（颜色不能是唯一信息载体，所以必须有字）*/
+export const MAPPING_VERDICT_LABEL: Record<MappingVerdict, string> = {
+  ok: '能改',
+  unmatched: '对不上',
+  problem: '有问题',
+  same: '没变化',
+}
+
+/** 四个标记的符号（与文字一起出现，符号只是让它更好扫）*/
+export const MAPPING_VERDICT_MARK: Record<MappingVerdict, string> = {
+  ok: '✓',
+  unmatched: '✕',
+  problem: '⚠',
+  same: '○',
 }

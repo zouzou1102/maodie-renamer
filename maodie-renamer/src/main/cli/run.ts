@@ -96,6 +96,7 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     dirPath: i.dirPath,
     fromName: i.name,
     isDir: i.isDir,
+    attrs: i.attrs,
   }))
 
   const date = localDateString() // DEC-03：日期取执行当天
@@ -153,7 +154,13 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
   const outcome = await execute(
     {
       taskId,
-      items: ready.map((r) => ({ id: r.id, dirPath: r.dirPath, fromName: r.fromName, isDir: r.isDir })),
+      items: ready.map((r) => ({
+        id: r.id,
+        dirPath: r.dirPath,
+        fromName: r.fromName,
+        isDir: r.isDir,
+        attrs: items.find((x) => x.id === r.id)?.attrs ?? { created: '', modified: '', sizeBytes: null },
+      })),
       rule: o.rule,
       date,
       autoResolveConflict: o.autoSeq,

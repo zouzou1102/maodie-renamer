@@ -91,6 +91,7 @@ async function main(): Promise<void> {
     dirPath: i.dirPath,
     fromName: i.name,
     isDir: i.isDir,
+    attrs: i.attrs,
   }))
 
   console.log(`\n目录：${abs}`)
@@ -141,7 +142,13 @@ async function main(): Promise<void> {
   // 真执行：复用主进程的执行器，两条路径同一套安全防护
   const { execute } = await import('../src/main/services/rename-executor')
   const out = await execute(
-    { taskId: `cli-${Date.now()}`, items: ready.map((r) => ({ id: r.id, dirPath: r.dirPath, fromName: r.fromName, isDir: r.isDir })), rule: args.rule, date: args.date, autoResolveConflict: args.auto },
+    { taskId: `cli-${Date.now()}`, items: ready.map((r) => ({
+      id: r.id,
+      dirPath: r.dirPath,
+      fromName: r.fromName,
+      isDir: r.isDir,
+      attrs: items.find((x) => x.id === r.id)?.attrs ?? { created: '', modified: '', sizeBytes: null },
+    })), rule: args.rule, date: args.date, autoResolveConflict: args.auto },
     () => {},
     new AbortController().signal,
   )

@@ -60,6 +60,7 @@ const ctx = (index = 0, total = 1, date = '2026-09-11', seedKey = 'test-seed') =
   total,
   date,
   seedKey,
+  attrs: { created: '', modified: '', sizeBytes: null },
 })
 
 /** 模拟 IPC 的序列化往返（`undefined` 会丢键 —— 白名单漏字段最容易在这里露出来）*/
@@ -395,9 +396,9 @@ const DATE = '2026-09-18'
 
 /** 三个互不相同的文件；用不同主体长度好让第三档的落点也不一样 */
 const ITEMS = [
-  { id: 'f1', dirPath: 'D:\\p31', fromName: '素材.docx', isDir: false },
-  { id: 'f2', dirPath: 'D:\\p31', fromName: '季度报告（终稿）.txt', isDir: false },
-  { id: 'f3', dirPath: 'D:\\p31', fromName: 'photo-01.jpg', isDir: false },
+  { id: 'f1', dirPath: 'D:\\p31', fromName: '素材.docx', isDir: false, attrs: { created: '', modified: '', sizeBytes: null } },
+  { id: 'f2', dirPath: 'D:\\p31', fromName: '季度报告（终稿）.txt', isDir: false, attrs: { created: '', modified: '', sizeBytes: null } },
+  { id: 'f3', dirPath: 'D:\\p31', fromName: 'photo-01.jpg', isDir: false, attrs: { created: '', modified: '', sizeBytes: null } },
 ]
 
 const SEQ_KINDS: readonly SeqKind[] = ['number', 'letter', 'random', 'time']

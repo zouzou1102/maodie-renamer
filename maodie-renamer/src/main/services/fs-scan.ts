@@ -18,7 +18,32 @@ import { basename, resolve } from 'node:path'
 import { MAX_ITEMS_PER_BATCH, READDIR_CONCURRENCY } from '@shared/constants'
 import { splitName } from '@shared/name-split'
 import { dirKey, isAbsoluteWinPath, normalizeSeparators, stripTrailingSep } from '@shared/path-utils'
-import type { FileItem, ResolvePathsRequest, ResolvedBatch } from '@shared/types'
+import { ymdFromMs } from '@shared/today'
+/**
+ * ★ P3-3：从 `lstat` / `stat` 结果里取出属性快照（**零额外磁盘 IO**）。
+ *
+ * ⚠️ 创建日期用 **`birthtime`** 而不是 `ctime`：`ctime` 是「元数据变更时间」，
+ *    改名 / 改权限都会刷新它 —— 而**这个产品干的就是改名**。用错会让用户看到
+ *    「上一次改名那一刻」，且**界面上毫无异常**（设计 §3.2）。
+ *
+ * ⚠️ 文件夹的 `sizeBytes` 给 **`null`**：`lstat().size` 对目录来说不代表里面内容的
+ *    总和，要算总和得递归，而本项目的铁律是「**绝不递归**」（`DEC-01`）。
+ *    `null`（不可用）与 `0`（真的空文件）**必须分开**（设计 §1.4）。
+ */
+function attrsOf(st: {
+  birthtimeMs: number
+  mtimeMs: number
+  size: number
+  isDirectory(): boolean
+}): ItemAttrs {
+  return {
+    created: ymdFromMs(st.birthtimeMs),
+    modified: ymdFromMs(st.mtimeMs),
+    sizeBytes: st.isDirectory() ? null : st.size,
+  }
+}
+
+import type { FileItem, ItemAttrs, ResolvePathsRequest, ResolvedBatch } from '@shared/types'
 
 /** 并发执行一个映射（限流），保持输入顺序 */
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -79,9 +104,23 @@ export async function resolvePaths(req: ResolvePathsRequest): Promise<ResolvedBa
         // ★ 只判断「链接指向什么」，绝不做 realpath 解引用
         const target = await fs.stat(fullPath).catch(() => null)
         if (target === null) return { fullPath, kind: 'vanished' as const }
-        return { fullPath, kind: 'ok' as const, isDir: target.isDirectory(), isSymlink: true }
+        // P3-3：符号链接取**目标**的属性 —— 上一行已经 `stat` 过了，零额外 IO；
+        //   而链接自身的 size 只是“目标路径的长度”，对用户没意义
+        return {
+          fullPath,
+          kind: 'ok' as const,
+          isDir: target.isDirectory(),
+          isSymlink: true,
+          attrs: attrsOf(target),
+        }
       }
-      return { fullPath, kind: 'ok' as const, isDir: st.isDirectory(), isSymlink: false }
+      return {
+        fullPath,
+        kind: 'ok' as const,
+        isDir: st.isDirectory(),
+        isSymlink: false,
+        attrs: attrsOf(st),
+      }
     } catch {
       return { fullPath, kind: 'vanished' as const }
     }
@@ -117,6 +156,8 @@ export async function resolvePaths(req: ResolvePathsRequest): Promise<ResolvedBa
       ext,
       isDir: p.isDir,
       isSymlink: p.isSymlink,
+      // P3-3：入列那一刻的属性快照（之后不再刷新）
+      attrs: p.attrs,
       newStem: stem,
       newName: name,
       status: 'pending',

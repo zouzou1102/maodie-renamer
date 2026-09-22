@@ -9,7 +9,7 @@
  *    这样同一个函数在测试里能给出确定结果。
  */
 
-import type { CaseTransform, DateFormat, RuleConfig } from './types'
+import type { CaseTransform, DateFormat, ItemAttrs, RuleConfig, SizeUnit } from './types'
 import type { NameParts } from './name-split'
 
 export interface RuleContext {
@@ -27,6 +27,24 @@ export interface RuleContext {
    * 必填 → 任何新增的调用点漏传都会在编译期就红。
    */
   seedKey: string
+  /**
+   * ★ P3-3：该项入列时的属性快照（创建 / 修改 / 大小）。
+   *
+   * 与 `seedKey` 同样做成**必填** —— 漏传不是“展开成空串”那么温和：
+   * 它会让 `{大小}` 静默变空，而界面毫无异常。必填 → 任何新增调用点
+   * 漏传都在**编译期就红**（设计 §7.5 第 4 行）。
+   */
+  attrs: ItemAttrs
+
+  /**
+   * ★ P3-4：表格给定的新名**主体** —— 有它就不走规则，原样用它。
+   *
+   * 与 `seedKey` / `attrs` **刻意不同：这里是可选的**。
+   * 那两处做成必填是为了让「漏传」在编译期就红；而「这一项没有表」是**正常状态**，
+   * 不是漏传 —— 做成必填反而会逼着每个调用点写 `override: undefined`。
+   * 防漏靠的是单测：专门断言 `PreviewItemInput` 那条路上它**不是 undefined**。
+   */
+  override?: string
 }
 
 /* ── 序号与日期的文本化 ─────────────────────────────────────────────── */
@@ -419,9 +437,19 @@ export function applyRuleMode(
   const usesN = rule.seqEnabled && (rawPrefix.includes('{n}') || rawSuffix.includes('{n}'))
   const usesD = rule.dateEnabled && (rawPrefix.includes('{d}') || rawSuffix.includes('{d}'))
 
+  /* P3-3：三个属性变量。**没有开关** —— 写上就生效。
+     ⚠️ 日期必须**先判空再转格式**：`dateText('', '年月日那类中文格式')` 会返回
+     `'年月日'`（而不是空串）—— 那不是「不可用」该有的样子。既有 `{d}` 没暴露过
+     这个问题，是因为调用方保证了 `ctx.date` 非空；属性日期则**真的可能为空**。 */
+  const attrVars = {
+    created: ctx.attrs.created === '' ? '' : dateText(ctx.attrs.created, rule.dateFormat),
+    modified: ctx.attrs.modified === '' ? '' : dateText(ctx.attrs.modified, rule.dateFormat),
+    size: sizeText(ctx.attrs.sizeBytes, rule.sizeUnit),
+  }
+
   // 第二步：展开变量（未启用的变量展开为空串）
-  const prefix = expand(rawPrefix, n, d)
-  const suffix = expand(rawSuffix, n, d)
+  const prefix = expand(rawPrefix, n, d, attrVars)
+  const suffix = expand(rawSuffix, n, d, attrVars)
 
   // 第三步：按 seqPosition 组合
   const autoD = usesD ? '' : d
@@ -465,8 +493,64 @@ function atPosition(
   return prefix + autoD + chars.slice(0, k).join('') + autoN + chars.slice(k).join('') + suffix
 }
 
-function expand(text: string, n: string, d: string): string {
-  return text.split('{n}').join(n).split('{d}').join(d)
+/**
+ * 展开变量。P3-3 从 2 个扩到 **5 个**：`{n}` `{d}` `{创建}` `{修改}` `{大小}`。
+ *
+ * 三个属性变量的值在调用方已经算好（字符串）—— 这里只做字面替换。
+ * 不认识的占位符（如 `{大少}`）**原样保留** —— 与 `{n}` `{d}` 的既有行为一致（设计 §4 边界 6）。
+ */
+/* ── P3-3（第 3 批）：属性变量的文本化 ────────────────────────────── */
+
+/** 换算基数——1024（不是 1000），与 Windows 资源管理器一致 */
+const SIZE_BASE = 1024
+const SIZE_UNIT_STEPS: ReadonlyArray<'B' | 'KB' | 'MB' | 'GB'> = ['B', 'KB', 'MB', 'GB']
+
+/**
+ * 字节数 → 可读文本（设计 §3.4）。
+ *
+ * ★ `null`（不可用，如**文件夹**）与 `0`（**真的空文件**）**必须产出不同结果**：
+ *   前者是空串，后者是 `0B`。把两者混为一谈，用户会以为自己的文件夹是空的。
+ *
+ * 规则：`auto` 选**第一个让数值 ≥ 1** 的单位；`B` 整数；
+ * `KB/MB/GB` 保留 **1 位小数**（选了 GB 但文件很小 → 照实给 `0.0GB`，
+ * 不自动纠正）。非法值（NaN / 负数）一律空串。
+ */
+export function sizeText(bytes: number | null, unit: SizeUnit): string {
+  if (bytes === null || !Number.isFinite(bytes) || bytes < 0) return ''
+
+  let u: 'B' | 'KB' | 'MB' | 'GB'
+  if (unit === 'auto') {
+    u = 'B'
+    for (let i = 1; i < SIZE_UNIT_STEPS.length; i++) {
+      if (bytes >= SIZE_BASE ** i) u = SIZE_UNIT_STEPS[i]
+      else break
+    }
+  } else {
+    u = unit
+  }
+
+  if (u === 'B') return `${Math.trunc(bytes)}B`
+  const exp = SIZE_UNIT_STEPS.indexOf(u)
+  return `${(bytes / SIZE_BASE ** exp).toFixed(1)}${u}`
+}
+
+function expand(
+  text: string,
+  n: string,
+  d: string,
+  attrs: { created: string; modified: string; size: string },
+): string {
+  return text
+    .split('{n}')
+    .join(n)
+    .split('{d}')
+    .join(d)
+    .split('{创建}')
+    .join(attrs.created)
+    .split('{修改}')
+    .join(attrs.modified)
+    .split('{大小}')
+    .join(attrs.size)
 }
 
 /* ── 对外主函数 ─────────────────────────────────────────────────────── */
@@ -497,6 +581,11 @@ export function computeNewStem(
   rule: RuleConfig,
   ctx: RuleContext,
 ): string {
+  // ★ P3-4：表里已经写好了新名 —— **别再算了**，原样用它。
+  //   刻意连「大小写转换」也一并跳过：表里那一格就是用户最终要的名字，
+  //   再加工一道反而会跟他看到的不一样。
+  if (ctx.override !== undefined && ctx.override !== '') return ctx.override
+
   const stem = computeStemByMode(parts, rule, ctx)
   return applyCaseTransform(stem, rule.caseTransform ?? 'none')
 }

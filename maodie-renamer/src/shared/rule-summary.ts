@@ -5,14 +5,34 @@
  * 且它要参与持久化 —— 硬编码在组件里会让历史记录与代码版本耦合。
  */
 
-import { caseTransformLabel, dateFormatLabel, seqPositionLabel } from './labels'
+import { caseTransformLabel, dateFormatLabel, seqPositionLabel, sizeUnitLabel } from './labels'
 import type { RuleConfig } from './types'
 
-/** 规则摘要 = 模式摘要 + 大小写后缀（设计 §8：大小写对任意模式都追加在末尾）*/
-export function buildRuleSummary(rule: RuleConfig): string {
+/** P3-4：摘要里要能说明「这批名字有一部分来自导入的表格」*/
+export interface ImportedSummaryInfo {
+  /** 名字来自表格的项数 */
+  count: number
+  /** 来源表格的显示名 */
+  source: string
+}
+
+/**
+ * 规则摘要 = 模式摘要 + 大小写后缀 + 表格导入说明（设计 §8：都追加在末尾）。
+ *
+ * ★ P3-4：表格导入的项**不受规则影响**（override 优先）。摘要不说这件事，
+ *   撤销之后就没人知道当初那批名字是怎么来的了 —— 而这段字符串会写进
+ *   `history.json`（设计 §7.5 第 8 行）。
+ *
+ * ⚠️ 第二个参数做成**可选**：老调用点（CLI、以及没有导入的场景）一个字都不用改，
+ *   老的历史记录也不会因此变化 —— **绝不为了统一写法去写数据迁移**。
+ */
+export function buildRuleSummary(rule: RuleConfig, imported?: ImportedSummaryInfo): string {
   const base = buildBaseSummary(rule)
   const suffix = caseTransformLabel(rule.caseTransform ?? 'none')
-  return suffix ? `${base} + ${suffix}` : base
+  const head = suffix ? `${base} + ${suffix}` : base
+  return imported !== undefined && imported.count > 0
+    ? `${head} + 含表格导入 ${imported.count} 项（${imported.source}）`
+    : head
 }
 
 function buildBaseSummary(rule: RuleConfig): string {
@@ -46,6 +66,15 @@ function buildBaseSummary(rule: RuleConfig): string {
       if (r.dateEnabled) {
         parts.push(`日期(${dateFormatLabel(r.dateFormat)})`)
       }
+
+      // ★ P3-3：属性变量（写在前后缀里、**没有开关**）。
+      //   摘要里必须说出来 —— 否则撤销之后没人知道当初是怎么算出来的（设计 §7.5 第 10 行）。
+      //   ⚠️ 这三行必须在下面 `parts.length === 0` 判断**之前** ——
+      //      否则「只写了属性变量」的规则会被误报成「未设置任何规则要素」。
+      const vars = `${r.prefix ?? ''}${r.suffix ?? ''}`
+      if (vars.includes('{创建}')) parts.push('创建日期')
+      if (vars.includes('{修改}')) parts.push('修改日期')
+      if (vars.includes('{大小}')) parts.push(`大小(${sizeUnitLabel(r.sizeUnit)})`)
 
       if (parts.length === 0) return '未设置任何规则要素'
 

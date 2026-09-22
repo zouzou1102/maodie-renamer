@@ -163,6 +163,28 @@ const P2B_FILES = ['(1)(2)报告.docx', '【某某公众号】x.mp4', 'IMG_0001.
 );
 console.log(`P2-B 专用夹具：${P2B_FILES.length} 个（${P2B_FILES.map((p) => path.basename(p)).join('、')}）`);
 
+// ── P3-4：导入表格的夹具（一份 .csv）────────────────────────────────────
+// ★ 表里的「原文件名」必须与上面那个对话框会返回的**同一批名字**逐字相同 ——
+//   只有名字对得上，「按文件名匹配」才配得上，否则整批都会落进「对不上」。
+//   所以这份表是**用运行时的真实文件名现造**的，不是写死的。
+//   三个特别的格子（故意各造一种结果）：
+//     第 1 行 → 正常能改；第 2 行 → 想改扩展名（⚠ 有问题）；
+//     第 3 行 → 写了个列表里没有的名字（✕ 对不上）。
+const P34_DIR = path.join(tmpRoot, 'p34');
+fs.mkdirSync(P34_DIR, { recursive: true });
+const importListNames = [...sampleFiles.slice(0, 5), ...P2B_FILES].map((p) => path.basename(p));
+const IMPORT_CSV_PATH = path.join(P34_DIR, '对照表.csv');
+const importCsv = ['原文件名,新文件名'];
+importListNames.forEach((n, i) => {
+  if (i === 0) importCsv.push(`${n},自定义名字A`);
+  else if (i === 1) importCsv.push(`${n},自定义名字B.jpg`);
+  else if (i === 2) importCsv.push(`_列表里没有这个文件.txt,自定义名字C`);
+  else importCsv.push(`${n},自定义名字${i}`);
+});
+fs.writeFileSync(IMPORT_CSV_PATH, '\uFEFF' + importCsv.join('\r\n') + '\r\n', 'utf8');
+process.env.SMOKE_IMPORT_PATH = IMPORT_CSV_PATH; // 与 SMOKE_EXPORT_PATH 同一类后门
+console.log(`P3-4 导入夹具：${path.basename(IMPORT_CSV_PATH)}（${importListNames.length} 行）`);
+
 // ── 原生对话框 stub（仅运行时替换；不动生产代码）──────────────────────
 // 说明：系统原生对话框是 OS 组件，sendInputEvent 驱动不了。这里让「添加文件/文件夹」
 // 返回临时副本路径，从而真实走通"点击 → 入列 → 预览"的链路。报告里会标注这一代价。
@@ -1171,9 +1193,12 @@ const FEATURES = [
      .see('[data-export-open]', '「导出清单」按钮可见（有尺寸、在视口内）')
      .seeContains('[data-export-open]', '导出清单', '按钮文案正确')
      .seeThat(
-       "(function(){var a=[].slice.call(document.querySelectorAll('.md-actionpanel button')).map(function(x){return x.textContent.trim()});return JSON.stringify([a[2],a[3]])})()",
-       JSON.stringify(['导出清单', '清空列表']),
-       '第 3、4 个按钮依次是「导出清单」「清空列表」（产出在销毁之上）'
+       // ★ P3-4 改了这里的形状：左栏加了第 5 个按钮「导入表格」（EL-132，设计 §2.1）。
+       //   断言改成看**最后三个**的次序 —— 这是**形状同步**（按钮真的多了一个），
+       //   不是放宽：次序本身仍然被钉死（往进加 → 产出 → 销毁）。
+       "(function(){var a=[].slice.call(document.querySelectorAll('.md-actionpanel button')).map(function(x){return x.textContent.trim()});return JSON.stringify(a.slice(-3))})()",
+       JSON.stringify(['导入表格', '导出清单', '清空列表']),
+       '最后三个按钮依次是「导入表格」「导出清单」「清空列表」（往里加 → 产出 → 销毁）'
      )
   ),
 
@@ -1223,6 +1248,156 @@ const FEATURES = [
        '★ 状态栏说「已导出 1 项到 …」—— 列表有多项、只勾了 1 项，导出的就是 1 项'
      )
      .seeContains('.md-statusbar__text', '清单.csv', '提示里带出了真实落盘文件名（主进程返回的路径）')
+  ),
+
+  // ══ P3-3：按文件属性命名（《P3-3按文件属性命名轻量设计确认》§2 / §9）══
+
+  feature('P3-3 EL-130：属性组在规则区里，三个变量都露出来', (c) =>
+    c.scroll('[data-var-hint]')
+     .see('[data-var-hint]', '变量提示行可见')
+     // ★ 不改这行提示，功能完全正常、测试全绿、界面无异常 ——
+     //   但**没有任何用户知道有这三个变量**。这三条是唯一能抓它的断言。
+     .seeContains('[data-var-hint]', '{创建}', '★ 提示行里有 {创建}')
+     .seeContains('[data-var-hint]', '{修改}', '提示行里有 {修改}')
+     .seeContains('[data-var-hint]', '{大小}', '提示行里有 {大小}')
+     .seeThat(
+       "document.querySelectorAll('[data-attr-insert]').length",
+       3,
+       '三个属性变量都可点（点一下就插进前缀）'
+     )
+  ),
+
+  feature('P3-3 IX-112：点属性项 → 变量真的进了前缀输入框', (c) =>
+    c.click('input[placeholder="如 {d}-发票-"]')
+     .type('X_')
+     .click('[data-attr-insert="{大小}"]')
+     .seeThat(
+       "document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value",
+       'X_{大小}',
+       '★ 点一下就把 {大小} 追加到前缀末尾（手打容易漏括号或写成全角）'
+     )
+  ),
+
+  feature('P3-3 EL-131：改「大小」单位 → 示例行立刻重算', (c) =>
+    c.select('[data-size-unit]', 'B')
+     .seeThat(
+       "document.querySelector('[data-attr-demo]').textContent.indexOf('2516582B') >= 0",
+       true,
+       '★ 选 B → 示例立刻变成 2516582B（单位是干吗的，看一眼就懂）'
+     )
+     .select('[data-size-unit]', 'MB')
+     .seeThat(
+       "document.querySelector('[data-attr-demo]').textContent.indexOf('2.4MB') >= 0",
+       true,
+       '选回 MB → 示例变回 2.4MB'
+     )
+  ),
+
+  feature('P3-3 属性变量真的进了新名（走真引擎）', (c) =>
+    // ★ 上一条已经把前缀写成 X_{大小}（输入框的值已断言过），所以真实新名形如
+    //   X_0.0MB【测试】….xlsx —— 大小在 X_ 之后、原主体之前，**单位后面没有下划线**。
+    //   上一版把它写成 /(B|KB|MB|GB)_/ 是**测试自己的错**（要求界面永不产出的形状）。
+    //   分两段写的原因：`waitUntil` 超时只会打印条件表达式，**看不到实际值**；
+    //   所以「等」只负责等前缀生效，"到底长什么样"交给 seeThat —— 它失败时会
+    //   把每一行的真实新名原样打进报告，下一轮就不用猜了。
+    c.waitUntil(
+      // ⚠️ 大小写不敏感：前面 P2-B 的「全部小写」模板步骤把**规则的大小写转换**留成了全小写，
+      //   所以真正的新名是 `x_0.0mb…`。这是**另一个功能（P1 大小写）的既有前提**，
+      //   不是本批要做的事 —— 内容和结构一条都没少断言（见下面那条）。
+      "(() => { const n = document.querySelector('.md-filelist__newname'); return !!n && /^x_/i.test(n.textContent.trim()); })()",
+      8000
+    )
+     .seeThat(
+      "(() => { const ns = Array.from(document.querySelectorAll('.md-filelist__newname')).map((e) => e.textContent.trim()); const ok = ns.filter((t) => /^x_[0-9.]+(?:b|kb|mb|gb)/i.test(t)); return ns.length > 0 && ok.length === ns.length ? 'all' : (ok.length + '/' + ns.length + ' :: ' + ns.join(' / ')); })()",
+      'all',
+      '★ 列表里每一行的新名都以 X_ + 真实大小开头 —— 属性快照一路传到了预览引擎'
+    )
+  ),
+
+  // ══ P3-4：导入表格（《P3-4导入Excel轻量设计确认》§2 / §9）══
+
+  feature('P3-4 EL-132/EL-133：点「导入表格」→ 弹窗开出，三个下拉都有值', (c) =>
+    c.click('[data-import-open]')
+     // ★ 弹窗有入场动画：刚点开那一帧它的盒子可能还是 0，直接判「可见」会偶发红灯。
+     //   这里先等盒子真的立起来（与既有 `seeStyleSettled` 同一个思路），再判可见 ——
+     //   不是在放宽标准，是把「动画还没跑完」从断言里排除掉。
+     .waitUntil(
+      "(() => { const b = document.querySelector('[data-import-confirm]'); if (!b) return false; const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0; })()",
+      8000
+    )
+     .see('[data-import-confirm]', '导入预览弹窗出现（EL-133）')
+     .seeThat("document.querySelector('[data-import-name-col]').value", '1', '原文件名列认在第 1 列')
+     .seeThat("document.querySelector('[data-import-new-col]').value", '2', '新文件名列认在第 2 列')
+     .seeThat("document.querySelector('[data-import-mode]').value", 'byName', '两列都认出 → 默认「按文件名匹配」')
+     .seeContains('[data-import-why]', '按文件名匹配', '★ 说明里写清了「我这样读的」—— 认错在这里等于改错文件')
+  ),
+
+  feature('P3-4 §2.2：对不上 / 有问题的行**默认就列出来**', (c) =>
+    c.seeThat(
+      "(() => { const rows = Array.from(document.querySelectorAll('[data-import-row]')); const bad = rows.filter((r) => r.getAttribute('data-verdict') !== 'ok').length; return rows.length + '|' + bad; })()",
+      '2|2',
+      '★ 默认只列「对不上 / 有问题」的行 —— 静默丢掉未匹配的行是这功能最危险的失败方式'
+    )
+     .seeContains('[data-import-stats]', '能改', '三行统计在（一眼知道能改几个）')
+  ),
+
+  feature('P3-4 EL-133：改「匹配方式」→ 对照表与按钮数字跟着变', (c) =>
+    c.select('[data-import-mode]', 'byOrder')
+     .wait(200)
+     .seeThat(
+      "(() => { const rows = Array.from(document.querySelectorAll('[data-import-row]')); return rows.length + '|' + document.querySelector('[data-import-confirm]').textContent.replace(/\\s+/g, ''); })()",
+      '1|导入这8项',
+      '切到「按行顺序」：9 行配上 9 个文件 → 只剩 1 行「有问题」，能改的从 7 变 8'
+    )
+     .see('[data-import-order-warn]', '★ 第二道闸：表里也有原名列时，顺序对不上要**明确警告**')
+     .select('[data-import-mode]', 'byName')
+     .wait(200)
+     .seeThat(
+      "document.querySelector('[data-import-confirm]').textContent.replace(/\\s+/g, '')",
+      '导入这7项',
+      '切回「按文件名匹配」→ 回到 7 项'
+    )
+  ),
+
+  feature('P3-4 TC-61：点「导入这 N 项」→ 列表出现「表」徽标与来源提示条', (c) =>
+    c.click('[data-import-confirm]')
+     // ★ 提示条在**规则区顶部**，而此时规则区是滚下去的（前面几步滚过）——
+     //   `see` 判的是「在视口内可见」，所以必须先滚过去，否则会把「滚出视野」误判成「没出现」。
+     .scroll('[data-import-bar]')
+     .see('[data-import-bar]', '规则区顶部出现来源提示条（EL-134）')
+     .seeContains('[data-import-bar]', '对照表.csv', '提示条里写出了来源表名')
+     .seeThat("document.querySelectorAll('[data-badge-table]').length", 7, '★ 7 个被导入的项各带一个「表」徽标')
+     .waitUntil(
+      // ★ 先等预览落定（导入会触发一次重算：200ms 防抖 + Worker 往返）。
+      //   不等就断言 = 拿「上一轮的旧值」去判对错 —— 这正是本项目最怕的那类静默失败。
+      "(() => { const n = document.querySelector('.md-filelist__newname'); return !!n && /^自定义名字a/i.test(n.textContent.trim()); })()",
+      8000
+    )
+     // 同上：规则里还挂着「全部小写」，所以表里给的「自定义名字A」出来是「自定义名字a」；
+     // 断言写「至少有一行是表里的名字」，失败时把真实值打进报告。
+     .seeThat(
+      "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map((e) => e.textContent.trim()); const hit = ns.filter((t) => /^自定义名字a/i.test(t)).length; return hit > 0 ? 'all' : ('0/' + ns.length + ' :: ' + ns.slice(0, 2).join(' | ')); })()",
+      'all',
+      '★★ 被导入的行显示的是**表里给的名字** —— override 一路传到了预览引擎'
+    )
+  ),
+
+  feature('P3-4 §2.3：「清除导入」→ 徽标与提示条都消失，文件一个都没少', (c) =>
+    c.click('[data-import-clear]')
+     .notSee('[data-import-bar]', '提示条消失')
+     .seeThat("document.querySelectorAll('[data-badge-table]').length", 0, '「表」徽标全部消失')
+     .seeThat("document.querySelectorAll('.md-filelist__row').length", 9, '★ 列表里的 9 个文件一个都没删（清的是「名字的来源」）')
+     .waitUntil(
+      // ★ 同上：清除导入会触发重算 → 先等落定再断言。
+      //   而且这次**全量**查（9 行都不能再带表里的名字），比只看第一行更严。
+      "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map((e) => e.textContent.trim()); return ns.length > 0 && ns.every((t) => /^x_/i.test(t)); })()",
+      8000
+    )
+     .seeThat(
+      "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map((e) => e.textContent.trim()); const bad = ns.filter((t) => !/^x_/i.test(t)); const pend = !!document.querySelector('.md-filelist__busy'); return bad.length === 0 ? 'all' : (bad.length + '/' + ns.length + ' 还在表里，pending=' + pend + ' :: ' + bad.slice(0, 2).join(' | ')); })()",
+      'all',
+      '清除后 9 项**全部**回到按规则算（新名都又是 x_ 开头）'
+    )
   ),
 ];
 

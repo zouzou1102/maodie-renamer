@@ -9,6 +9,9 @@
 import { ref } from 'vue'
 import MdIcon from './MdIcon.vue'
 import ExportOptionsModal from './ExportOptionsModal.vue'
+import ImportTableModal from './ImportTableModal.vue'
+import { errorText } from '@shared/errors'
+import type { ImportedTable } from '@shared/types'
 import { useFilesStore } from '../stores/files'
 import { useTaskStore } from '../stores/task'
 
@@ -28,6 +31,11 @@ const busy = ref(false)
  * 不存在跨视图的状态泄漏（`cliOpen` 是因为设置弹窗**常驻挂载**才必须手动复位）。
  */
 const exportOpen = ref(false)
+
+/** EL-133 导入预览弹窗的开合，以及它要展示的那张表（P3-4）*/
+const importOpen = ref(false)
+const importName = ref('')
+const importTable = ref<ImportedTable | null>(null)
 
 async function pickFiles(): Promise<void> {
   if (busy.value) return
@@ -51,6 +59,33 @@ async function pickDirectory(): Promise<void> {
     busy.value = false
   }
 }
+
+/**
+ * EL-132 导入表格（P3-4）。
+ *
+ * ★ 顺序是「先选文件、解析成功**再**开弹窗」—— 反过来的话，用户要先面对一个
+ *   空白弹窗、再去点「选择文件」，点取消时还得自己关掉那个空壳。
+ *
+ * 取消（`canceled`）不是失败：静默返回，不提示（与「另存为」同一条纪律）。
+ * 读表失败（加密 / 损坏 / 太大）走 `E_TABLE_UNREADABLE`，文案只在 `errors.ts` 一处。
+ */
+async function pickTable(): Promise<void> {
+  if (busy.value) return
+  busy.value = true
+  try {
+    const res = await window.maodie.fs.importTable()
+    if (!res.ok) {
+      files.showTransient(errorText(res.code))
+      return
+    }
+    if (res.data.canceled || res.data.table === null) return
+    importName.value = res.data.fileName
+    importTable.value = res.data.table
+    importOpen.value = true
+  } finally {
+    busy.value = false
+  }
+}
 </script>
 
 <template>
@@ -63,6 +98,15 @@ async function pickDirectory(): Promise<void> {
       <MdIcon name="folder" :size="15" />
       添加文件夹
     </button>
+    <!-- EL-132 导入表格（P3-4）。
+         放在「添加文件夹」下面：它和上面两个同属「**往里加东西**」那一类；
+         「导出清单」是产出、「清空列表」是销毁，都在它下面（设计 §2.1）。
+         ★ 与导出不同：**列表为空时也让它可点** —— 空列表导入会全部落进
+         「对不上」，那是**有信息量**的反馈，比一个点不动的灰按钮好（设计 §4 第 1 行）。 -->
+    <button class="md-btn md-btn--ghost md-actionpanel__wide" data-import-open @click="pickTable">
+      导入表格
+    </button>
+
     <!-- EL-126 导出清单（P3-2）。
          放在「清空列表」**上面**：两个都是幽灵级操作，但导出是「产出」、
          清空是「销毁」—— 产出放前面，从上往下越来越「轻」（设计 §2.1）。
@@ -90,6 +134,14 @@ async function pickDirectory(): Promise<void> {
     <!-- EL-127 导出选项气泡。AppModal 内部会 Teleport 到 body，
          所以挂在这里只是「就近」，对呈现位置没有影响。 -->
     <ExportOptionsModal :open="exportOpen" @close="exportOpen = false" />
+
+    <!-- EL-133 导入预览弹窗。同上：AppModal 内部 Teleport 到 body，这里只是就近。 -->
+    <ImportTableModal
+      :open="importOpen"
+      :file-name="importName"
+      :table="importTable"
+      @close="importOpen = false"
+    />
   </section>
 </template>
 
