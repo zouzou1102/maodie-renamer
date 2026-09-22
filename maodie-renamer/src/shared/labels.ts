@@ -3,7 +3,7 @@
  */
 
 import type { Theme } from './theme'
-import type { MatchMode, MappingVerdict } from './table-map'
+import type { MappingVerdict } from './table-map'
 import type {
   CaseTransform,
   ConflictKind,
@@ -122,12 +122,6 @@ export const CONFLICT_KIND_LABEL: Record<ConflictKind, string> = {
 }
 
 /* ── P3-4（第 4 批）：导入表格 ────────────────────────────────────── */
-
-/** 导入弹窗里「匹配方式」下拉的两项（顺序即推荐顺序，默认第一项）*/
-export const MATCH_MODE_OPTIONS: Array<{ value: MatchMode; label: string }> = [
-  { value: 'byName', label: '按文件名匹配（推荐）' },
-  { value: 'byOrder', label: '按行顺序' },
-]
 
 /** 对照表四个标记的**文字**（颜色不能是唯一信息载体，所以必须有字）*/
 export const MAPPING_VERDICT_LABEL: Record<MappingVerdict, string> = {

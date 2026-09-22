@@ -3,7 +3,7 @@
  * EL-133 导入表格预览弹窗（P3-4 / 第 4 批 · 设计 §2.2）。
  *
  * ── 四个部分，每一个都有理由 ─────────────────────────────────────────
- * ① 「我这样读的」+ 三个下拉：自动识别**可能认错**，而认错在这里等于**改错文件**。
+ * ① 「我这样读的」+ 两个下拉（原文件名列 / 新文件名列）：自动识别**可能认错**，而认错在这里等于**改错文件**。
  *    所以识别结果只是**预填**，最终以你确认为准（「不猜」原则）。
  * ② 三行统计：一眼知道「能改几个、几个对不上、几个有问题」。
  * ③ 对照表：把「第几行 → 哪个文件 → 改成什么」逐条摆出来。这是本批唯一的
@@ -12,7 +12,7 @@
  * ④ 主按钮带数字（「导入这 8 项」）：用户不用回去数。
  *
  * ── 零新增令牌 / 零新增色值 ──────────────────────────────────────────
- * 三个下拉复用 `.md-select`，标记色全部是既有令牌
+ * 两个下拉复用 `.md-select`，标记色全部是既有令牌
  * （`ok` / `bad` / `warn` / `ink-3`），外壳复用 `AppModal`（宽 700）。
  */
 import { computed, ref, watch } from 'vue'
@@ -25,9 +25,8 @@ import {
   type ColumnInfo,
   type MappingRow,
   type MappingVerdict,
-  type MatchMode,
 } from '@shared/table-map'
-import { MAPPING_VERDICT_LABEL, MAPPING_VERDICT_MARK, MATCH_MODE_OPTIONS } from '@shared/labels'
+import { MAPPING_VERDICT_LABEL, MAPPING_VERDICT_MARK } from '@shared/labels'
 import type { ImportedTable } from '@shared/types'
 import { useFilesStore } from '../stores/files'
 
@@ -43,11 +42,10 @@ const emit = defineEmits<{ (e: () => void): void; (e: 'close'): void }>()
 
 const files = useFilesStore()
 
-/* ── 三个选择（＝三个下拉的值）──────────────────────────────────────── */
+/* ── 两个选择（＝两个下拉的值）──────────────────────────────────────── */
 
 const nameCol = ref(0)
 const newCol = ref(1)
-const mode = ref<MatchMode>('byOrder')
 const headerRow = ref(-1)
 /** 对照表是否显示「全部」（默认只显示要处理的那些）*/
 const showAll = ref(false)
@@ -65,7 +63,6 @@ watch(
     const g = detectColumns(t.rows)
     nameCol.value = g.nameCol
     newCol.value = g.newCol
-    mode.value = g.mode
     headerRow.value = g.headerRow
     showAll.value = false
   },
@@ -80,11 +77,10 @@ const columns = computed<ColumnInfo[]>(() => guess.value?.columns ?? [])
 const choice = computed<ColumnChoice>(() => ({
   nameCol: nameCol.value,
   newCol: newCol.value,
-  mode: mode.value,
   headerRow: headerRow.value,
 }))
 
-/** 列表里能配的文件（**顺序即列表顺序** —— 按行顺序就靠它）*/
+/** 列表里能配的文件 */
 const mappingFiles = computed(() =>
   files.items.map((i) => ({ id: i.id, name: i.name, isDir: i.isDir })),
 )
@@ -112,10 +108,6 @@ const rowsToShow = computed<MappingRow[]>(() => {
 
 const nothingToWarn = computed(
   () => !showAll.value && rowsToShow.value.length === 0 && counts.value.ok > 0,
-)
-
-const orderWarn = computed(
-  () => mapping.value !== null && mapping.value.orderCheck.checked && !mapping.value.orderCheck.ok,
 )
 
 /** 「表外」那部分要说清楚 —— 它们是**正常继续按规则改**的，不是被漏掉 */
@@ -221,20 +213,6 @@ function doImport(): void {
               </option>
             </select>
           </label>
-
-          <label class="md-import__ctrl">
-            <span class="md-import__ctrllabel">匹配方式</span>
-            <select
-              class="md-select md-import__select"
-              data-import-mode
-              :value="mode"
-              @change="mode = ($event.target as HTMLSelectElement).value as MatchMode"
-            >
-              <option v-for="o in MATCH_MODE_OPTIONS" :key="o.value" :value="o.value">
-                {{ o.label }}
-              </option>
-            </select>
-          </label>
         </div>
       </div>
 
@@ -245,12 +223,9 @@ function doImport(): void {
       </p>
       <p v-if="outsideText" class="md-hint" data-import-outside>{{ outsideText }}</p>
 
-      <!-- 拒绝 / 顺序警告 -->
+      <!-- 整体拒绝（不导入）时的原因：里面已经告诉用户**怎么办**（设计 §16 第 5 项） -->
       <p v-if="mapping && mapping.rejected" class="md-import__alert" data-import-reject>
         {{ mapping.rejected }}
-      </p>
-      <p v-else-if="orderWarn" class="md-import__warn" data-import-order-warn>
-        {{ mapping?.orderCheck.message }}
       </p>
 
       <!-- ③ 对照表 -->
@@ -358,7 +333,7 @@ function doImport(): void {
   color: var(--md-ink-2);
 }
 
-/* 三个下拉宽 220px（设计 §7.6）*/
+/* 两个下拉宽 220px（设计 §7.6）*/
 .md-import__select {
   width: 220px;
 }
