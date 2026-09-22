@@ -57,7 +57,13 @@ const collapseRule = (name: string) => rule({ mode: 'rule' }, { prefix: name, ke
 function req(names: string[], r: RuleConfig, extra: Partial<ExecuteRequest> = {}): ExecuteRequest {
   return {
     taskId: `task-${Math.random().toString(36).slice(2, 10)}`,
-    items: names.map((fromName, i) => ({ id: `id-${i}`, dirPath: dir, fromName, isDir: false })),
+    items: names.map((fromName, i) => ({
+      id: `id-${i}`,
+      dirPath: dir,
+      fromName,
+      isDir: false,
+      attrs: { created: '', modified: '', sizeBytes: null },
+    })),
     rule: r,
     date: localDateString(),
     autoResolveConflict: false,
@@ -209,7 +215,7 @@ describe('扩展名保护与文件夹改名（EX-07 / DEC-01）', () => {
     const out = await execute(
       {
         taskId: 't-dir',
-        items: [{ id: '1', dirPath: d, fromName: '我的文件夹.2026', isDir: true }],
+        items: [{ id: '1', dirPath: d, fromName: '我的文件夹.2026', isDir: true, attrs: { created: '', modified: '', sizeBytes: null } }],
         rule: delRule('.2026'),
         date: localDateString(),
         autoResolveConflict: false,
@@ -227,7 +233,7 @@ describe('扩展名保护与文件夹改名（EX-07 / DEC-01）', () => {
     const out = await execute(
       {
         taskId: 't-dir2',
-        items: [{ id: '1', dirPath: d, fromName: 'v1.2.3', isDir: true }],
+        items: [{ id: '1', dirPath: d, fromName: 'v1.2.3', isDir: true, attrs: { created: '', modified: '', sizeBytes: null } }],
         rule: delRule('.'),
         date: localDateString(),
         autoResolveConflict: false,
@@ -466,7 +472,7 @@ describe('U-16 FIFO 淘汰', () => {
       await runRenameTask(
         {
           taskId: `t-${i}`,
-          items: [{ id: '1', dirPath: d, fromName: `x${i}广告.txt`, isDir: false }],
+          items: [{ id: '1', dirPath: d, fromName: `x${i}广告.txt`, isDir: false, attrs: { created: '', modified: '', sizeBytes: null } }],
           rule: delRule('广告'),
           date: localDateString(),
           autoResolveConflict: false,

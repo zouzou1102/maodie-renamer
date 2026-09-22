@@ -9,6 +9,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { DEFAULT_RULE, type RuleConfig, type RuleMode, type SeqKind } from '@shared/types'
+import { SIZE_UNIT_OPTIONS } from '@shared/labels'
 import { buildRuleSummary } from '@shared/rule-summary'
 import { compileRegex, isYmd } from '@shared/rule-engine'
 import { todayYmd } from '@shared/today'
@@ -91,6 +92,10 @@ export const useRuleStore = defineStore('rule', () => {
     r.seqRandomLen = Math.min(16, Math.max(1, Math.trunc(r.seqRandomLen) || 0))
     r.seqRandomSeed = Math.max(0, Math.trunc(r.seqRandomSeed) || 0)
     if (!isYmd(r.seqTimeStart)) r.seqTimeStart = ''
+    // ★ P3-3：`sizeUnit` 是枚举，非法值落 `'auto'`。
+    //   这里的口径必须与 `sanitize-rule.ts` 的 `sizeUnitOf()` **完全一致**
+    //   —— 两边不一致就是「预览对、执行错」。
+    if (!SIZE_UNIT_OPTIONS.some((o) => o.value === r.sizeUnit)) r.sizeUnit = 'auto'
   }
 
   function reset(): void {

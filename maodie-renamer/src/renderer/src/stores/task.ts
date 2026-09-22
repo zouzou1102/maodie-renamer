@@ -166,7 +166,18 @@ export const useTaskStore = defineStore('task', () => {
     // 也让执行结果里的 total 与 problems 更有意义）
     const items: ExecuteItem[] = files.items
       .filter((i) => i.status === 'changed' || i.status === 'conflict')
-      .map((i) => ({ id: i.id, dirPath: i.dirPath, fromName: i.name, isDir: i.isDir }))
+      // ★ P3-3：`attrs` 一起传 —— 不传的话，主进程算新名时 `{大小}` 展开成空串，
+      //   而预览那边是对的 → 「预览对、执行错」。
+      .map((i) => ({
+        id: i.id,
+        dirPath: i.dirPath,
+        fromName: i.name,
+        isDir: i.isDir,
+        attrs: i.attrs,
+        // ★ P3-4：不传 → 主进程按规则重算、**表里的名字被完全忽略**，
+        //   而界面预览是对的 → 「预览对、执行错」（设计 §7.5 第 3 行）
+        override: i.override,
+      }))
 
     if (items.length === 0) return
 

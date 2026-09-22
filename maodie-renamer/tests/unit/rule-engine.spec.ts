@@ -28,6 +28,7 @@ const ctx = (index = 0, total = 1, date = '2026-09-11', seedKey = 'seed-fixed') 
   total,
   date,
   seedKey,
+  attrs: { created: '', modified: '', sizeBytes: null },
 })
 
 describe('rule-engine · 序号与日期文本', () => {

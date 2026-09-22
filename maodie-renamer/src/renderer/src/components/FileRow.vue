@@ -79,12 +79,21 @@ const title = computed(() => {
       />
     </span>
 
-    <!-- 状态徽标（文字，不依赖颜色）-->
-    <span v-if="problemKind" class="md-badge md-badge--bad">
-      <MdIcon name="warn" :size="12" />
-      {{ badgeText }}
+    <!-- 状态徽标（文字，不依赖颜色）+ P3-4：名字来自导入的表格时加一个「表」徽标
+         （设计 §2.5）—— 用户滚动一长串列表时，要能一眼看出**哪些是表里给的、
+         哪些是规则算的**。
+         ⚠️ 包一层 span 而不是再加一个并列子元素：本行是 **7 列 grid**，
+            多一个直接子元素会凭空多出一列，整行布局就错位了。 -->
+    <span class="md-filelist__badges">
+      <span v-if="item.override !== undefined" class="md-badge md-badge--muted" data-badge-table>
+        表
+      </span>
+      <span v-if="problemKind" class="md-badge md-badge--bad">
+        <MdIcon name="warn" :size="12" />
+        {{ badgeText }}
+      </span>
+      <span v-else-if="item.isSymlink" class="md-badge md-badge--muted">链接</span>
     </span>
-    <span v-else-if="item.isSymlink" class="md-badge md-badge--muted">链接</span>
 
     <!-- EL-036 行内删除（悬停出现）-->
     <button
@@ -131,4 +140,11 @@ const title = computed(() => {
   align-items: center;
   justify-content: center;
 }
+
+.md-filelist__badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 </style>

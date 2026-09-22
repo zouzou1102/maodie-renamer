@@ -10,8 +10,14 @@
  */
 
 import { MD_ERROR, MdError } from '@shared/errors'
-import { buildRuleSummary } from '@shared/rule-summary'
-import type { CancelResult, ExecuteRequest, ExecuteResult, StorageWarningPayload } from '@shared/types'
+import { buildRuleSummary, type ImportedSummaryInfo } from '@shared/rule-summary'
+import type {
+  CancelResult,
+  ExecuteItem,
+  ExecuteRequest,
+  ExecuteResult,
+  StorageWarningPayload,
+} from '@shared/types'
 import { execute, localDateString, type ExecuteOutcome, type ProgressFn } from './rename-executor'
 import { appendTask, buildTask } from './history-store'
 import { setStorageWarningSink } from './storage'
@@ -32,6 +38,18 @@ export function getRunningTaskId(): string | null {
 }
 
 /* ── 执行 ───────────────────────────────────────────────────────────── */
+
+/** P3-4：数出「名字来自表格」的项，顺带取来源表名（没有则返回 undefined）*/
+function countOverrides(items: ExecuteItem[]): ImportedSummaryInfo | undefined {
+  let count = 0
+  let source = ''
+  for (const it of items) {
+    if (it.override === undefined) continue
+    count++
+    if (source === '') source = it.override.sourceTable
+  }
+  return count > 0 ? { count, source } : undefined
+}
 
 export async function runRenameTask(req: ExecuteRequest, onProgress: ProgressFn): Promise<ExecuteResult> {
   // 已有任务在跑 → 不做排队、不做抢占（接口文档 §1.3.3）
@@ -59,7 +77,17 @@ export async function runRenameTask(req: ExecuteRequest, onProgress: ProgressFn)
      * 再也无法把它改回去。
      */
     if (successEntries.length > 0) {
-      const task = buildTask(req.taskId, localDateString(), buildRuleSummary(req.rule), result, successEntries)
+      // ★ P3-4：导入的项名字来自表格、**不受规则影响** —— 摘要里必须说出来，
+      //   否则撤销之后没人知道当初是怎么算出来的（设计 §7.5 第 8 行）。
+      //   信息直接从清单上数：`override` 是跟着 items 一起传进来的，零新增字段。
+      const imported = countOverrides(req.items)
+      const task = buildTask(
+        req.taskId,
+        localDateString(),
+        buildRuleSummary(req.rule, imported),
+        result,
+        successEntries,
+      )
       result.recordSaved = await appendTask(task)
       if (!result.recordSaved) {
         notify({

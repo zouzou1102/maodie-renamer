@@ -25,6 +25,8 @@ import type {
   PreviewItemInput,
   PreviewItemOutput,
   PreviewStats,
+  ItemAttrs,
+  ItemOverride,
   RuleConfig,
 } from './types'
 
@@ -36,6 +38,23 @@ export interface ResolveInput {
   /** 当前完整名称（含扩展名）*/
   fromName: string
   isDir: boolean
+  /**
+   * ★ P3-3：入列时的属性快照。
+   *
+   * 这个形状同时被主进程（执行）与 Worker（预览）用——
+   * 所以它与 `PreviewItemInput` **两边都不能漏**，否则就是「预览 ≠ 执行」。
+   */
+  attrs: ItemAttrs
+
+  /**
+   * ★ P3-4：表格给定的新名（有它就不走规则）。
+   *
+   * ⚠️ 与 `FileItem` / `ExecuteItem` / `PreviewItemInput` **保持同一个形状**
+   *   （对象，不是「就存 stem 那个字符串」）—— 四层同形，`toResolveInput`
+   *   就只是原样搬运，少一次「取 `.stem`」就少一处能漏的地方。
+   *   真正要字符串的地方只有一处：构造 `RuleContext`（见 `resolveItems`）。
+   */
+  override?: ItemOverride
 }
 
 export type PlanOutcome = 'ready' | 'skipped' | 'invalid'
@@ -89,7 +108,16 @@ export function resolveItems(
     const parts = splitName(item.fromName, item.isDir)
     // ★ P3-1：seedKey 传**文件自己的 id** —— 「随机字符」类型靠它做确定性伪随机，
     //   这样同一个文件反复预览拿到的串恒定（预览 ≡ 执行的硬要求）。
-    const newStem = computeNewStem(parts, rule, { index, total, date, seedKey: item.id })
+    // ★ P3-4：`override` = 「表里已经写好的新名」 —— 有它就不算规则（见 `computeNewStem`）
+    const newStem = computeNewStem(parts, rule, {
+      index,
+      total,
+      date,
+      seedKey: item.id,
+      attrs: item.attrs,
+      // 只在这里取 `.stem` —— 引擎要的是字符串，而四层之间传的是同一个对象
+      override: item.override?.stem,
+    })
     const attemptedName = joinName(newStem, parts.ext)
     // ★ 必须把原始扩展名传进去：「只剩扩展名」与「本来就叫 .gitignore」
     //   在字符串层面同构，只有调用方知道原始 ext
@@ -234,7 +262,61 @@ export type PreviewInput = ResolveInput | PreviewItemInput
 
 function toResolveInput(i: PreviewInput): ResolveInput {
   if ('fromName' in i) return i
-  return { id: i.id, dirPath: i.dirPath, fromName: joinName(i.stem, i.ext), isDir: i.isDir }
+  // ★ P3-3：逐字段手写搬运，漏拷 `attrs` → Worker 那条路上属性为空，而主进程路径有值
+  //   → **预览 ≠ 执行**（设计 §7.5 第 2 行）。
+  return {
+    id: i.id,
+    dirPath: i.dirPath,
+    fromName: joinName(i.stem, i.ext),
+    isDir: i.isDir,
+    attrs: i.attrs,
+    // ★ P3-4：同一个搬运点、同一个坑。漏拷 `override` → Worker 那条路按规则算名字，
+    //   而主进程执行时用的是表里的名字 → **预览 ≠ 执行**（设计 §7.5 第 2 行）
+    override: i.override,
+  }
+}
+
+/**
+ * 预览请求里「每一项」的来源形状 —— 只列真正要搬运的字段。
+ *
+ * 刻意不直接用 `FileItem`：那个类型还带着 `newName` / `status` 这些**由预览自己算出来**
+ * 的字段，让它们跟着请求走一圈，只会让人分不清「谁算谁」。
+ */
+export interface PreviewSourceItem {
+  id: string
+  dirPath: string
+  stem: string
+  ext: string
+  isDir: boolean
+  attrs: ItemAttrs
+  override?: ItemOverride
+}
+
+/**
+ * 把列表项压成预览请求的形状。
+ *
+ * ── ★★ 为什么嵌套对象一定要**摊平成普通对象** ────────────────────────
+ * `items` 是 Vue 的响应式数组，**它里面的 `attrs` / `override` 也是 Vue 代理**。
+ * 把代理塞进 `postMessage` 会抛 `DataCloneError` —— 而 `preview-runner` 的兜底会
+ * 「就地算完」，于是**功能看起来一切正常**，实际上：
+ *   · Worker 白搭了（每次预览都在主线程算）；
+ *   · 每次预览刷一条 `预览请求无法发给 Worker` 的警告（2026-09-22 的实测：一轮冒烟 43 条）。
+ * 这正是本项目最怕的「值没错、只是悄悄降级」类问题 —— 所以这里单独成函数，
+ * 好让单测**用真 Proxy 钉住它**（见 `tests/p3-4-import.test.ts` 的「必须传普通对象」）。
+ *
+ * 与 `stores/files.ts` 里对 `rule` / `snapshot` 过一遍 `JSON.parse(JSON.stringify(...))`
+ * 是同一条纪律：**跨 Worker 边界只传纯数据**。
+ */
+export function toPreviewItemInputs(items: PreviewSourceItem[]): PreviewItemInput[] {
+  return items.map((i) => ({
+    id: i.id,
+    dirPath: i.dirPath,
+    stem: i.stem,
+    ext: i.ext,
+    isDir: i.isDir,
+    attrs: { ...i.attrs },
+    override: i.override === undefined ? undefined : { ...i.override },
+  }))
 }
 
 export function buildPreview(

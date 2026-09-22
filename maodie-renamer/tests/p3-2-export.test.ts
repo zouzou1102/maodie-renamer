@@ -60,6 +60,7 @@ function mkItem(p: Partial<FileItem> & { name: string; newName: string }): FileI
     newStem: p.newStem ?? p.newName.replace(/\.[^.]+$/, ''),
     newName: p.newName,
     status: p.status ?? 'changed',
+    attrs: p.attrs ?? { created: '', modified: '', sizeBytes: null },
     ...(p.conflictKind === undefined ? {} : { conflictKind: p.conflictKind }),
     ...(p.reason === undefined ? {} : { reason: p.reason }),
     ...(p.reasonCode === undefined ? {} : { reasonCode: p.reasonCode }),

@@ -13,9 +13,10 @@ import { dialog, ipcMain } from 'electron'
 import { CH } from '@shared/channels'
 import { MD_ERROR, MdError } from '@shared/errors'
 import { sanitizeExport } from '@shared/sanitize-export'
-import type { ExportListResult, ResolvePathsRequest, ResolvedBatch } from '@shared/types'
+import type { ExportListResult, ImportTableResult, ResolvePathsRequest, ResolvedBatch } from '@shared/types'
 import { exportList } from '../services/export-list'
 import { resolvePaths } from '../services/fs-scan'
+import { importTable } from '../services/import-table'
 import { getMainWindow } from '../window'
 import { business } from './result'
 
@@ -82,4 +83,14 @@ export function registerFsIpc(): void {
   ipcMain.handle(CH.FS_EXPORT_LIST, (_e, req: unknown) =>
     business<ExportListResult>(() => exportList(sanitizeExport(req))),
   )
+
+  /**
+   * ★ P3-4（DEC-19）：导入表格 —— 本批**唯一**新增的通道（17 → 18）。
+   *
+   * 为什么又必须开通道：系统「打开」对话框与读文件字节都只能在主进程做。
+   * 与 `exportList` 的区别：这次**没有请求参数要收口** —— 选哪个文件完全由
+   * 对话框决定，渲染层连一个字段都传不进来。所以这里连 `sanitize` 都不需要，
+   * 「少一处收口点」=「少一处漏网」。
+   */
+  ipcMain.handle(CH.FS_IMPORT_TABLE, () => business<ImportTableResult>(() => importTable()))
 }

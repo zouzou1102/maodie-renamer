@@ -31,6 +31,17 @@ export const MD_ERROR = {
   E_TASK_RUNNING: 'E_TASK_RUNNING',
   E_TASK_NOT_FOUND: 'E_TASK_NOT_FOUND',
 
+  /**
+   * ★ P3-4：导入的表格读不出来。
+   *
+   * ⚠️ **两个码共用一个 EX 编号（EX-18）** —— 设计 §4 把「加密/损坏」与
+   * 「表太大」都归到 EX-18，但两者给用户看的话**不能是同一句**：
+   * 一个是「你这文件有问题」，另一个是「这文件没错、是这个功能读不动」。
+   * 所以这里拆成两个错误码，文档里仍然记在同一行 EX-18 下。
+   */
+  E_TABLE_UNREADABLE: 'E_TABLE_UNREADABLE',
+  E_TABLE_TOO_BIG: 'E_TABLE_TOO_BIG',
+
   E_UNKNOWN: 'E_UNKNOWN',
 } as const
 
@@ -59,6 +70,9 @@ export const MD_ERROR_TEXT: Record<MdErrorCode, string> = {
   E_OVERFLOW: '单批最多 1 万个，超出部分未加入',
   E_TASK_RUNNING: '正在改名中，等一下再试',
   E_TASK_NOT_FOUND: '这个任务已经结束了',
+  // EX-18（两个码共用这一个编号）
+  E_TABLE_UNREADABLE: '表格读不出来，可能是加密或损坏的',
+  E_TABLE_TOO_BIG: '这张表太大了，读不动（只支持单表 1 万行以内）',
   E_UNKNOWN: '出了点小意外，稍后再试试',
 }
 

@@ -8,7 +8,7 @@
 import { ipcMain } from 'electron'
 import { CH } from '@shared/channels'
 import { MD_ERROR, MdError } from '@shared/errors'
-import { sanitizeRule } from '@shared/sanitize-rule'
+import { sanitizeAttrs, sanitizeRule } from '@shared/sanitize-rule'
 import type { ExecuteRequest } from '@shared/types'
 import { cancelRenameTask, runRenameTask } from '../services/rename-service'
 import { getMainWindow } from '../window'
@@ -34,6 +34,8 @@ function sanitizeExecute(raw: unknown): ExecuteRequest {
         dirPath: typeof it.dirPath === 'string' ? it.dirPath : '',
         fromName: typeof it.fromName === 'string' ? it.fromName : '',
         isDir: it.isDir === true,
+        // ★ P3-3：属性也要收口 —— 漏了就是「预览对、执行错」
+        attrs: sanitizeAttrs(it.attrs),
       }))
       // 目录与名称是必需项；缺一个就直接拒绝，绝不猜
       .filter((it) => it.dirPath !== '' && it.fromName !== ''),

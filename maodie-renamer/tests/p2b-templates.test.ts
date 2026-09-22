@@ -99,6 +99,7 @@ test('「加日期前缀」逐字段等于设计：规则化 + 前缀 {d} + 启�
       seqRandomSeed: 0,
       seqTimeStart: '',
       seqTimeFormat: 'YYYY年MM月DD日',
+      sizeUnit: 'auto',
     },
   } satisfies RuleConfig)
 })
@@ -129,6 +130,7 @@ test('「补零编号」逐字段等于设计：序号开、起始 1、步长 1�
       seqRandomSeed: 0,
       seqTimeStart: '',
       seqTimeFormat: 'YYYY年MM月DD日',
+      sizeUnit: 'auto',
     },
   } satisfies RuleConfig)
 })
@@ -159,6 +161,7 @@ test('「日期+编号」逐字段等于设计：前缀 {d}- + 日期 + 序号�
       seqRandomSeed: 0,
       seqTimeStart: '',
       seqTimeFormat: 'YYYY年MM月DD日',
+      sizeUnit: 'auto',
     },
   } satisfies RuleConfig)
 })
@@ -193,6 +196,7 @@ test('「去掉括号」逐字段等于设计：替换模式 + 正则开 + 替�
       seqRandomSeed: 0,
       seqTimeStart: '',
       seqTimeFormat: 'YYYY年MM月DD日',
+      sizeUnit: 'auto',
     },
   } satisfies RuleConfig)
 })
@@ -223,6 +227,7 @@ test('「空格换下划线」逐字段等于设计：替换模式、正则关�
       seqRandomSeed: 0,
       seqTimeStart: '',
       seqTimeFormat: 'YYYY年MM月DD日',
+      sizeUnit: 'auto',
     },
   } satisfies RuleConfig)
 })
@@ -253,6 +258,7 @@ test('「全部小写」逐字段等于设计：规则化、各要素全关、�
       seqRandomSeed: 0,
       seqTimeStart: '',
       seqTimeFormat: 'YYYY年MM月DD日',
+      sizeUnit: 'auto',
     },
   } satisfies RuleConfig)
 })
@@ -276,7 +282,7 @@ test('每个模板跑一遍预览，至少有一个示例文件的名字真的�
     assert.ok(from, `模板「${t.name}」没有配示例文件名 —— 就验不了它到底有没有用`)
 
     const out = resolveItems(
-      [{ id: 'x', dirPath: 'C:\\tmp', fromName: from, isDir: false }],
+      [{ id: 'x', dirPath: 'C:\\tmp', fromName: from, isDir: false, attrs: { created: '', modified: '', sizeBytes: null } }],
       cloneTemplateRule(t),
       date,
       {},
@@ -296,7 +302,7 @@ test('每个模板跑一遍预览，至少有一个示例文件的名字真的�
 
 test('「去掉括号」在 (1)(2)报告.docx 上把两组括号一起去掉（TC-40）', () => {
   const out = resolveItems(
-    [{ id: 'x', dirPath: 'C:\\tmp', fromName: '(1)(2)报告.docx', isDir: false }],
+    [{ id: 'x', dirPath: 'C:\\tmp', fromName: '(1)(2)报告.docx', isDir: false, attrs: { created: '', modified: '', sizeBytes: null } }],
     cloneTemplateRule(tpl('stripBrackets')),
     '2026-09-17',
     {},
@@ -318,7 +324,7 @@ test('「去掉括号」四种括号都吃，扩展名一个字不动', () => {
   ]
   for (const [from, want] of cases) {
     const out = resolveItems(
-      [{ id: 'x', dirPath: 'C:\\tmp', fromName: from, isDir: false }],
+      [{ id: 'x', dirPath: 'C:\\tmp', fromName: from, isDir: false, attrs: { created: '', modified: '', sizeBytes: null } }],
       cloneTemplateRule(tpl('stripBrackets')),
       '2026-09-17',
       {},
@@ -330,7 +336,7 @@ test('「去掉括号」四种括号都吃，扩展名一个字不动', () => {
 
 test('「全部小写」只动主体，扩展名保持原样', () => {
   const out = resolveItems(
-    [{ id: 'x', dirPath: 'C:\\tmp', fromName: 'IMG_0001.JPG', isDir: false }],
+    [{ id: 'x', dirPath: 'C:\\tmp', fromName: 'IMG_0001.JPG', isDir: false, attrs: { created: '', modified: '', sizeBytes: null } }],
     cloneTemplateRule(tpl('lowercase')),
     '2026-09-17',
     {},

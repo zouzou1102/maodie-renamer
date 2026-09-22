@@ -81,6 +81,61 @@ export interface FileItem {
   diffRange?: DiffRange | null
   /** 开启「自动加序号」后为该项算出的最终名字（如 报告_1.docx） */
   resolvedName?: string
+
+  /**
+   * P3-3：入列那一刻的属性快照（创建 / 修改 / 大小）。
+   *
+   * ★ 跟着列表走，**不落盘** —— 列表本来就不持久化（`DEC-07`），所以零新增持久化字段。
+   */
+  attrs: ItemAttrs
+
+  /**
+   * ★ P3-4：本项的「新名主体」由导入的表格给定 —— **有它就不走规则**。
+   *
+   * 与 `attrs` 同理：跟着列表走、**不落盘**（列表本来就不持久化，`DEC-07`）。
+   * 「清除导入」= 把它置回 `undefined`，该项立刻回到按规则算。
+   */
+  override?: ItemOverride
+}
+
+/* ══ P3-3（第 3 批）：文件属性快照 ═════════════════════════════════ */
+
+/**
+ * `{大小}` 的单位，5 档。默认 `'auto'` = 选**第一个让数值 ≥ 1** 的单位（设计 §3.4）。
+ *
+ * 换算基数 **1024**（1 KB = 1024 B）。小数位固定 1 位，`B` 那档例外（整数）。
+ */
+export type SizeUnit = 'auto' | 'B' | 'KB' | 'MB' | 'GB'
+
+/**
+ * 一个文件在「**加入列表那一刻**」的属性快照 —— 之后**不再刷新**（设计 §1.3）。
+ *
+ * ★ 为什么要冻结：`fs-scan` 入列时本来就调了 `lstat`，三个值顺手就能拿到
+ *   （**零额外磁盘 IO**）。冻结之后预览与执行**用同一份**，否则
+ *   「预览时文件是 10:00 改的、执行前又被改成 11:00」会让两边算出不同的名字。
+ *   与 P3-1「时间起点冻结进规则」是同一条纪律。
+ */
+export interface ItemAttrs {
+  /**
+   * 创建日期 `YYYY-MM-DD`（**本机本地时区**，来自 `birthtime`）。
+   * 不可用时空串。
+   *
+   * ⚠️ 来自 `birthtime` **不是** `ctime`：`ctime` 是「元数据变更时间」，
+   *   改名 / 改权限都会刷新它 —— 而这个产品干的就是改名，用错会让用户看到
+   *   「上一次改名那一刻」，且**界面上毫无异常**（设计 §3.2）。
+   */
+  created: string
+  /** 修改日期 `YYYY-MM-DD`（本地时区，来自 `mtime`）。不可用时空串 */
+  modified: string
+  /**
+   * 字节数。
+   *
+   * ★ **文件夹为 `null`（不可用），0 字节文件为 `0`（真的空）** ——
+   *   两者**必须分开**：文件夹的 `lstat().size` 不代表里面内容的总和，
+   *   要算总和得递归，而本项目铁律是「绝不递归」（`DEC-01`）。
+   *   若把文件夹也算成 `0B`，用户会以为自己的文件夹是空的（设计 §1.4）。
+   */
+  sizeBytes: number | null
 }
 
 /* ══ 规则配置 ══════════════════════════════════════════════════════════ */
@@ -154,6 +209,14 @@ export interface RuleConfig {
     seqTimeStart: string
     /** 时间类型的样式，默认 'YYYY年MM月DD日'；与「启用日期」共用同一张样式表 */
     seqTimeFormat: DateFormat
+
+    /* ── P3-3（第 3 批）新增 ───────────────────────────────────
+       属性变量（`{创建}` `{修改}` `{大小}`）**没有启用开关** ——
+       它们只有「用户写了才出现」，不像序号 / 日期那样还有一个自动位置。
+       加一个勾只会让人以为「勾上就会自动加进名字」（设计 §1.2 / §5.①）。 */
+
+    /** `{大小}` 的单位，默认 'auto' */
+    sizeUnit: SizeUnit
   }
 }
 
@@ -184,6 +247,8 @@ export const DEFAULT_RULE: RuleConfig = {
     seqRandomSeed: 0,
     seqTimeStart: '',
     seqTimeFormat: 'YYYY年MM月DD日',
+    /* P3-3 的 1 个默认值 —— `'auto'` = 行为与「不用属性变量」完全相同 */
+    sizeUnit: 'auto',
   },
 }
 
@@ -247,6 +312,65 @@ export interface ExportListResult {
   filePath: string
 }
 
+/* ══ P3-4（第 4 批）：导入表格 ════════════════════════════════════════ */
+
+/**
+ * 表格里的一个单元格 —— **必须带列号**。
+ *
+ * ⚠️ 列号只能来自 xlsx 里 `<c r="C5">` 的 `r` 属性，**不能按出现顺序数格子**：
+ *   Excel **不写空的 `<c>`**，所以「第 3 列的内容」会被数成第 2 列，
+ *   整张表从那一行起**错位**，而界面上「看着挺整齐」（设计 §7.5 第 5 行）。
+ */
+export interface TableCell {
+  /** 列号，从 **1** 开始（1 = A 列） */
+  col: number
+  /** 文本值；空串 = 这一格是空的（与「没有这个单元格」同义） */
+  text: string
+}
+
+export interface TableRow {
+  /** 行号，从 **1** 开始（直接来自 `r` 属性，**可能跳号**） */
+  rowNumber: number
+  /** 该行**有内容**的单元格（稀疏）—— 位置的真源是 `col`，不是数组下标 */
+  cells: TableCell[]
+}
+
+/** 读进来的一张表（`.xlsx` / `.csv` / `.txt` 共用这一个形状） */
+export interface ImportedTable {
+  /** 工作表名（**只读第一张**）；纯文本表为空串 */
+  sheetName: string
+  /** 数据行 */
+  rows: TableRow[]
+  /** 总行数 —— 被截断时这里仍是**截断前**的真实值（设计 §4 第 3 行） */
+  totalRows: number
+  /** 是否被截断（超过单批 1 万行的口径） */
+  truncated: boolean
+}
+
+/**
+ * 表格给定的「新名**主体**」（不含扩展名）。
+ *
+ * ★ 存主体而不是全名 —— 扩展名仍取**原文件的**，于是 `EX-07 扩展名保护`
+ *   不用为本批写任何新逻辑就自动成立（设计 §1.3）。
+ */
+export interface ItemOverride {
+  /** 表格给定的新名主体 */
+  stem: string
+  /** 来源表格的显示名（文件名），用于规则区顶部那条提示
+   *  （「本批有 N 个名字来自《xxx.xlsx》」） */
+  sourceTable: string
+}
+
+/** `md:fs:importTable` 的返回 */
+export interface ImportTableResult {
+  /** 用户在对话框里点了取消 → true（不是失败，静默返回） */
+  canceled: boolean
+  /** 用户选中的文件名（**只有文件名**，不含目录，显示用） */
+  fileName: string
+  /** 读出来的表；`canceled` 时为 null */
+  table: ImportedTable | null
+}
+
 /* ══ 改名执行（md:rename:execute）══════════════════════════════════════ */
 
 export interface ExecuteItem {
@@ -255,6 +379,22 @@ export interface ExecuteItem {
   /** 当前名称（含扩展名） */
   fromName: string
   isDir: boolean
+  /**
+   * ★ P3-3：入列时的属性快照。
+   *
+   * 不补这一行 → 主进程算新名时拿不到属性 → `{大小}` 展开成空串，
+   * 而**预览那边是对的** → 「预览对、执行错」（与 P3-1 `sanitizeRule` 漏字段同一类）。
+   * 见设计 §7.5 第 3 行。
+   */
+  attrs: ItemAttrs
+
+  /**
+   * ★ P3-4：表里给的新名主体（有它就不按规则重算）。
+   *
+   * 不补这一行 → 主进程按规则重算 → **表里的名字被完全忽略**，
+   * 而界面预览是对的 → 「预览对、执行错」（与 P3-1 同一类形态，设计 §7.5 第 3 行）。
+   */
+  override?: ItemOverride
 }
 
 export interface ExecuteRequest {
@@ -511,6 +651,14 @@ export interface MaoDieAPI {
      * 但渲染层调用时拿到 `undefined` —— 运行时才炸。见设计 §7.5 第 2 行。
      */
     exportList(req: ExportListRequest): Promise<MdResult<ExportListResult>>
+    /**
+     * ★ P3-4：导入表格（`.xlsx` / `.csv` / `.txt`）。
+     *
+     * ⚠️ 与 `exportList` 同一处陷阱：`preload/api.ts` 是**强转**，
+     *   接口声明漏了这行**照样编译过、typecheck 0 错**，运行时才炸。
+     *   无入参 —— 选哪个文件由系统「打开」对话框决定（与导出对称）。
+     */
+    importTable(): Promise<MdResult<ImportTableResult>>
   }
   rename: {
     execute(req: ExecuteRequest): Promise<MdResult<ExecuteResult>>
@@ -529,7 +677,24 @@ export interface MaoDieAPI {
 
 /* ══ 预览（Worker 协议，接口文档 §4.3.3）═══════════════════════════════ */
 
-export type PreviewItemInput = Pick<FileItem, 'id' | 'dirPath' | 'stem' | 'ext' | 'isDir'>
+export type PreviewItemInput = Pick<
+  FileItem,
+  | 'id'
+  | 'dirPath'
+  | 'stem'
+  | 'ext'
+  | 'isDir'
+  // ★★ P3-3：不加进这个联合，Worker 就**永远拿不到属性** ——
+  //   `{大小}` 在预览里展开成空串，而**界面完全正常**。
+  //   ⚠️ `Pick` 是**合法子集**，所以漏了这一行 **typecheck 不会报错**。
+  //   这是本批最阴的一处（设计 §7.5 第 1 行）。
+  | 'attrs'
+  // ★★ P3-4：**同一个坑的第二次**（P3-3 刚踩过）。不加进这个联合，
+  //   Worker 就永远拿不到 `override` → 预览显示的是「按规则算的名字」，
+  //   而执行时用的是「表里的名字」→ **预览 ≠ 执行**（方向还反了：执行对、预览错）。
+  //   ⚠️ `Pick` 是**合法子集**，所以漏了这一行 **typecheck 不会报错**。
+  | 'override'
+>
 
 export interface PreviewRequest {
   /** 递增，用于丢弃过期结果 */

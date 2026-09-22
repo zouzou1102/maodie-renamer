@@ -162,6 +162,11 @@ export async function execute(
     dirPath: it.dirPath,
     fromName: it.fromName,
     isDir: it.isDir,
+    // ★ P3-3：不补这一行 → 主进程算新名时拿不到属性 → `{大小}` 展开成空串（设计 §7.5 第 4 行）
+    attrs: it.attrs,
+    // ★ P3-4：不补这一行 → 主进程按规则重算、**表里的名字被完全忽略**，
+    //   而界面预览是对的 → 「预览对、执行错」（与 P3-1 同一类形态，设计 §7.5 第 3 行）
+    override: it.override,
   }))
   const snapshot = await readSnapshots(inputs)
 

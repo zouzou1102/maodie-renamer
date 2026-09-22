@@ -16,6 +16,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { PREVIEW_DEBOUNCE_MS, VIRTUAL_LIST_THRESHOLD } from '@shared/constants'
 import { normalizeForCompare } from '@shared/path-utils'
+import { toPreviewItemInputs } from '@shared/preview'
 import type { FileItem, PreviewItemInput, PreviewStats } from '@shared/types'
 import { createPreviewRunner } from '../preview-runner'
 import { useCatStore } from './cat'
@@ -84,13 +85,10 @@ export const useFilesStore = defineStore('files', () => {
     // ★ 正则非法时**不重算**：保留上一次的合法结果（设计 §3.3），
     //   否则会把列表刷成一片「无变化」，既闪动又误导用户。
     if (ruleStore.regexError) return
-    const req: PreviewItemInput[] = items.value.map((i) => ({
-      id: i.id,
-      dirPath: i.dirPath,
-      stem: i.stem,
-      ext: i.ext,
-      isDir: i.isDir,
-    }))
+    // ★ 压成预览请求的形状 —— 嵌套对象在 `toPreviewItemInputs` 里摊平成普通对象。
+    //   ⚠️ 千万别在这里手写一遍：漏了摊平就会让 Worker 每次 `DataCloneError` 静默退化
+    //   （P3-3 引入 `attrs` 时埋下、P3-4 加 `override` 时继续，2026-09-22 才抓到）。
+    const req: PreviewItemInput[] = toPreviewItemInputs(items.value)
 
     if (req.length === 0) {
       stats.value = { changed: 0, unchanged: 0, conflict: 0, invalid: 0 }
@@ -257,6 +255,57 @@ export const useFilesStore = defineStore('files', () => {
     if (touched) requestPreview()
   }
 
+  /* ── 导入表格（P3-4 / 第 4 批）─────────────────────────────────── */
+
+  /**
+   * 把表里的对应关系装到列表项上。
+   *
+   * ★ 只动 `override`，**不动** `status` / `newName` —— 那些仍然由预览算。
+   *   导入不是「另开一条路」，只是换了个「名字从哪来」，所以合法性校验、
+   *   冲突检测、预览 ≡ 执行这条线一点都没被绕开。
+   *
+   * @returns 实际装上去的项数（弹窗与状态栏用它报数）
+   */
+  function applyImport(list: Array<{ id: string; stem: string }>, sourceTable: string): number {
+    if (list.length === 0) return 0
+    const stemById = new Map(list.map((a) => [a.id, a.stem]))
+    let count = 0
+    for (const item of items.value) {
+      const stem = stemById.get(item.id)
+      if (stem === undefined) continue
+      item.override = { stem, sourceTable }
+      count++
+    }
+    if (count > 0) requestPreview()
+    return count
+  }
+
+  /**
+   * 「清除导入」：去掉全部 `override`，那些项**立刻回到按规则算**。
+   *
+   * ⚠️ 只清「名字的来源」，**列表里的文件一个都不删** —— 所以不需要二次确认
+   *   （与「清空列表」是完全不同的两件事）。
+   */
+  function clearOverride(): number {
+    let count = 0
+    for (const item of items.value) {
+      if (item.override !== undefined) {
+        item.override = undefined
+        count++
+      }
+    }
+    if (count > 0) requestPreview()
+    return count
+  }
+
+  /** 当前有多少项的名字来自表格（规则区顶部那条提示用它）*/
+  const overrideCount = computed(() => items.value.filter((i) => i.override !== undefined).length)
+
+  /** 来源表格的显示名（同一时刻只会导入一张表，取第一项即可）*/
+  const overrideSource = computed(
+    () => items.value.find((i) => i.override !== undefined)?.override?.sourceTable ?? '',
+  )
+
   /* ── 监听规则变化 → 自动重算预览 ────────────────────────────────── */
 
   watch(() => ruleStore.rule, () => requestPreview(), { deep: true })
@@ -289,6 +338,10 @@ export const useFilesStore = defineStore('files', () => {
     runPreview,
     applyRenamed,
     applyRenamedBack,
+    applyImport,
+    clearOverride,
+    overrideCount,
+    overrideSource,
     showTransient,
     dispose,
   }
