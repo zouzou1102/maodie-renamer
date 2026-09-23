@@ -5,7 +5,8 @@
  * 且它要参与持久化 —— 硬编码在组件里会让历史记录与代码版本耦合。
  */
 
-import { caseTransformLabel, dateFormatLabel, seqPositionLabel, sizeUnitLabel } from './labels'
+import { ATTR_VARS } from './attr-vars'
+import { caseTransformLabel, dateFormatLabel, seqPositionLabel } from './labels'
 import type { RuleConfig } from './types'
 
 /** P3-4：摘要里要能说明「这批名字有一部分来自导入的表格」*/
@@ -67,14 +68,16 @@ function buildBaseSummary(rule: RuleConfig): string {
         parts.push(`日期(${dateFormatLabel(r.dateFormat)})`)
       }
 
-      // ★ P3-3：属性变量（写在前后缀里、**没有开关**）。
+      // ★ P3-3 / P3-6：属性变量（写在前后缀里、**没有开关**）。
       //   摘要里必须说出来 —— 否则撤销之后没人知道当初是怎么算出来的（设计 §7.5 第 10 行）。
-      //   ⚠️ 这三行必须在下面 `parts.length === 0` 判断**之前** ——
+      //   ⚠️ 这一段必须在下面 `parts.length === 0` 判断**之前** ——
       //      否则「只写了属性变量」的规则会被误报成「未设置任何规则要素」。
+      //   ★ P3-6：改成由 `shared/attr-vars.ts` 的清单生成 —— 以后加变量**只改那一处**
+      //   （这个坑咬过两次：P3-3 加变量时提示行漏改，P3-6 又差点漏）。见设计 §5.①。
       const vars = `${r.prefix ?? ''}${r.suffix ?? ''}`
-      if (vars.includes('{创建}')) parts.push('创建日期')
-      if (vars.includes('{修改}')) parts.push('修改日期')
-      if (vars.includes('{大小}')) parts.push(`大小(${sizeUnitLabel(r.sizeUnit)})`)
+      for (const v of ATTR_VARS) {
+        if (vars.includes(v.token)) parts.push(v.summary(r))
+      }
 
       if (parts.length === 0) return '未设置任何规则要素'
 

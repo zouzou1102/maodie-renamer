@@ -61,6 +61,9 @@ const ctx = (index = 0, total = 1, date = '2026-09-11', seedKey = 'test-seed') =
   date,
   seedKey,
   attrs: { created: '', modified: '', sizeBytes: null },
+  // ★ P3-6：`{文件夹}` 的来源。**形状跟随** —— 本批把 `dirName` 做成必填，
+  //   所以老用例的上下文都要补上它；**断言与判定一个都没改**。
+  dirName: '素材',
 })
 
 /** 模拟 IPC 的序列化往返（`undefined` 会丢键 —— 白名单漏字段最容易在这里露出来）*/

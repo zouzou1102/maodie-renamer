@@ -1263,18 +1263,18 @@ const FEATURES = [
 
   // ══ P3-3：按文件属性命名（《P3-3按文件属性命名轻量设计确认》§2 / §9）══
 
-  feature('P3-3 EL-130：属性组在规则区里，三个变量都露出来', (c) =>
+  feature('P3-3 EL-130：属性组在规则区里，属性变量都露出来（P3-6 起是 4 个）', (c) =>
     c.scroll('[data-var-hint]')
      .see('[data-var-hint]', '变量提示行可见')
      // ★ 不改这行提示，功能完全正常、测试全绿、界面无异常 ——
-     //   但**没有任何用户知道有这三个变量**。这三条是唯一能抓它的断言。
+     //   但**没有任何用户知道有这些变量**。这几条是唯一能抓它的断言。
      .seeContains('[data-var-hint]', '{创建}', '★ 提示行里有 {创建}')
      .seeContains('[data-var-hint]', '{修改}', '提示行里有 {修改}')
      .seeContains('[data-var-hint]', '{大小}', '提示行里有 {大小}')
      .seeThat(
        "document.querySelectorAll('[data-attr-insert]').length",
-       3,
-       '三个属性变量都可点（点一下就插进前缀）'
+       4,
+       '★ 四个属性变量都可点（P3-6 加了「文件夹名」；点一下就插进前缀）'
      )
   ),
 
@@ -1575,6 +1575,74 @@ const FEATURES = [
         '★ 导入模式下「区分大小写」同样不出现'
       )
       .seeThat("document.querySelectorAll('.md-adv').length", 0, '★ 导入模式下「进阶设置」同样不出现')
+  ),
+
+  // ══ P3-6：提取文件夹名（`{文件夹}` 变量）═══════════════════════════════
+  //  设计来源：《P3-6提取文件夹名轻量设计确认.md》§2 / §9 / §10。
+  //  ★ 这一段跑在最后，且**不改前面任何用例的前提**。
+
+  feature('P3-6 EL-140：属性组出现第 4 个 chip「文件夹名」', (c) =>
+    c
+      .click('.md-tabs .md-tab:nth-child(3)')
+      .waitUntil("!!document.querySelector('[data-attr-insert=\"{文件夹}\"]')", 8000)
+      .scroll('[data-attr-insert="{文件夹}"]')
+      .see('[data-attr-insert="{文件夹}"]', '★ 第 4 个属性 chip「文件夹名」可见')
+      .seeContains('[data-attr-insert="{文件夹}"]', '文件夹名', 'chip 上的短名是「文件夹名」')
+      .seeContains('[data-attr-insert="{文件夹}"]', '{文件夹}', 'chip 上带着 token')
+      .seeThat(
+        "document.querySelectorAll('[data-attr-insert]').length",
+        4,
+        '★ 属性组一共 4 个 chip（原来是 3 个）'
+      )
+  ),
+
+  feature('P3-6 §2.2 ★ 前缀提示行里出现 {文件夹}（唯一能抓「功能等于不存在」的断言）', (c) =>
+    c
+      .scroll('[data-var-hint]')
+      .seeContains('[data-var-hint]', '{文件夹}', '★ 提示行里有 {文件夹} —— 用户才知道有这个变量')
+      .seeContains('[data-var-hint]', '文件夹名', '提示行里也写了它的短名')
+  ),
+
+  feature('P3-6 IX-121：点 {文件夹} chip → 变量真的进了前缀输入框（复用 IX-112 的交互）', (c) =>
+    c
+      .click('input[placeholder="如 {d}-发票-"]')
+      .type('X_')
+      .click('[data-attr-insert="{文件夹}"]')
+      .seeThat(
+        "document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value",
+        'X_{文件夹}',
+        '★ 点一下就把 {文件夹} 追加到前缀末尾（手打容易漏花括号）'
+      )
+  ),
+
+  feature('P3-6 §2.3：属性组下面有一句防撞名提示', (c) =>
+    c
+      .scroll('[data-folder-hint]')
+      .see('[data-folder-hint]', '防撞名小字可见')
+      .seeContains('[data-folder-hint]', '重名', '说清了「同类文件会重名」')
+      .seeContains('[data-folder-hint]', '{n}', '并把用户引到 {n} 序号')
+  ),
+
+  feature('P3-6 ★★ 示例行与真实预览都真的用上了文件夹名（走真引擎）', (c) =>
+    c
+      // ① 示例行用**固定假值**「素材」—— 变了才说明变量真的参与计算
+      .scroll('[data-seq-demo]')
+      .see('[data-seq-demo]', '示例行在（「启用序号」还开着）')
+      .seeContains(
+        '[data-seq-demo]',
+        '素材1',
+        '★ 示例行里出现「素材1」——{文件夹} 的假值真的参与了计算（不是空串、不是原样）'
+      )
+      // ② 真实预览：每一行的新名都不该再含**字面** `{文件夹}`
+      .waitUntil(
+        "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map(function(e){return e.textContent.trim()}); return ns.length > 0 && ns.every(function(t){return t.indexOf('{文件夹}') < 0 && t.length > 0}); })()",
+        8000
+      )
+      .seeThat(
+        "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map(function(e){return e.textContent.trim()}); const bad = ns.filter(function(t){return t.indexOf('{文件夹}') >= 0 || t.length === 0}); return bad.length === 0 ? 'all' : (bad.length + '/' + ns.length + ' :: ' + bad.slice(0,2).join(' | ')); })()",
+        'all',
+        '★★ 每一行的新名都**不再含字面 {文件夹}** —— 变量真的被换成了文件夹名（不是原样留着）'
+      )
   ),
 ];
 
