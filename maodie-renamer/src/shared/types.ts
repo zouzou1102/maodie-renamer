@@ -140,7 +140,26 @@ export interface ItemAttrs {
 
 /* ══ 规则配置 ══════════════════════════════════════════════════════════ */
 
-export type RuleMode = 'delete' | 'replace' | 'rule'
+/**
+ * 模式（当前 5 个，互斥；DEC-02 的结论不变，只是分支从 3 个变成 5 个）。
+ *
+ * ⚠️ **`'rule'` 这个值刻意不改名**：界面上叫「自定义」，代码里仍是 `rule`。
+ *    改枚举值要动 `history.json` 里的旧摘要、CLI 的 `--rule` 语义、模板库、
+ *    以及所有老单测 —— 纯风险、零收益（设计 §5.①）。映射写在这里就够了。
+ *
+ * ★ 加新模式时**不要写兜底式代码**（`A || B ? x : y`）—— 新值会静默掉进
+ *  兜底分支，界面正常、行为全错。一律用正面判断或穷尽 switch + `never`（设计 §1.2）。
+ */
+export type RuleMode = 'delete' | 'replace' | 'rule' | 'insert' | 'import'
+
+/**
+ * ★ P3-5：扩展名处理（默认 `'keep'`）。
+ *
+ * 与 `caseTransform` **同级**：不是第六个模式，而是「作用在结果上的开关」——
+ * 先按模式算出主体，最后再决定拼回什么扩展名。做成模式就互斥了，
+ * 没法「先改主体、再改扩展名」一起用（设计 §1.6）。
+ */
+export type ExtMode = 'keep' | 'set' | 'remove' | 'append'
 /**
  * P3-1：编号类型。
  *
@@ -170,8 +189,27 @@ export interface RuleConfig {
   regexEnabled: boolean
   /** F-11：大小写转换。默认 'none' —— 只作用于新名主体，扩展名永不动 */
   caseTransform: CaseTransform
+  /**
+   * ★ P3-5：扩展名处理。默认 'keep' = 现在的行为，一个字都不变。
+   * ⚠️ 它放宽的是 P0 铁律「EX-07 扩展名保护」→ 所以**默认关**，
+   *    用户显式打开后，改出的名字照样过 `validateNewName` 与冲突检测。
+   */
+  extMode: ExtMode
+  /** `set` / `append` 用得到；`keep` / `remove` 忽略。默认 '' */
+  extValue: string
   delete: { text: string }
   replace: { find: string; to: string }
+  /**
+   * ★ P3-5：插入模式的参数 —— **单独一组**（产品负责人 2026-09-23 定）。
+   * 一组对应一个模式：`delete` / `replace` / `rule` / `insert` 各一组，
+   * `import` 没有参数所以不需要组（设计 §7.1）。
+   */
+  insert: {
+    /** 在第几个**码点**后插；默认 0。越界落到末尾，负数当 0 */
+    at: number
+    /** 插什么；默认 ''。为空 = 规则不生效 */
+    text: string
+  }
   rule: {
     prefix: string
     suffix: string
@@ -222,13 +260,19 @@ export interface RuleConfig {
 
 /** 默认值（新建任务 / 重置规则时使用） */
 export const DEFAULT_RULE: RuleConfig = {
-  mode: 'delete',
+  // ★ P3-5：默认停在「自定义」（= `rule`）—— 产品负责人 2026-09-23 定（原默认是
+  //   `delete`；这次五模式改版把默认页签换成更常用的「自定义」）。
+  mode: 'rule',
   caseSensitive: false,
   autoResolveConflict: false,
   regexEnabled: false,
   caseTransform: 'none',
+  /* P3-5 的 3 个默认值 —— 'keep' + '' = 行为与「不用扩展名处理」完全相同 */
+  extMode: 'keep',
+  extValue: '',
   delete: { text: '' },
   replace: { find: '', to: '' },
+  insert: { at: 0, text: '' },
   rule: {
     prefix: '',
     suffix: '',

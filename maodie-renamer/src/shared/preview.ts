@@ -7,7 +7,7 @@
  *   · 主进程取 outcome / toName           → 生成待执行清单
  *
  * 分段职责：
- *   1. 逐项 computeNewStem → joinName（扩展名原样拼回）
+ *   1. 逐项 computeNewStem → extText（算要拼回的扩展名，默认原样）→ joinName
  *   2. validateNewName —— 失败 → invalid，**不参与冲突检测**（它根本不会执行）
  *   3. detectConflicts —— 只对合法项做，避免非法项污染「已分配集合」
  *   4. computeDiffRange —— 比较**完整名字**（用户看到的是完整名）
@@ -17,7 +17,7 @@ import { detectConflicts, toSnapshotMap, type ConflictInput } from './conflicts'
 import { computeDiffRange } from './diff-range'
 import { MD_ERROR, errorText, type MdErrorCode } from './errors'
 import { joinName, splitName } from './name-split'
-import { computeNewStem } from './rule-engine'
+import { computeNewStem, extText } from './rule-engine'
 import { validateNewName } from './validator'
 import type {
   ConflictKind,
@@ -64,7 +64,8 @@ export interface ResolvedItem {
   dirPath: string
   fromName: string
   isDir: boolean
-  /** 该项的扩展名（含点；文件夹与无扩展名为空串）。用于保证 newName === newStem + ext */
+  /** 该项**最终生效**的扩展名（含点；文件夹与无扩展名为空串）。用于保证
+   *  `newName === newStem + ext` —— ★ P3-5 起可能被「扩展名处理」改过 */
   ext: string
   /** 用户「想改成」的名字（未加冲突补救序号）*/
   attemptedName: string
@@ -118,11 +119,23 @@ export function resolveItems(
       // 只在这里取 `.stem` —— 引擎要的是字符串，而四层之间传的是同一个对象
       override: item.override?.stem,
     })
-    const attemptedName = joinName(newStem, parts.ext)
-    // ★ 必须把原始扩展名传进去：「只剩扩展名」与「本来就叫 .gitignore」
-    //   在字符串层面同构，只有调用方知道原始 ext
-    const verdict = validateNewName(attemptedName, item.dirPath, parts.ext)
-    return { item, parts, attemptedName, verdict }
+    // ★ P3-5：先按「扩展名处理」算出**要拼回去的扩展名**（默认 'keep' = 原来的
+    //   ext，所以关着时与改之前逐字节相同），再拼完整名。
+    //   ⚠️ 导入模式下的**表外项**（列表里有、表里没有）**完全不动** —— 连扩展名处理
+    //   也不作用于它们，否则就不叫「保持原名不动」了（设计 §1.5）。
+    const isImportOutside =
+      rule.mode === 'import' && !(item.override !== undefined && item.override.stem !== '')
+    const newExt = isImportOutside
+      ? parts.ext
+      : extText(parts.ext, item.isDir, rule.extMode, rule.extValue)
+    const attemptedName = joinName(newStem, newExt)
+    // ★ 必须把扩展名传进去：「只剩扩展名」与「本来就叫 .gitignore」
+    //   在字符串层面同构，只有调用方知道它。
+    //   ⚠️ P3-5：传的是**新扩展名**（newExt）而不是原始 ext —— 改了扩展名之后，
+    //   「整体只剩扩展名」要对齐最终名字才拦得住：`x.docx` 主体被删光 + 改成
+    //   `.pdf`，若拿原始 ext 比会漏过检查，产出一个叫 `.pdf` 的文件。
+    const verdict = validateNewName(attemptedName, item.dirPath, newExt)
+    return { item, parts, newExt, attemptedName, verdict }
   })
 
   /** 第二遍：只对合法项做冲突检测 —— 非法项不会执行，不该占用目标名 */
@@ -148,14 +161,16 @@ export function resolveItems(
    * 为什么不直接对最终名再跑一次 splitName：`splitName` 对改名结果是**不幂等**的。
    * 例：输入 `.gitignore`（ext 为空）加前缀得到 `P-.gitignore04`，
    *    再拆一次会把 `.gitignore04` 当成扩展名。
-   * 因此这里按**该项原本的 ext** 从末尾剥离，从而恒满足
+   * 因此这里按**最终生效的 ext** 从末尾剥离，从而恒满足
    * `newName === newStem + ext` 这条接口文档承诺的冗余关系。
+   * ⚠️ P3-5：传进来的必须是**新扩展名** —— 改了扩展名之后若按原 ext 剥会剥不掉，
+   *   `newStem` 就变成「主体 + 新扩展名」，**静默打破**上面那条承诺（设计 §7.5 第 6 行）。
    */
   const stemOf = (final: string, ext: string): string =>
     ext !== '' && final.endsWith(ext) ? final.slice(0, final.length - ext.length) : final
 
-  return computed.map(({ item, attemptedName, verdict, parts }): ResolvedItem => {
-    const ext = parts.ext
+  return computed.map(({ item, attemptedName, verdict, newExt }): ResolvedItem => {
+    const ext = newExt
     // ① 校验不通过
     if (!verdict.ok) {
       const code = verdict.code ?? MD_ERROR.E_UNKNOWN

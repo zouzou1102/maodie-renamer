@@ -19,10 +19,14 @@
  */
 import { promises as fsp } from 'node:fs'
 import type { Dirent } from 'node:fs'
-import { resolve } from 'node:path'
+import { basename, extname, resolve } from 'node:path'
+import { inflateRawSync } from 'node:zlib'
 import { CLI_USAGE, parseCliArgs, type CliOptions } from '@shared/cli-args'
 import { buildPreview, resolveItems, type ResolveInput } from '@shared/preview'
 import { buildRuleSummary } from '@shared/rule-summary'
+import { assignmentsOf, buildMapping, detectColumns, readDelimitedTable } from '@shared/table-map'
+import type { RuleConfig } from '@shared/types'
+import { readXlsx } from '@shared/xlsx-read'
 import { resolvePaths } from '../services/fs-scan'
 import { execute, localDateString } from '../services/rename-executor'
 import { appendTask, buildTask, loadHistory } from '../services/history-store'
@@ -53,16 +57,91 @@ function pad(text: string, width: number): string {
   return clipped + ' '.repeat(Math.max(1, width - cw + 2))
 }
 
+/**
+ * 模式的一句话描述。★ P3-5：五模式**各自成文** —— 不再用 `else` 兜底
+ * （从前那个 `else` 会把任意非删除/替换的模式都说成「前后缀」，选「插入」也看不出来）。
+ */
+function modeText(r: RuleConfig, table: string): string {
+  switch (r.mode) {
+    case 'delete':
+      return `删除「${r.delete.text}」`
+    case 'replace':
+      return `替换「${r.replace.find}」→「${r.replace.to}」`
+    case 'insert':
+      return `在第 ${Math.max(0, r.insert.at)} 个字后插入「${r.insert.text}」`
+    case 'import':
+      return `按表格改（${table === '' ? '未指定表格' : table}）`
+    case 'rule':
+      return `前后缀「${r.rule.prefix}…${r.rule.suffix}」`
+    default: {
+      // ★ 穷尽兜底：加模式时「忘了写」变编译期错误，而不是静默说成别的东西
+      const never: never = r.mode
+      return never
+    }
+  }
+}
+
 function describeRule(o: CliOptions): string {
   const r = o.rule
-  const parts: string[] = []
-  if (r.mode === 'delete') parts.push(`删除「${r.delete.text}」`)
-  else if (r.mode === 'replace') parts.push(`替换「${r.replace.find}」→「${r.replace.to}」`)
-  else parts.push(`前后缀「${r.rule.prefix}…${r.rule.suffix}」`)
+  const parts: string[] = [modeText(r, o.table)]
   if (r.regexEnabled) parts.push('正则')
   if (r.caseTransform !== 'none') parts.push(`大小写:${r.caseTransform}`)
   parts.push(o.autoSeq ? '自动加序号' : '冲突跳过（绝不覆盖）')
   return parts.join(' · ')
+}
+
+/**
+ * ★ P3-5：导入模式 —— 读表格、按表头自动识别列、把匹配上的项挂上 `override`。
+ *
+ * 与界面走**同一套纯逻辑**（`shared/table-map.ts` 的 `detectColumns` / `buildMapping`），
+ * 所以命令行与界面的「怎么读表」不可能跑偏（设计 §13.④：命令行与界面完全一致）。
+ * 匹配不上的项不挂 override → 引擎那边保持原名不动（设计 §1.5）。
+ */
+async function applyTable(
+  tablePath: string,
+  items: ResolveInput[],
+  err: (line: string) => void,
+): Promise<{ ok: boolean; items: ResolveInput[] }> {
+  let bytes: Uint8Array
+  try {
+    bytes = await fsp.readFile(tablePath)
+  } catch (e) {
+    err(`读不到表格：${tablePath}\n  ${e instanceof Error ? e.message : String(e)}`)
+    return { ok: false, items }
+  }
+  const ext = extname(tablePath).toLowerCase()
+  let rows
+  try {
+    rows =
+      ext === '.xlsx'
+        ? readXlsx(bytes, { inflate: inflateRawSync }).rows
+        : readDelimitedTable(bytes, ext === '.csv' ? ',' : '\t').rows
+  } catch (e) {
+    err(`表格读不动（${ext === '' ? '没有扩展名' : ext}）：${e instanceof Error ? e.message : String(e)}`)
+    return { ok: false, items }
+  }
+
+  const guess = detectColumns(rows)
+  const files = items.map((i) => ({ id: i.id, name: i.fromName, isDir: i.isDir }))
+  const mapping = buildMapping(
+    rows,
+    { nameCol: guess.nameCol, newCol: guess.newCol, headerRow: guess.headerRow },
+    files,
+  )
+  // 整体拒绝（如没指定「原文件名」列）→ 明确报错，**不猜**（与界面同一条纪律）
+  if (mapping.rejected !== '') {
+    err(`表格用不了：${mapping.rejected}`)
+    return { ok: false, items }
+  }
+
+  const sourceTable = basename(tablePath)
+  const byId = new Map(assignmentsOf(mapping).map((a) => [a.id, a.stem]))
+  return {
+    ok: true,
+    items: items.map((i) =>
+      byId.has(i.id) ? { ...i, override: { stem: byId.get(i.id) as string, sourceTable } } : i,
+    ),
+  }
 }
 
 export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
@@ -91,13 +170,20 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     paths: dirents.map((e) => resolve(abs, e.name)),
     existingPaths: [],
   })
-  const items: ResolveInput[] = batch.items.map((i) => ({
+  let items: ResolveInput[] = batch.items.map((i) => ({
     id: i.id,
     dirPath: i.dirPath,
     fromName: i.name,
     isDir: i.isDir,
     attrs: i.attrs,
   }))
+
+  // ★ P3-5：导入模式 —— 先读表格、把匹配上的项挂上 override（其余保持原名不动）。
+  if (o.rule.mode === 'import') {
+    const t = await applyTable(o.table, items, deps.err)
+    if (!t.ok) return 2
+    items = t.items
+  }
 
   const date = localDateString() // DEC-03：日期取执行当天
   const preview = buildPreview(items, o.rule, date, batch.snapshot, o.autoSeq)

@@ -13,6 +13,7 @@ import ActionBar from '../components/ActionBar.vue'
 import ActionPanel from '../components/ActionPanel.vue'
 import CatStage from '../components/CatStage.vue'
 import FileList from '../components/FileList.vue'
+import ImportTableModal from '../components/ImportTableModal.vue'
 import RulePanel from '../components/RulePanel.vue'
 import { useDragDrop } from '../composables/useDragDrop'
 import { useFilesStore } from '../stores/files'
@@ -78,6 +79,16 @@ onMounted(() => {
       <template v-if="rejected">只能拖入文件或文件夹哦</template>
       <template v-else>松手就行，交给耄耋～</template>
     </div>
+
+    <!-- EL-133 导入预览弹窗（★ P3-5：从 ActionPanel 提到这里 —— 左栏按钮与「导入」
+         页签的入口共用同一个动作，只该有一个弹窗实例）。AppModal 内部 Teleport 到
+         body，挂在这里只是「就近」。 -->
+    <ImportTableModal
+      :open="files.importOpen"
+      :file-name="files.importName"
+      :table="files.importTable"
+      @close="files.closeImport()"
+    />
   </div>
 </template>
 

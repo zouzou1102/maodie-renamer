@@ -245,8 +245,19 @@ function throwsCode(fn: () => unknown, code: string): void {
 }
 
 function ruleWith(patch: Partial<RuleConfig['rule']> = {}): RuleConfig {
-  // ★ 必须显式置 `mode: 'rule'`：`DEFAULT_RULE.mode` 是 `'delete'`（见 P3-3 的踩坑记录）
+  // ★ 必须显式置 `mode: 'rule'`（不依赖 `DEFAULT_RULE.mode` —— 那个值会被改动：
+  //   P3-5 已把它从 'delete' 改成 'rule'。见 P3-3 的踩坑记录）
   return { ...DEFAULT_RULE, mode: 'rule', rule: { ...DEFAULT_RULE.rule, ...patch } }
+}
+
+/**
+ * ★ P3-5：**导入模式**的规则。
+ * `override` 只在 `mode === 'import'` 时生效（第 4 批的「叠加覆盖层」已收回成
+ * 五选一互斥，设计 §1.5 / §7.5 第 10 行）。所以「验 override 生效」的用例
+ * **必须**用这个 helper —— 用 `ruleWith`（自定义模式）会得到规则算的名字。
+ */
+function importRuleWith(patch: Partial<RuleConfig['rule']> = {}): RuleConfig {
+  return { ...DEFAULT_RULE, mode: 'import', rule: { ...DEFAULT_RULE.rule, ...patch } }
 }
 
 const NO_ATTRS: ItemAttrs = { created: '', modified: '', sizeBytes: 0 }
@@ -738,7 +749,8 @@ test('buildMapping：行号用的仍是表里的原始行号（对不上时用�
 /* ══ 6. ★★ 预览 ≡ 执行（TC-64）════════════════════════════════════════ */
 
 test('★★ 预览 ≡ 执行：override 在 PreviewItemInput 那条路上不是 undefined', () => {
-  const rule = ruleWith({ prefix: 'ZZZ_' })
+  // ★ P3-5：必须用**导入模式** —— override 只在导入模式下生效
+  const rule = importRuleWith({ prefix: 'ZZZ_' })
   const override = { stem: '表里给的名字', sourceTable: '对照.xlsx' }
 
   // ★ 这一行的类型本身就是一条断言：`PreviewItemInput` 是 `Pick<FileItem, ...>`
@@ -774,8 +786,9 @@ test('★★ 预览 ≡ 执行：override 在 PreviewItemInput 那条路上不�
   )
 })
 
-test('override 为空串 → 退回按规则算（「没给名字」不能把名字清空）', () => {
-  const rule = ruleWith({ prefix: 'A_' })
+test('override 为空串 → 保持原名（「没给名字」不能把名字清空）', () => {
+  // ★ P3-5：导入模式下没有表项 → **保持原名不动**（引擎不参与，不是「退回按规则算」）
+  const rule = importRuleWith({ prefix: 'A_' })
   const preview = buildPreview(
     [
       {
@@ -793,7 +806,8 @@ test('override 为空串 → 退回按规则算（「没给名字」不能把名
     {},
     false,
   )
-  assert.equal(preview.items[0].newName, 'A_素材.docx')
+  // 关键是**名字不能被清空**；导入模式里规则引擎不参与，所以是原名而不是 A_素材
+  assert.equal(preview.items[0].newName, '素材.docx')
 })
 
 /* ══ 7. rule-summary ══════════════════════════════════════════════════ */

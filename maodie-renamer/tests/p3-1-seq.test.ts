@@ -368,7 +368,9 @@ test('sanitizeRule：不存在的日期要被清掉，而不是放行后被静�
 test('sanitizeRule：整个入参是垃圾时不炸，给一份默认规则', () => {
   for (const bad of [undefined, null, 42, 'x', [], { rule: 'nope' }]) {
     const s = sanitizeRule(bad)
-    assert.equal(s.mode, 'delete')
+    // ★ P3-5：垃圾入参回落到 `DEFAULT_RULE.mode`（现为 'rule'，即界面的「自定义」）。
+    //   从前回落到写死的 'delete' —— 那是兜底式写法，加模式时会与真实默认值漂移。
+    assert.equal(s.mode, 'rule')
     assert.equal(s.rule.seqKind, 'number')
     assert.equal(s.rule.seqTimeStart, '')
   }

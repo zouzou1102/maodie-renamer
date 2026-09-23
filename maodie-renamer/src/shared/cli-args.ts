@@ -20,6 +20,8 @@ import { DEFAULT_RULE, type DateFormat, type RuleConfig } from './types'
 export interface CliOptions {
   dir: string
   rule: RuleConfig
+  /** `--table <表格路径>`（导入模式用）；未指定时为空串 */
+  table: string
   /** 显式 `--yes` 才真改；不传只打印将要做的改动 */
   yes: boolean
   autoSeq: boolean
@@ -38,6 +40,8 @@ const KNOWN_FLAGS = new Set([
   '--dir',
   '--delete',
   '--replace',
+  '--insert',
+  '--table',
   '--prefix',
   '--suffix',
   '--seq',
@@ -61,9 +65,11 @@ export const CLI_USAGE = `耄耋改名 · 命令行模式
 用法：
   maodie.exe --rename --dir "<目录>" [规则] [--yes]
 
-规则（三选一，与界面完全一致）：
+规则（五选一，与界面完全一致）：
   --delete "<文本>"
   --replace "<查找>" "<替换为>"
+  --insert "<位置>:<文字>"            在第 N 个字符后插入文字（省略 "<位置>:" 则插在最前）
+  --table "<表格路径>"                导入模式：按表格改名（.xlsx / .csv / .txt）
   --prefix "<前缀>" --suffix "<后缀>" --seq --date --date-format "<格式>"
 
 P1 能力：
@@ -116,12 +122,14 @@ export function parseCliArgs(
   let dryRun = false
   let autoSeq = false
   let caseSensitive = false
-  let ruleKind: 'delete' | 'replace' | 'basic' | null = null
+  let ruleKind: 'delete' | 'replace' | 'basic' | 'insert' | 'import' | null = null
+  let table = ''
 
   const rule: RuleConfig = {
     ...DEFAULT_RULE,
     delete: { ...DEFAULT_RULE.delete },
     replace: { ...DEFAULT_RULE.replace },
+    insert: { ...DEFAULT_RULE.insert },
     rule: { ...DEFAULT_RULE.rule },
   }
 
@@ -171,10 +179,10 @@ export function parseCliArgs(
       continue
     }
     if (a === '--seq' || a === '--date') {
-      // 「三选一」在界面里由 RuleMode 保证互斥，命令行必须同样严格 ——
+      // 「五选一」在界面里由 RuleMode 保证互斥，命令行必须同样严格 ——
       // 否则 `--delete x --seq` 会被静默接受，而界面根本无法表达这种组合
       if (ruleKind !== null && ruleKind !== 'basic') {
-        return { ok: false, error: `${a} 与 --delete / --replace 不能同时使用（规则三选一）` }
+        return { ok: false, error: `${a} 与 --delete / --replace 不能同时使用（规则五选一）` }
       }
       ruleKind = 'basic'
       if (a === '--seq') rule.rule.seqEnabled = true
@@ -192,7 +200,7 @@ export function parseCliArgs(
     }
     if (a === '--delete') {
       if (ruleKind !== null && ruleKind !== 'delete') {
-        return { ok: false, error: '--delete 与 --replace / 前后缀不能同时使用' }
+        return { ok: false, error: '--delete 与其它规则不能同时使用（规则五选一）' }
       }
       const r = val()
       if ('error' in r) return { ok: false, error: r.error }
@@ -204,7 +212,7 @@ export function parseCliArgs(
     }
     if (a === '--replace') {
       if (ruleKind !== null && ruleKind !== 'replace') {
-        return { ok: false, error: '--replace 与 --delete / 前后缀不能同时使用' }
+        return { ok: false, error: '--replace 与其它规则不能同时使用（规则五选一）' }
       }
       const r1 = val()
       if ('error' in r1) return { ok: false, error: r1.error }
@@ -217,11 +225,38 @@ export function parseCliArgs(
       i += 1
       continue
     }
+    if (a === '--insert') {
+      if (ruleKind !== null && ruleKind !== 'insert') {
+        return { ok: false, error: '--insert 与其它规则不能同时使用（规则五选一）' }
+      }
+      const r = val()
+      if ('error' in r) return { ok: false, error: r.error }
+      // 形如 `2:2026` → 在第 2 个字后插「2026」；**没有 `数字:` 前缀则整体当文字、位置 0**
+      // （所以 `--insert "2026"` = 前缀；想插含冒号的文字，前面补 `0:` 即可）
+      const m = /^(\d+):([\s\S]*)$/.exec(r.v)
+      ruleKind = 'insert'
+      rule.mode = 'insert'
+      rule.insert = m === null ? { at: 0, text: r.v } : { at: Number(m[1]), text: m[2] }
+      i += 1
+      continue
+    }
+    if (a === '--table') {
+      if (ruleKind !== null && ruleKind !== 'import') {
+        return { ok: false, error: '--table 与其它规则不能同时使用（规则五选一）' }
+      }
+      const r = val()
+      if ('error' in r) return { ok: false, error: r.error }
+      ruleKind = 'import'
+      rule.mode = 'import'
+      table = r.v
+      i += 1
+      continue
+    }
     if (a === '--prefix' || a === '--suffix' || a === '--date-format') {
       if (ruleKind !== null && ruleKind !== 'basic') {
         return {
           ok: false,
-          error: `${a} 与 --delete / --replace 不能同时使用（规则三选一）`,
+          error: `${a} 与 --delete / --replace 不能同时使用（规则五选一）`,
         }
       }
       const r = val()
@@ -253,11 +288,14 @@ export function parseCliArgs(
 
   if (dir === '') return { ok: false, error: '缺少 --dir <路径>' }
   if (ruleKind === null) {
-    return { ok: false, error: '至少要给一条规则（--delete / --replace / --prefix 等）' }
+    return {
+      ok: false,
+      error: '至少要给一条规则（--delete / --replace / --insert / --table / --prefix 等）',
+    }
   }
   if (yes && dryRun) return { ok: false, error: '--yes 与 --dry-run 不能同时使用' }
 
   rule.autoResolveConflict = autoSeq
   rule.caseSensitive = caseSensitive
-  return { ok: true, options: { dir, rule, yes, autoSeq, caseSensitive, limit } }
+  return { ok: true, options: { dir, rule, yes, autoSeq, caseSensitive, limit, table } }
 }

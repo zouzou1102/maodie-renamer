@@ -16,7 +16,15 @@ import { todayYmd } from '@shared/today'
 import { cloneTemplateRule, type RuleTemplate } from '@shared/templates'
 
 function cloneDefault(): RuleConfig {
-  return { ...DEFAULT_RULE, delete: { ...DEFAULT_RULE.delete }, replace: { ...DEFAULT_RULE.replace }, rule: { ...DEFAULT_RULE.rule } }
+  // ★ P3-5：`insert` 也必须**深拷一份** —— 浅展开会让 store 与 `DEFAULT_RULE.insert`
+  //   共享同一个对象，用户一改插入参数就写坏了常量（P2-B 模板踩过的同一形态）。
+  return {
+    ...DEFAULT_RULE,
+    delete: { ...DEFAULT_RULE.delete },
+    replace: { ...DEFAULT_RULE.replace },
+    insert: { ...DEFAULT_RULE.insert },
+    rule: { ...DEFAULT_RULE.rule },
+  }
 }
 
 /**
@@ -25,10 +33,11 @@ function cloneDefault(): RuleConfig {
  * `patch({ delete: { text } })` 之外还得补全 find/to —— 明明是可选补丁却要写全，
  * 很容易漏字段（编译期就会报「Property 'to' is missing」）。
  */
-export type RulePatch = Partial<Omit<RuleConfig, 'delete' | 'replace' | 'rule'>> & {
+export type RulePatch = Partial<Omit<RuleConfig, 'delete' | 'replace' | 'rule' | 'insert'>> & {
   delete?: Partial<RuleConfig['delete']>
   replace?: Partial<RuleConfig['replace']>
   rule?: Partial<RuleConfig['rule']>
+  insert?: Partial<RuleConfig['insert']>
 }
 
 export const useRuleStore = defineStore('rule', () => {
@@ -47,8 +56,12 @@ export const useRuleStore = defineStore('rule', () => {
   const regexError = computed<string | null>(() => {
     const r = rule.value
     if (!r.regexEnabled) return null
-    // 规则化模式不涉及匹配，正则开关根本不出现，也就不校验
-    if (r.mode === 'rule') return null
+    // ★ P3-5：正则只对「删除 / 替换」有意义 —— 改成**正面判断**。
+    //   从前是 `if (r.mode === 'rule') return null` +
+    //   `r.mode === 'delete' ? … : r.replace.find`，属于兜底式写法：加了
+    //   「插入 / 导入」之后，它们会跑去校验 `.replace.find` —— 正则非法的红框会
+    //   **该出现时不出现、不该出现时乱出现**（设计 §7.5 第 3 行）。
+    if (r.mode !== 'delete' && r.mode !== 'replace') return null
     const pattern = r.mode === 'delete' ? r.delete.text : r.replace.find
     return compileRegex(pattern, r.caseSensitive).error
   })
@@ -60,11 +73,12 @@ export const useRuleStore = defineStore('rule', () => {
 
   /** 深合并式补丁：只覆盖传进来的字段 */
   function patch(p: RulePatch): void {
-    const { delete: del, replace: rep, rule: inner, ...rest } = p
+    const { delete: del, replace: rep, rule: inner, insert: ins, ...rest } = p
     Object.assign(rule.value, rest)
     if (del) Object.assign(rule.value.delete, del)
     if (rep) Object.assign(rule.value.replace, rep)
     if (inner) Object.assign(rule.value.rule, inner)
+    if (ins) Object.assign(rule.value.insert, ins)
     clamp()
   }
 
@@ -96,6 +110,9 @@ export const useRuleStore = defineStore('rule', () => {
     //   这里的口径必须与 `sanitize-rule.ts` 的 `sizeUnitOf()` **完全一致**
     //   —— 两边不一致就是「预览对、执行错」。
     if (!SIZE_UNIT_OPTIONS.some((o) => o.value === r.sizeUnit)) r.sizeUnit = 'auto'
+    // ★ P3-5：插入位置下限 0（负数当 0）；**不设上限** —— 越界交给引擎自动落到末尾。
+    //   口径必须与 `shared/sanitize-rule.ts` 完全一致，否则就是「预览对、执行错」。
+    rule.value.insert.at = Math.max(0, Math.trunc(rule.value.insert.at) || 0)
   }
 
   function reset(): void {

@@ -4,7 +4,7 @@
  * 运行：`npm run test:core`（**必须显式传本文件**，见 package.json 的 test:core）
  *
  * 这个文件盯六件事：
- *  1. 六个模板都在，且**逐字段**等于设计里写死的那份 RuleConfig（不是只断言「变了」）
+ *  1. 七个模板都在，且**逐字段**等于设计里写死的那份 RuleConfig（不是只断言「变了」）
  *  2. 「去掉括号」的正则能编译，且**两组括号一起去掉**（TC-40，最容易漏的一条）
  *  3. **每个模板都真跑一遍预览**，至少有一个示例文件名发生变化（防「点了没反应」）
  *  4. **模板常量不被污染**（TC-41）：套用 → 手改 → 再套用，拿回的仍是原始模板
@@ -49,15 +49,17 @@ const SAMPLES: Record<string, string> = {
   stripBrackets: '【某某公众号】x.mp4',
   spaceToUnderscore: 'my file name.txt',
   lowercase: 'IMG_0001.JPG',
+  // ★ P3-5：第 7 个模板「只用编号」—— 只留编号、丢掉原名
+  seqOnly: '照片A.jpg',
 }
 
-/* ══ 1. 六个模板齐全、字段完整 ══════════════════════════════════════ */
+/* ══ 1. 七个模板齐全、字段完整 ══════════════════════════════════════ */
 
-test('六个模板都在，且 id / 短名 / 悬停说明都不为空', () => {
+test('七个模板都在，且 id / 短名 / 悬停说明都不为空', () => {
   assert.equal(
     RULE_TEMPLATES.length,
-    6,
-    '本版就做 6 个内置模板 —— 增删要先改设计（P2-B 轻量设计确认 §3）',
+    7,
+    '本版就做 7 个内置模板（P3-5 加了「只用编号」，设计 §2.4）—— 增删要先改设计',
   )
 
   for (const t of RULE_TEMPLATES) {
@@ -80,8 +82,11 @@ test('「加日期前缀」逐字段等于设计：规则化 + 前缀 {d} + 启�
     autoResolveConflict: false,
     regexEnabled: false,
     caseTransform: 'none',
+    extMode: 'keep',
+    extValue: '',
     delete: { text: '' },
     replace: { find: '', to: '' },
+    insert: { at: 0, text: '' },
     rule: {
       prefix: '{d} ',
       suffix: '',
@@ -111,8 +116,11 @@ test('「补零编号」逐字段等于设计：序号开、起始 1、步长 1�
     autoResolveConflict: false,
     regexEnabled: false,
     caseTransform: 'none',
+    extMode: 'keep',
+    extValue: '',
     delete: { text: '' },
     replace: { find: '', to: '' },
+    insert: { at: 0, text: '' },
     rule: {
       prefix: '',
       suffix: '',
@@ -142,8 +150,11 @@ test('「日期+编号」逐字段等于设计：前缀 {d}- + 日期 + 序号�
     autoResolveConflict: false,
     regexEnabled: false,
     caseTransform: 'none',
+    extMode: 'keep',
+    extValue: '',
     delete: { text: '' },
     replace: { find: '', to: '' },
+    insert: { at: 0, text: '' },
     rule: {
       prefix: '{d}-',
       suffix: '',
@@ -177,8 +188,11 @@ test('「去掉括号」逐字段等于设计：替换模式 + 正则开 + 替�
     autoResolveConflict: false,
     regexEnabled: true,
     caseTransform: 'none',
+    extMode: 'keep',
+    extValue: '',
     delete: { text: '' },
     replace: { find: r.replace.find, to: '' },
+    insert: { at: 0, text: '' },
     rule: {
       prefix: '',
       suffix: '',
@@ -208,8 +222,11 @@ test('「空格换下划线」逐字段等于设计：替换模式、正则关�
     autoResolveConflict: false,
     regexEnabled: false,
     caseTransform: 'none',
+    extMode: 'keep',
+    extValue: '',
     delete: { text: '' },
     replace: { find: ' ', to: '_' },
+    insert: { at: 0, text: '' },
     rule: {
       prefix: '',
       suffix: '',
@@ -239,8 +256,11 @@ test('「全部小写」逐字段等于设计：规则化、各要素全关、�
     autoResolveConflict: false,
     regexEnabled: false,
     caseTransform: 'lower',
+    extMode: 'keep',
+    extValue: '',
     delete: { text: '' },
     replace: { find: '', to: '' },
+    insert: { at: 0, text: '' },
     rule: {
       prefix: '',
       suffix: '',

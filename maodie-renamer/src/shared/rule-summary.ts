@@ -82,8 +82,22 @@ function buildBaseSummary(rule: RuleConfig): string {
       return parts.join(' + ')
     }
 
-    default:
-      return '未知规则'
+    case 'insert': {
+      const { at, text } = rule.insert
+      if (!text) return '未设置插入内容'
+      return `在第 ${Math.max(0, at)} 个字后插入「${text}」`
+    }
+
+    // ★ P3-5：导入模式 = 名字来自表格（引擎不参与）。摘要必须说出来 ——
+    //   否则撤销之后没人知道当初那批名字是怎么来的（这段会写进 history.json）。
+    case 'import':
+      return '名字来自导入的表格（规则不参与）'
+
+    default: {
+      // ★ 穷尽兜底：加模式时「忘了写摘要分支」变编译期错误，而不是静默给「未知规则」。
+      const never: never = rule.mode
+      return never
+    }
   }
 }
 

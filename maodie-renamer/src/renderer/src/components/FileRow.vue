@@ -12,11 +12,20 @@ import DiffText from './DiffText.vue'
 import MdIcon from './MdIcon.vue'
 import { CONFLICT_KIND_LABEL } from '@shared/labels'
 import type { FileItem } from '@shared/types'
+import { useFilesStore } from '../stores/files'
 
 const props = defineProps<{
   item: FileItem
   selected: boolean
 }>()
+
+const files = useFilesStore()
+
+/**
+ * ★ P3-5：导入模式下的「表外项」—— 列表里有、表里没有，保持原名不动。
+ * 由 store 统一判定（要同时看「当前模式」与「导没导过表」），行组件只负责显示。
+ */
+const outsideImport = computed(() => files.importOutsideIds.has(props.item.id))
 
 const emit = defineEmits<{
   (e: 'toggle', id: string): void
@@ -87,6 +96,9 @@ const title = computed(() => {
     <span class="md-filelist__badges">
       <span v-if="item.override !== undefined" class="md-badge md-badge--muted" data-badge-table>
         表
+      </span>
+      <span v-if="outsideImport" class="md-badge md-badge--muted" data-badge-outside>
+        表里没有
       </span>
       <span v-if="problemKind" class="md-badge md-badge--bad">
         <MdIcon name="warn" :size="12" />

@@ -185,6 +185,17 @@ fs.writeFileSync(IMPORT_CSV_PATH, '\uFEFF' + importCsv.join('\r\n') + '\r\n', 'u
 process.env.SMOKE_IMPORT_PATH = IMPORT_CSV_PATH; // 与 SMOKE_EXPORT_PATH 同一类后门
 console.log(`P3-4 导入夹具：${path.basename(IMPORT_CSV_PATH)}（${importListNames.length} 行）`);
 
+// ★ P3-4 单列夹具：表里只有「新文件名」一列（没有原文件名列）。
+//   专门用来验「表里只有一列新名 → 自动判为不导入」（设计 §16 第 1 项）。
+//   喂法见下面的 P3-4 用例：在 setup 里把 SMOKE_IMPORT_PATH 换成它 —— 这正是
+//   L-001 要的「副作用放 setup，别放 build 回调」：build 回调是定义时执行，会污染
+//   前面全部用例；setup 在**这一条执行前**才跑，且 P3-4 是最后一批，后面没有用例
+//   再开导入，所以换表不会漏到别处。
+const IMPORT_SINGLE_COL_CSV_PATH = path.join(P34_DIR, '单列新名.csv');
+const importSingleCsv = ['新文件名', '自定义名字A', '自定义名字B', '自定义名字C'];
+fs.writeFileSync(IMPORT_SINGLE_COL_CSV_PATH, '\uFEFF' + importSingleCsv.join('\r\n') + '\r\n', 'utf8');
+console.log(`P3-4 单列夹具：${path.basename(IMPORT_SINGLE_COL_CSV_PATH)}（只 1 列）`);
+
 // ── 原生对话框 stub（仅运行时替换；不动生产代码）──────────────────────
 // 说明：系统原生对话框是 OS 组件，sendInputEvent 驱动不了。这里让「添加文件/文件夹」
 // 返回临时副本路径，从而真实走通"点击 → 入列 → 预览"的链路。报告里会标注这一代价。
@@ -405,7 +416,7 @@ const FEATURES = [
 
   feature('P1 正则开关：仅删除 / 替换模式出现', (c) =>
     c.click('.md-tabs .md-tab:nth-child(1)')
-     .seeText('.md-tabs .md-tab:nth-child(1)', '删除字符', '已切到「删除字符」页签')
+     .seeText('.md-tabs .md-tab:nth-child(1)', '删除', '已切到「删除」页签（P3-5：四字标签改成两字）')
      .seeText('.md-adv__body .md-check__label', '用正则匹配', '删除模式：折叠区出现「用正则匹配」')
      .click('.md-tabs .md-tab:nth-child(3)')
      .seeText('.md-adv__body .md-check__label', null, '规则化模式：折叠区**不**出现正则开关（小白隔离，红线 5）')
@@ -476,7 +487,7 @@ const FEATURES = [
 
   feature('P1 小白化：「?」小抄卡按模式给不同例子', (c) =>
     c.click('.md-tabs .md-tab:nth-child(2)')
-     .seeText('.md-tabs .md-tab:nth-child(2)', '替换字符', '切到「替换字符」页签')
+     .seeText('.md-tabs .md-tab:nth-child(2)', '替换', '切到「替换」页签（P3-5）')
      .seeCount('.md-input--mono', 2, '正则开启态：查找 / 替换两个框都切等宽')
      // 折叠条此刻是展开的（前面的用例点开过），点两下 = 关 → 开，把状态摆正
      .click('.md-adv__bar')
@@ -524,7 +535,7 @@ const FEATURES = [
 
   /* ══ P2-B（F-12 常用规则模板库）════════════════════════════════════════
      设计来源：《P2-B轻量设计确认.md》v1.0（画板「P2-B 增量设计 · 常用规则模板」）。
-     这一批**只多了一样东西**：规则区顶部一行「常用规则」+ 6 个 chip。
+     这一批**只多了一样东西**：规则区顶部一行「常用规则」+ 6 个 chip（P3-5 又加了第 7 个「只用编号」）。
      但它长的位置、以及"点下去会怎样"，都容易做成"界面不报错、值却是错的"，所以断言一律打真值：
        · 形态：读**算出来的底色 / 圆角**，不是"有没有这个 class"；
        · 套用：读**参数框里的值 + 预览真算出来的新名**，不是"点了有没有反应"；
@@ -534,11 +545,11 @@ const FEATURES = [
      前置状态：本段跑在 P1 段之后 —— 列表里已有 9 项（5 个样本 + 4 个 P2-B 夹具），
      规则区停在「替换 + 正则开着」，进阶折叠区是展开的。 */
 
-  feature('P2-B EL-120 模板条：长在规则区顶部（页签之前）、6 个 chip、样式复用既有令牌', (c) =>
+  feature('P2-B EL-120 模板条：长在规则区顶部（页签之前）、7 个 chip、样式复用既有令牌', (c) =>
     c.scroll('[data-rule-templates]')
      .see('[data-rule-templates]', '规则区顶部出现「常用规则」模板条')
      .seeText('[data-rule-templates] .md-tpl__title', '常用规则', '小标题是「常用规则」')
-     .seeCount('[data-rule-templates] .md-tpl__chip', 6, '6 个模板 chip 就位（EL-120）')
+     .seeCount('[data-rule-templates] .md-tpl__chip', 7, '★ 7 个模板 chip 就位（P3-5 加了「只用编号」，EL-120 + EL-139）')
      .seeThat(
        "(() => { const t = document.querySelector('[data-rule-templates]');"
        + " const tabs = document.querySelector('.md-rulepanel .md-tabs');"
@@ -1374,16 +1385,21 @@ const FEATURES = [
      .notSee('[data-import-bar]', '提示条消失')
      .seeThat("document.querySelectorAll('[data-badge-table]').length", 0, '「表」徽标全部消失')
      .seeThat("document.querySelectorAll('.md-filelist__row').length", 9, '★ 列表里的 9 个文件一个都没删（清的是「名字的来源」）')
+     // ★★ P3-5：清掉导入之后，**当前仍处在「导入模式」**（左栏那个按钮会先切过来）——
+     //   没有表项就「保持原名不动」（设计 §1.5）。所以正确的观察是
+     //   **「不再有任何『表里给的名字』」**，而不是「回到按规则算的 x_…」。
+     //   ⚠️ 这条不是放宽：它钉的还是同一件事（那 7 个表里给的名字必须真的清干净），
+     //   只是「清干净之后长什么样」按新语义改了。
      .waitUntil(
       // ★ 同上：清除导入会触发重算 → 先等落定再断言。
       //   而且这次**全量**查（9 行都不能再带表里的名字），比只看第一行更严。
-      "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map((e) => e.textContent.trim()); return ns.length > 0 && ns.every((t) => /^x_/i.test(t)); })()",
+      "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map((e) => e.textContent.trim()); return ns.length > 0 && ns.every((t) => t.indexOf('自定义名字') < 0); })()",
       8000
     )
      .seeThat(
-      "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map((e) => e.textContent.trim()); const bad = ns.filter((t) => !/^x_/i.test(t)); const pend = !!document.querySelector('.md-filelist__busy'); return bad.length === 0 ? 'all' : (bad.length + '/' + ns.length + ' 还在表里，pending=' + pend + ' :: ' + bad.slice(0, 2).join(' | ')); })()",
+      "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map((e) => e.textContent.trim()); const bad = ns.filter((t) => t.indexOf('自定义名字') >= 0); return bad.length === 0 ? 'all' : (bad.length + '/' + ns.length + ' 还在表里 :: ' + bad.slice(0, 2).join(' | ')); })()",
       'all',
-      '清除后 9 项**全部**回到按规则算（新名都又是 x_ 开头）'
+      '★ 清除后不再有任何「表里给的名字」—— 导入模式里没有表项 = 不改名（设计 §1.5）'
     )
   ),
 
@@ -1414,6 +1430,151 @@ const FEATURES = [
         '0',
         '★ 原文件名列已被改成「没有这一列」'
       )
+  ),
+
+  // ★ P3-4 缺口补齐（设计 §16 第 1 项）：表里只有一列新名、没有原文件名列
+  //   → 必须**自动**判为不导入，而不是等用户手改下拉才发现。
+  //   ⚠️ 手法细节：在 setup 里把 SMOKE_IMPORT_PATH 换成上面的「单列」夹具。
+  //   TC-66 是「手动把下拉改成『没有这一列』」来验同一件事；这一条用**换夹具**
+  //   来验「用户根本没给原名列、软件自己识破」—— 这才是上次报告里「没验到」的入口。
+  //   TC-66 结束时弹窗是开着的，所以先 Esc 关掉残留弹窗，再点开读新表。
+  feature('P3-4 ★ 单列夹具（setup 换表）：表里只有「新文件名」一列 → 自动判为不导入', (c) =>
+    c
+      .key('Escape')
+      .waitUntil("!document.querySelector('[data-import-reject]')", 8000)
+      .click('[data-import-open]')
+      .waitUntil(
+        "(() => { const b = document.querySelector('[data-import-confirm]'); if (!b) return false; const r = b.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) return false; return typeof b.checkVisibility === 'function' ? b.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : true; })()",
+        8000
+      )
+      .see('[data-import-reject]', '★ 单列自动被拒（整体不导入，不需要用户先手改下拉）')
+      .seeContains('[data-import-reject]', '原文件名', '拒绝原因说清了缺「原文件名」列')
+      .seeThat("document.querySelector('[data-import-confirm]').disabled", true, '★ 主按钮置灰 —— 真的导不进去')
+      .seeThat("document.querySelector('[data-import-name-col]').value", '0', '★ 「原文件名列」自动落回「没有这一列」')
+    ,
+    {
+      setup: () => {
+        // ★ 读的是运行时真实文件名现造的双列夹具；这里换成单列夹具。
+        //   setup 在「这一条」执行前才跑，不会污染前面任何用例（L-001 的根治点）。
+        process.env.SMOKE_IMPORT_PATH = IMPORT_SINGLE_COL_CSV_PATH;
+      },
+    }
+  ),
+
+  // ══ P3-5：五模式 + 插入 / 导入 / 扩展名 + 只用编号 ═══════════════════
+  //  设计来源：《P3-5五模式与扩展名更改轻量设计确认.md》§2 / §9 / §10。
+  //  ★ 这一段跑在最后，且**不改前面任何用例的前提**：它自己在开头把残留的导入弹窗关掉。
+
+  feature('P3-5 EL-135：模式页签 3→5（两字标签、次序固定）', (c) =>
+    c
+      // ★ 上一条（单列夹具）结束时导入弹窗是开着的 —— 先关掉，否则点不到页签
+      .key('Escape')
+      .waitUntil("!document.querySelector('[data-import-reject]')", 8000)
+      .seeThat("document.querySelectorAll('.md-tabs .md-tab').length", 5, '★ 页签数 = 5')
+      .seeThat(
+        "JSON.stringify([].slice.call(document.querySelectorAll('.md-tabs .md-tab')).map(function(x){return x.textContent.trim()}))",
+        JSON.stringify(['删除', '替换', '自定义', '插入', '导入']),
+        '★ 5 个两字页签、次序固定（「自定义」就在原来「规则化」的位置）'
+      )
+  ),
+
+  feature('P3-5 IX-117：切到「插入」→ 两个输入框出现（不是自定义那套）；填了立刻反映到预览', (c) =>
+    c
+      .click('.md-tabs .md-tab:nth-child(4)')
+      .waitUntil("!!document.querySelector('[data-insert-group]')", 8000)
+      .see('[data-insert-group]', '插入组出现（EL-136）')
+      .see('[data-insert-at]', '「在第 N 个字符后」输入框出现')
+      .see('[data-insert-text]', '「插入什么」输入框出现')
+      .notSee('input[placeholder="如 {d}-发票-"]', '★ 自定义的前缀框不该出现（否则就是「选插入却看到自定义的界面」）')
+      .seeContains('[data-insert-demo]', '【素材】', '★ 示例行在（拿固定示例名试）')
+      .click('[data-insert-text]')
+      .type('zz_')
+      .waitUntil(
+        "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map(function(e){return e.textContent.trim()}); return ns.length > 0 && ns.every(function(t){return t.slice(0,3).toLowerCase() === 'zz_'}); })()",
+        8000
+      )
+      .seeThat(
+        "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map(function(e){return e.textContent.trim()}); const bad = ns.filter(function(t){return t.slice(0,3).toLowerCase() !== 'zz_'}); return bad.length === 0 ? 'all' : (bad.length + '/' + ns.length + ' :: ' + bad.slice(0,2).join(' | ')); })()",
+        'all',
+        '★ 每一行的新名都以 zz_ 开头 —— 插入真的插进去了（不是被当成删除 / 自定义）'
+      )
+  ),
+
+  feature('P3-5 IX-118：切到「导入」→ 入口与状态区出现；没选表格时明说「都不改名」', (c) =>
+    c
+      .click('.md-tabs .md-tab:nth-child(5)')
+      .waitUntil("!!document.querySelector('[data-import-group]')", 8000)
+      .see('[data-import-group]', '导入组出现（EL-137）')
+      .see('[data-import-pick]', '「选表格并导入…」按钮出现')
+      .seeContains('[data-import-empty]', '不会改名', '★ 未选表格时说清「每一项都不会改名」')
+      .notSee('[data-import-bar]', '没有表格时不该出现来源提示条（设计 §1.5）')
+      .seeThat("document.querySelectorAll('[data-badge-table]').length", 0, '没有表项时不出现「表」徽标')
+  ),
+
+  feature('P3-5 EL-138/IX-119：勾「改扩展名」→ 输入框出现；预览的新名跟着变', (c) =>
+    c
+      // 扩展名处理在「自定义」模式下最容易观察（导入模式下表外项连扩展名也不动）
+      .click('.md-tabs .md-tab:nth-child(3)')
+      .waitUntil("!!document.querySelector('[data-ext-group]')", 8000)
+      .scroll('[data-ext-group]')
+      .see('[data-ext-group]', '★ 扩展名小组在（**不藏在进阶折叠区**里，设计 §2.3 / §5.②）')
+      .seeThat("document.querySelector('[data-ext-toggle]').checked", false, '默认不勾 = 保持原样（行为与改之前一致）')
+      .seeThat("document.querySelectorAll('[data-ext-mode]').length", 0, '不勾时档位下拉不出现')
+      // ★ 点的是**包住它的 label**（既有用例同款写法）：`input[type=checkbox]` 视觉上是隐藏的，
+      //   点它的中心点不到（第一次跑就栽在这 —— 「等 [data-ext-mode] 超时」）。
+      .click('[data-ext-group] .md-check')
+      .waitUntil("!!document.querySelector('[data-ext-mode]')", 8000)
+      .see('[data-ext-mode]', '勾上后出现档位下拉')
+      .seeThat("document.querySelector('[data-ext-mode]').value", 'set', '默认档 = 改成指定扩展名')
+      .see('[data-ext-value]', '「改成指定扩展名」时需要输入框')
+      .click('[data-ext-value]')
+      .type('pdf')
+      .waitUntil(
+        "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map(function(e){return e.textContent.trim()}); return ns.length > 0 && ns.every(function(t){return t.slice(-4).toLowerCase() === '.pdf'}); })()",
+        8000
+      )
+      .seeThat(
+        "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map(function(e){return e.textContent.trim()}); const bad = ns.filter(function(t){return t.slice(-4).toLowerCase() !== '.pdf'}); return bad.length === 0 ? 'all' : (bad.length + '/' + ns.length + ' :: ' + bad.slice(0,2).join(' | ')); })()",
+        'all',
+        '★ 每一行的新名都以 .pdf 结尾 —— 扩展名处理真的走到了预览引擎'
+      )
+  ),
+
+  feature('P3-5 EL-139：「只用编号」模板 → 新名变成 1、2、3…（并且还能接着手改）', (c) =>
+    c
+      .click('[data-template="seqOnly"]')
+      .waitUntil(
+        "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map(function(e){return e.textContent.trim()}); return ns.length > 0 && ns.every(function(t){ const i = t.indexOf('.'); return i > 0 && /^[0-9]+$/.test(t.slice(0,i)); }); })()",
+        8000
+      )
+      .seeThat(
+        "(() => { const ns = [].slice.call(document.querySelectorAll('.md-filelist__newname')).map(function(e){return e.textContent.trim()}); const ok = ns.filter(function(t){ const i = t.indexOf('.'); return i > 0 && /^[0-9]+$/.test(t.slice(0,i)); }); return ok.length === ns.length ? 'all' : (ok.length + '/' + ns.length + ' :: ' + ns.slice(0,3).join(' | ')); })()",
+        'all',
+        '★ 新名都是「编号 + 原扩展名」—— 只留编号、丢掉原名（设计 §3.5）'
+      )
+      .seeText('[data-template="seqOnly"]', '只用编号', 'chip 文案是「只用编号」')
+      // 「还能接着手改」：勾上「启用序号」后那个组的控件是活的
+      .seeThat("document.querySelector('[data-seq-kind]') !== null", true, '★ 套用后规则区仍是可编辑的（不是死界面）')
+  ),
+
+  feature('P3-5 §7.5 第 4 行：插入 / 导入模式下不出现「区分大小写」「进阶设置」', (c) =>
+    c
+      .click('.md-tabs .md-tab:nth-child(4)')
+      .waitUntil("!!document.querySelector('[data-insert-group]')", 8000)
+      .seeThat(
+        "(() => { const ls = [].slice.call(document.querySelectorAll('.md-rulepanel .md-check__label')); return ls.filter(function(x){return x.textContent.trim() === '区分大小写'}).length; })()",
+        0,
+        '★ 插入模式下「区分大小写」不出现（它只对删除 / 替换有意义）'
+      )
+      .seeThat("document.querySelectorAll('.md-adv').length", 0, '★ 插入模式下连「进阶设置」整条都不出现')
+      .click('.md-tabs .md-tab:nth-child(5)')
+      .waitUntil("!!document.querySelector('[data-import-group]')", 8000)
+      .seeThat(
+        "(() => { const ls = [].slice.call(document.querySelectorAll('.md-rulepanel .md-check__label')); return ls.filter(function(x){return x.textContent.trim() === '区分大小写'}).length; })()",
+        0,
+        '★ 导入模式下「区分大小写」同样不出现'
+      )
+      .seeThat("document.querySelectorAll('.md-adv').length", 0, '★ 导入模式下「进阶设置」同样不出现')
   ),
 ];
 
