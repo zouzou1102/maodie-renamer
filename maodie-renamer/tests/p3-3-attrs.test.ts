@@ -61,7 +61,8 @@ function rule(rulePatch: Partial<RuleConfig['rule']> = {}): RuleConfig {
 
 /** 走 applyRuleMode（真引擎）*/
 function gen(stem: string, r: RuleConfig, a: ItemAttrs): string {
-  return applyRuleMode(stem, r.rule, { index: 0, total: 1, date: '2026-09-21', seedKey: 'k', attrs: a })
+  // ★ P3-6：`dirName` 是必填（形状跟随 —— 没改任何断言）
+  return applyRuleMode(stem, r.rule, { index: 0, total: 1, date: '2026-09-21', seedKey: 'k', attrs: a, dirName: '素材' })
 }
 
 /* ══ 1. sizeText ══════════════════════════════════════════════════════ */

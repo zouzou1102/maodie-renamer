@@ -37,6 +37,15 @@ export interface RuleContext {
   attrs: ItemAttrs
 
   /**
+   * ★ P3-6：该项所在**文件夹的名字**（调用方用 `folderNameOf(item.dirPath)` 算好）。
+   *
+   * 与 `attrs` / `seedKey` 同样做成**必填**：漏传不是「展开成空串」那么温和 ——
+   * 它会让 `{文件夹}` 静默变空（前缀凭空消失），而界面毫无异常。
+   * 必填 → 任何新增调用点漏传都在**编译期就红**（设计 §7.3 第 3 行）。
+   */
+  dirName: string
+
+  /**
    * ★ P3-4：表格给定的新名**主体** —— 有它就不走规则，原样用它。
    *
    * 与 `seedKey` / `attrs` **刻意不同：这里是可选的**。
@@ -516,6 +525,8 @@ export function applyRuleMode(
     created: ctx.attrs.created === '' ? '' : dateText(ctx.attrs.created, rule.dateFormat),
     modified: ctx.attrs.modified === '' ? '' : dateText(ctx.attrs.modified, rule.dateFormat),
     size: sizeText(ctx.attrs.sizeBytes, rule.sizeUnit),
+    // ★ P3-6：第四个属性变量 —— 所在文件夹的名字（调用方已经算好，原样搬）
+    folder: ctx.dirName,
   }
 
   // 第二步：展开变量（未启用的变量展开为空串）
@@ -565,7 +576,8 @@ function atPosition(
 }
 
 /**
- * 展开变量。P3-3 从 2 个扩到 **5 个**：`{n}` `{d}` `{创建}` `{修改}` `{大小}`。
+ * 展开变量。P3-3 从 2 个扩到 5 个；P3-6 再加一个，现在共 **6 个**：
+ * `{n}` `{d}` `{创建}` `{修改}` `{大小}` `{文件夹}`。
  *
  * 三个属性变量的值在调用方已经算好（字符串）—— 这里只做字面替换。
  * 不认识的占位符（如 `{大少}`）**原样保留** —— 与 `{n}` `{d}` 的既有行为一致（设计 §4 边界 6）。
@@ -609,7 +621,7 @@ function expand(
   text: string,
   n: string,
   d: string,
-  attrs: { created: string; modified: string; size: string },
+  attrs: { created: string; modified: string; size: string; folder: string },
 ): string {
   return text
     .split('{n}')
@@ -622,6 +634,9 @@ function expand(
     .join(attrs.modified)
     .split('{大小}')
     .join(attrs.size)
+    // ★ P3-6：第四个属性变量（⚠️ 这一处仍是手动的 —— 新增变量时别忘，单测盯着它）
+    .split('{文件夹}')
+    .join(attrs.folder)
 }
 
 /* ── 对外主函数 ─────────────────────────────────────────────────────── */

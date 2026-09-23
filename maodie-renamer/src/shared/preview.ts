@@ -17,6 +17,7 @@ import { detectConflicts, toSnapshotMap, type ConflictInput } from './conflicts'
 import { computeDiffRange } from './diff-range'
 import { MD_ERROR, errorText, type MdErrorCode } from './errors'
 import { joinName, splitName } from './name-split'
+import { folderNameOf } from './path-utils'
 import { computeNewStem, extText } from './rule-engine'
 import { validateNewName } from './validator'
 import type {
@@ -116,6 +117,8 @@ export function resolveItems(
       date,
       seedKey: item.id,
       attrs: item.attrs,
+      // ★ P3-6：`{文件夹}` 的来源 —— 从 `dirPath` 直接算，**不读盘**（DEC-01）
+      dirName: folderNameOf(item.dirPath),
       // 只在这里取 `.stem` —— 引擎要的是字符串，而四层之间传的是同一个对象
       override: item.override?.stem,
     })

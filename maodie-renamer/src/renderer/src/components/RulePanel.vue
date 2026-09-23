@@ -20,6 +20,7 @@ import {
   SEQ_POSITION_OPTIONS,
   SIZE_UNIT_OPTIONS,
 } from '@shared/labels'
+import { ATTR_VARS } from '@shared/attr-vars'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
 import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
 import { joinName, splitName } from '@shared/name-split'
@@ -159,12 +160,13 @@ const seqOn = computed(() => rule.rule.rule.seqEnabled)
 
 /* ── P3-3（第 3 批）：属性组（EL-130 / EL-131）────────────────────────── */
 
-/** 三个属性变量。**没有启用开关** —— 属性只有「用户写了才出现」（设计 §1.2 / §5.①） */
-const ATTR_VARS = [
-  { token: '{创建}', label: '创建日期' },
-  { token: '{修改}', label: '修改日期' },
-  { token: '{大小}', label: '文件大小' },
-] as const
+/**
+ * 属性变量清单（现在是 **4 个**：`{创建}` `{修改}` `{大小}` `{文件夹}`）。
+ *
+ * ★ P3-6：**不再本地手写** —— 从 `shared/attr-vars.ts` 读，
+ *   让「chip」与「前缀提示行」两处**都由同一份数据生成**（设计 §5.①）。
+ *   这一次重构就是为「加了变量却忘了改提示行」那个坑做的（已咬过两次）。
+ */
 
 /**
  * 点一下把变量追加到**前缀末尾**（IX-112）。
@@ -180,6 +182,8 @@ function insertVar(token: string): void {
 const DEMO_CREATED = '2026-09-18'
 const DEMO_MODIFIED = '2026-09-02'
 const DEMO_BYTES = 2516582
+/** ★ P3-6：`{文件夹}` 的固定假值（写死「素材」，否则示例里它会空着/原样，用户以为没生效）*/
+const DEMO_FOLDER = '素材'
 
 /**
  * 属性示例行。★ 跟着「大小单位」实时重算 —— 改单位，示例立刻从 `2.4MB`
@@ -220,6 +224,8 @@ const demoSeqNames = computed<string[]>(() =>
       date: TODAY,
       // P3-3：示例用**固定的假属性值**（与「固定拿【素材】试」同一个思路）
       attrs: { created: DEMO_CREATED, modified: DEMO_MODIFIED, sizeBytes: DEMO_BYTES },
+      // ★ P3-6：`{文件夹}` 的假值
+      dirName: DEMO_FOLDER,
       // 三个位置用不同的种子：随机字符类型下会显示三个不同的串，而不是把同一个串
       // 贴三遍 —— 后者会让人误以为「所有文件都会被改成同一个名字」
       seedKey: `demo-${i}`,
@@ -480,9 +486,14 @@ function onExtMode(e: Event): void {
         <!-- ★ P3-3：这行**不改就等于功能不存在** —— 三个属性变量完全正常工作、
              测试全绿、界面一点异常都没有，**只是没有任何用户知道有它们**。
              这不是代码 bug，而是「功能等于不存在」。 -->
+        <!-- ★★ P3-6：这一行**改成由 `ATTR_VARS` 生成**（不再是手写的一串 <code>）。
+             不这么做的后果已经发生过两次：功能完全正常、测试全绿、界面无异常，
+             **就是没有任何用户知道有新变量**（设计 §2.2 / §5.① / §7.3 第 1 行）。 -->
         <p class="md-hint md-rulepanel__varhint" data-var-hint>
-          支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期（<b>需先勾选下方对应开关</b>）、
-          <code>{创建}</code> 创建日期、<code>{修改}</code> 修改日期、<code>{大小}</code> 文件大小（<b>写上就生效，不用开关</b>）
+          支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期（<b>需先勾选下方对应开关</b>）<template
+            v-for="v in ATTR_VARS"
+            :key="v.token"
+          >、<code>{{ v.token }}</code> {{ v.label }}</template>（<b>写上就生效，不用开关</b>）
         </p>
 
         <!-- ── 序号组（EL-121 ~ EL-125）────────────────────────────────────
@@ -764,6 +775,13 @@ function onExtMode(e: Event): void {
 
           <p class="md-hint md-rulepanel__span">
             属性是你把文件拖进来那一刻读的，之后不再刷新。
+          </p>
+
+          <!-- ★ P3-6 §2.3：只填 {文件夹} 会撞名 —— 说在前面，
+               省得用户看到「一半标红」以为软件坏了（其实那是既有的冲突保护）。 -->
+          <p class="md-hint md-rulepanel__span" data-folder-hint>
+            只填 <code>{文件夹}</code> 的话，同一个文件夹里的同类文件会重名 —— 建议配上
+            <code>{n}</code> 序号。
           </p>
         </div>
 
