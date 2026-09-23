@@ -616,9 +616,25 @@ function makeRecorder(ops) {
  * 声明一个"功能"。用法：
  *   feature('打开设置面板', c => c.click('.titlebar__settings').see('.settings-panel'))
  * 一个功能一行，读起来就是"这个功能要验什么"。
+ *
+ * ★★ 两种"执行时机"，**别混**（踩过，代价是一次挂 5 条 → 见 references/lessons.md L-001）：
+ *
+ *   1. `build`（第二个参数，即你写的 `c => c.click(...)`）
+ *      —— 【定义时】立刻执行，**只用来收集步骤（ops）**，不是"跑到这一条才执行"。
+ *      所以**千万别在这里写副作用**（改环境变量 / 改全局状态 / 读写文件）：
+ *      那会在**跑任何用例之前**就生效，污染前面**全部**用例。
+ *      症状极具误导性：前面几条毫不相干的用例突然红了，看着像"被测功能坏了"。
+ *
+ *   2. `opts.setup`（可选）
+ *      —— 【执行这一条之前】才跑。**这里才是写副作用的地方**：
+ *        feature('导入另一张表', c => c.click(x).see(y),
+ *                { setup: () => { process.env.FIXTURE = 'b' } })
+ *      支持 async。**准备失败 = 这一步失败**（不许悄悄继续，否则后面测的已不是想测的东西）。
+ *      `setup` 跑完**不会自动还原** —— 要还原请写在同一函数里，或在下一条的 setup 里恢复。
  */
 function feature(name, build, opts = {}) {
   const ops = [];
+  // ★ 这里只收集步骤（ops）。**副作用请放 opts.setup** —— 见上面第 1 条。
   if (typeof build === 'function') build(makeRecorder(ops));
   return { name, ops, ...opts };
 }
@@ -738,6 +754,11 @@ async function runSteps(win, outDir, result, features) {
 
     try {
       await hud(win, { index, total, text: `准备：${f.name}` });
+      // ★ 这一条自己的准备（换夹具 / 切环境变量 / 重设状态）—— **执行时**的位置。
+      //   别写进 feature() 的 build：那是**定义时**执行的，会污染前面全部用例（L-001）。
+      //   准备失败直接抛给下面的 catch 判这一步失败：**不许悄悄继续** ——
+      //   继续下去，后面那些断言测的已经不是想测的东西了（假绿）。
+      if (typeof f.setup === 'function') await f.setup();
       if (config.slow) await sleep(config.slow * 0.3);
       rec.shotBefore = await tryShot('before');
       await hud(win, { index, total, text: f.name, status: '▶' });

@@ -20,13 +20,19 @@
  */
 
 import { isYmd } from './rule-engine'
-import { DEFAULT_RULE, type DateFormat, type ItemAttrs, type RuleConfig, type SizeUnit } from './types'
+import { DEFAULT_RULE, type DateFormat, type ExtMode, type ItemAttrs, type RuleConfig, type RuleMode, type SizeUnit } from './types'
 
 /** 5 档日期样式白名单（「启用日期」与「时间」类型共用一份实现） */
 const DATE_FORMAT_VALUES: readonly string[] = ['YYYYMMDD', 'YYYY年MM月DD日', 'MM月DD日', 'YYMMDD']
 
 /** P3-3：大小单位 5 档。不认识的回落 `'auto'` —— 与界面侧 `clamp()` 口径一致 */
 const SIZE_UNIT_VALUES: readonly string[] = ['auto', 'B', 'KB', 'MB', 'GB']
+
+/** ★ P3-5：五模式白名单。不认识的回落 `DEFAULT_RULE.mode`（正面列举，**不做兜底式判断**） */
+const MODE_VALUES: readonly string[] = ['delete', 'replace', 'rule', 'insert', 'import']
+
+/** ★ P3-5：扩展名处理 4 档。不认识的回落 `DEFAULT_RULE.extMode`（= 'keep'） */
+const EXT_MODE_VALUES: readonly string[] = ['keep', 'set', 'remove', 'append']
 
 /** 不认识的大小单位一律回落到 fallback（默认 `'auto'`） */
 function sizeUnitOf(v: unknown, fallback: SizeUnit = 'auto'): SizeUnit {
@@ -70,12 +76,20 @@ export function sanitizeRule(raw: unknown): RuleConfig {
   const r = (typeof src.rule === 'object' && src.rule !== null ? src.rule : {}) as Record<string, unknown>
   const del = (typeof src.delete === 'object' && src.delete !== null ? src.delete : {}) as Record<string, unknown>
   const rep = (typeof src.replace === 'object' && src.replace !== null ? src.replace : {}) as Record<string, unknown>
+  const ins = (typeof src.insert === 'object' && src.insert !== null ? src.insert : {}) as Record<string, unknown>
 
   const str = (v: unknown, d = ''): string => (typeof v === 'string' ? v : d)
   const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d)
   const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : d)
 
-  const mode = src.mode === 'replace' || src.mode === 'rule' ? src.mode : 'delete'
+  // ★★ P3-5：改成**正面白名单** —— 从前的 `src.mode === 'replace' || src.mode === 'rule'
+  //   ? src.mode : 'delete'` 是**兜底式代码**：加 'insert' / 'import' 之后，新值会
+  //   静默掉进 `: 'delete'` 兜底（用户选「插入」→ 主进程收到「删除」，界面完全正常）。
+  //   这是本批最危险的一处（设计 §1.2 / §7.5 第 1 行）。
+  const mode: RuleMode =
+    typeof src.mode === 'string' && MODE_VALUES.includes(src.mode)
+      ? (src.mode as RuleMode)
+      : DEFAULT_RULE.mode
   const seqKind =
     r.seqKind === 'letter' || r.seqKind === 'random' || r.seqKind === 'time'
       ? r.seqKind
@@ -86,6 +100,11 @@ export function sanitizeRule(raw: unknown): RuleConfig {
     src.caseTransform === 'lower' || src.caseTransform === 'upper' || src.caseTransform === 'capitalize'
       ? src.caseTransform
       : 'none'
+  // ★ P3-5：扩展名处理。默认 'keep' → 行为与「没有这个功能」完全相同。
+  const extMode: ExtMode =
+    typeof src.extMode === 'string' && EXT_MODE_VALUES.includes(src.extMode)
+      ? (src.extMode as ExtMode)
+      : DEFAULT_RULE.extMode
 
   return {
     mode,
@@ -93,8 +112,17 @@ export function sanitizeRule(raw: unknown): RuleConfig {
     autoResolveConflict: bool(src.autoResolveConflict, DEFAULT_RULE.autoResolveConflict),
     regexEnabled: bool(src.regexEnabled, DEFAULT_RULE.regexEnabled),
     caseTransform,
+    extMode,
+    extValue: str(src.extValue),
     delete: { text: str(del.text) },
     replace: { find: str(rep.find), to: str(rep.to) },
+    // ★ P3-5：插入模式的参数（单独一组）。at 下限 0、**不设上限** —— 越界交给引擎
+    //   自动落到末尾；负数当 0。
+    //   ⚠️ 这个下限必须与 `stores/rule.ts` 的 `clamp()` 完全一致（否则「预览对、执行错」）。
+    insert: {
+      at: Math.max(0, Math.trunc(num(ins.at, DEFAULT_RULE.insert.at))),
+      text: str(ins.text),
+    },
     rule: {
       prefix: str(r.prefix),
       suffix: str(r.suffix),

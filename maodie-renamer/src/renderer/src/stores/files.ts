@@ -17,7 +17,8 @@ import { computed, ref, watch } from 'vue'
 import { PREVIEW_DEBOUNCE_MS, VIRTUAL_LIST_THRESHOLD } from '@shared/constants'
 import { normalizeForCompare } from '@shared/path-utils'
 import { toPreviewItemInputs } from '@shared/preview'
-import type { FileItem, PreviewItemInput, PreviewStats } from '@shared/types'
+import { errorText } from '@shared/errors'
+import type { FileItem, ImportedTable, PreviewItemInput, PreviewStats } from '@shared/types'
 import { createPreviewRunner } from '../preview-runner'
 import { useCatStore } from './cat'
 import { useRuleStore } from './rule'
@@ -306,6 +307,55 @@ export const useFilesStore = defineStore('files', () => {
     () => items.value.find((i) => i.override !== undefined)?.override?.sourceTable ?? '',
   )
 
+  /**
+   * ★ P3-5：导入模式下的「表外项」—— 列表里有、表里没有，它们**保持原名不动**。
+   *
+   * 只有**导过表**（overrideCount > 0）且**当前处于导入模式**时才成立：
+   *  · 切到别的模式 → 表格整个不生效 → 一个都不标（设计 §3.3）；
+   *  · 还没选过表格 → 不标（否则满列表都是「表里没有」，反而吓人）。
+   */
+  const importOutsideIds = computed<Set<string>>(() => {
+    if (ruleStore.rule.mode !== 'import') return new Set<string>()
+    if (overrideCount.value === 0) return new Set<string>()
+    return new Set(items.value.filter((i) => i.override === undefined).map((i) => i.id))
+  })
+
+  /* ── 导入表格：选表 → 预览弹窗（★ P3-5 从 ActionPanel 提到这里）───────── */
+
+  /**
+   * ★ P3-5：导入出入口收进 store —— 左栏「导入表格」按钮与「导入」页签里的
+   * 「选表格并导入…」按钮**共用同一个动作**（也避免渲染出两个弹窗）。
+   *
+   * 顺序仍是「先选文件、解析成功**再**开弹窗」（P3-4 的取舍）：反过来的话，
+   * 用户要先面对一个空白弹窗再去点「选择文件」。取消不是失败，静默返回。
+   */
+  const importOpen = ref(false)
+  const importName = ref('')
+  const importTable = ref<ImportedTable | null>(null)
+  const importBusy = ref(false)
+
+  async function pickTable(): Promise<void> {
+    if (importBusy.value) return
+    importBusy.value = true
+    try {
+      const res = await window.maodie.fs.importTable()
+      if (!res.ok) {
+        showTransient(errorText(res.code))
+        return
+      }
+      if (res.data.canceled || res.data.table === null) return
+      importName.value = res.data.fileName
+      importTable.value = res.data.table
+      importOpen.value = true
+    } finally {
+      importBusy.value = false
+    }
+  }
+
+  function closeImport(): void {
+    importOpen.value = false
+  }
+
   /* ── 监听规则变化 → 自动重算预览 ────────────────────────────────── */
 
   watch(() => ruleStore.rule, () => requestPreview(), { deep: true })
@@ -342,6 +392,12 @@ export const useFilesStore = defineStore('files', () => {
     clearOverride,
     overrideCount,
     overrideSource,
+    importOutsideIds,
+    importOpen,
+    importName,
+    importTable,
+    pickTable,
+    closeImport,
     showTransient,
     dispose,
   }

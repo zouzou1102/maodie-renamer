@@ -15,6 +15,7 @@ import { useFilesStore } from '../stores/files'
 import {
   CASE_TRANSFORM_OPTIONS,
   DATE_FORMAT_OPTIONS,
+  EXT_MODE_OPTIONS,
   SEQ_KIND_OPTIONS,
   SEQ_POSITION_OPTIONS,
   SIZE_UNIT_OPTIONS,
@@ -22,11 +23,12 @@ import {
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
 import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
 import { joinName, splitName } from '@shared/name-split'
-import { applyDelete, applyReplace, applyRuleMode, dateText, sizeText } from '@shared/rule-engine'
+import { applyDelete, applyInsert, applyReplace, applyRuleMode, dateText, sizeText } from '@shared/rule-engine'
 import { todayYmd } from '@shared/today'
 import type {
   CaseTransform,
   DateFormat,
+  ExtMode,
   RuleMode,
   SeqKind,
   SeqPosition,
@@ -60,24 +62,46 @@ function useTemplate(t: RuleTemplate): void {
   files.showTransient(templateAppliedMessage(t))
 }
 
+/**
+ * ★ P3-5：模式从 3 个变成 5 个，标签从四字改成**两字**（一排里更站得开）。
+ *
+ * ⚠️ 界面上「自定义」= 代码里的 `rule`（枚举值刻意不改名，设计 §5.①）。
+ *   老用户打开软件：`自定义` 就在原来 `规则化` 的位置上。
+ */
 const TABS: Array<{ mode: RuleMode; label: string }> = [
-  { mode: 'delete', label: '删除字符' },
-  { mode: 'replace', label: '替换字符' },
-  { mode: 'rule', label: '规则化' },
+  { mode: 'delete', label: '删除' },
+  { mode: 'replace', label: '替换' },
+  { mode: 'rule', label: '自定义' },
+  { mode: 'insert', label: '插入' },
+  { mode: 'import', label: '导入' },
 ]
 
 const isRuleMode = computed(() => rule.rule.mode === 'rule')
+/**
+ * ★ P3-5：用**正面判断**替换掉从前的 `!isRuleMode`（反向判断）。
+ * 反向判断会把「插入 / 导入」也算成「删除 / 替换那一类」—— 于是「区分大小写」
+ * 「正则」「进阶设置」出现在插入 / 导入下，而**引擎根本不看它们**（设计 §7.5 第 4 行）。
+ */
+const isMatchMode = computed(() => rule.rule.mode === 'delete' || rule.rule.mode === 'replace')
+const isInsertMode = computed(() => rule.rule.mode === 'insert')
+const isImportMode = computed(() => rule.rule.mode === 'import')
+/** 进阶设置（正则 / 大小写）只在「删除 / 替换 / 自定义」出现 —— 插入 / 导入都不涉及匹配 */
+const showAdvanced = computed(
+  () => rule.rule.mode === 'delete' || rule.rule.mode === 'replace' || rule.rule.mode === 'rule',
+)
 
 /**
  * F-10 / F-11 的「进阶设置」折叠区。
  * 展开 / 收起是**纯 UI 状态**，不进 RuleConfig、不进 IPC（设计 §10.1）。
  */
 const advancedOpen = ref(false)
-/** 正则开关只在删除 / 替换模式出现 —— 与「区分大小写」沿用同一条规则（规则化不涉及匹配）*/
-const regexOn = computed(() => !isRuleMode.value && rule.rule.regexEnabled)
+/** 正则开关只在删除 / 替换模式出现 —— 与「区分大小写」同一条规则（正面判断）*/
+const regexOn = computed(() => isMatchMode.value && rule.rule.regexEnabled)
 /** 已启用的进阶项数量（折起态也要能看出「开了东西」）*/
 const advancedCount = computed(
-  () => (regexOn.value ? 1 : 0) + (rule.rule.caseTransform !== 'none' ? 1 : 0),
+  () =>
+    (regexOn.value ? 1 : 0) +
+    (showAdvanced.value && rule.rule.caseTransform !== 'none' ? 1 : 0),
 )
 
 /**
@@ -236,6 +260,40 @@ function setNumber(
   const n = Number(raw)
   rule.patchInner({ [key]: Number.isFinite(n) ? n : 0 } as Partial<typeof rule.rule.rule>)
 }
+
+/* ══ P3-5 · 插入模式（EL-136 / IX-117）═══════════════════════════════ */
+
+/** 示例名（与 P3-1 的 `【素材】` 同一个思路：固定、不是你列表里的文件）*/
+const INSERT_DEMO_STEM = '【素材】'
+/** EL-136 示例行：走 `applyInsert` —— 与真正改名、与预览 Worker **同一个函数** */
+const insertDemo = computed(() =>
+  applyInsert(INSERT_DEMO_STEM, rule.rule.insert.at, rule.rule.insert.text),
+)
+
+/**
+ * 插入位置的数字框。⚠️ 下限 0、**不设上限**：越界由引擎自动落到末尾。
+ * 钳制交给 store 的 `clamp()`（与主进程 `sanitizeRule` 同一口径，否则「预览对、执行错」）。
+ */
+function setInsertAt(e: Event): void {
+  const n = Number((e.target as HTMLInputElement).value)
+  rule.patch({ insert: { at: Number.isFinite(n) ? n : 0 } })
+}
+
+/* ══ P3-5 · 扩展名小组（EL-138 / IX-119）═════════════════════════════ */
+
+/** 勾上「改扩展名」= `extMode !== 'keep'`（不勾就是默认的「保持原样」） */
+const extOn = computed(() => rule.rule.extMode !== 'keep')
+/** 只有「改成指定扩展名 / 在后面再加一个」才需要输入框 */
+const extNeedsValue = computed(() => rule.rule.extMode === 'set' || rule.rule.extMode === 'append')
+
+function onExtToggle(e: Event): void {
+  const on = (e.target as HTMLInputElement).checked
+  rule.patch({ extMode: on ? 'set' : 'keep' })
+}
+
+function onExtMode(e: Event): void {
+  rule.patch({ extMode: (e.target as HTMLSelectElement).value as ExtMode })
+}
 </script>
 
 <template>
@@ -268,7 +326,9 @@ function setNumber(
          不说明的话，用户改了规则发现「怎么有几个没变」—— 又是一个
          「界面无异常但行为不对」的迷局（设计 §2.3）。这条把真相摆在原地。
          位置与 P2-B 模板条同一处逻辑：**常显、不进折叠**。 -->
-    <div v-if="files.overrideCount > 0" class="md-srcbar" data-import-bar>
+    <!-- ★ P3-5：只在**导入模式**下显示 —— 第 4 批它是「叠加覆盖层」，本批收回成
+         五选一互斥：选了别的模式，表格整个不生效，这条提示就不该出现（设计 §3.3）。 -->
+    <div v-if="isImportMode && files.overrideCount > 0" class="md-srcbar" data-import-bar>
       <span class="md-srcbar__text">
         本批有 {{ files.overrideCount }} 个名字来自「{{ files.overrideSource }}」，规则不影响它们
       </span>
@@ -329,8 +389,79 @@ function setNumber(
         />
       </template>
 
-      <!-- ── 规则化模式（五个要素可叠加）── -->
-      <template v-else>
+      <!-- ── 插入模式（P3-5 · EL-136）──────────────────────────────────
+           在名字的第 N 个字符后插入一段任意文字。它与「自定义」里的「插在第 n 个
+           字符后」不重叠：这里插任意文字，那里是「把序号/日期插到中间」（设计 §1.4）。 -->
+      <template v-else-if="isInsertMode">
+        <div class="md-rulepanel__group" data-insert-group>
+          <div class="md-rulepanel__seqline">
+            <label class="md-rulepanel__picker">
+              <span>在第</span>
+              <input
+                class="md-input md-input--num md-input--at"
+                data-insert-at
+                type="number"
+                min="0"
+                aria-label="插在第几个字符后"
+                :value="rule.rule.insert.at"
+                @input="setInsertAt"
+              />
+              <span>个字符后插入</span>
+            </label>
+            <input
+              class="md-input"
+              data-insert-text
+              placeholder="如 2026"
+              :value="rule.rule.insert.text"
+              @input="rule.patch({ insert: { text: ($event.target as HTMLInputElement).value } })"
+            />
+          </div>
+          <p class="md-hint md-rulepanel__span">
+            数字超出名字长度时会自动放到末尾；填 0 等于加在最前面。插入的文字里<b>不认识变量</b>（<code>{n}</code>、<code>{d}</code> 会原样插进去）。
+          </p>
+          <!-- EL-136 示例行：走 applyInsert —— 与真正改名、与预览 Worker 同一个函数 -->
+          <p class="md-hint md-rulepanel__span" data-insert-demo>
+            示例（拿「{{ INSERT_DEMO_STEM }}」这个名字试的，不是你列表里的文件）：
+            {{ INSERT_DEMO_STEM }} → {{ insertDemo }}
+          </p>
+        </div>
+      </template>
+
+      <!-- ── 导入模式（P3-5 · EL-137）──────────────────────────────────
+           这个模式**本身没有输入框**，它是一个「入口 + 状态」：名字由表格决定，
+           规则引擎完全不参与（设计 §2.2 / §1.5）。 -->
+      <template v-else-if="isImportMode">
+        <div class="md-rulepanel__group" data-import-group>
+          <p class="md-hint md-rulepanel__span">名字由表格决定，规则引擎不参与。</p>
+          <button
+            type="button"
+            class="md-btn md-btn--secondary"
+            data-import-pick
+            @click="files.pickTable()"
+          >
+            {{ files.overrideCount > 0 ? '重新选表格' : '选表格并导入…' }}
+          </button>
+          <template v-if="files.overrideCount > 0">
+            <p class="md-hint md-rulepanel__span" data-import-status>
+              已导入「{{ files.overrideSource }}」：{{ files.overrideCount }} 个文件有名字
+            </p>
+            <!-- ★ 这句必须写：不写的话用户会以为「我导入了，那其余文件也该改点什么」 -->
+            <p
+              v-if="files.importOutsideIds.size > 0"
+              class="md-hint md-rulepanel__span"
+              data-import-outside-note
+            >
+              另外 {{ files.importOutsideIds.size }} 个文件表里没有 —— 它们保持原名不动
+            </p>
+          </template>
+          <p v-else class="md-hint md-rulepanel__span" data-import-empty>
+            导入模式：还没选表格 —— 这一步每一项都不会改名。
+          </p>
+        </div>
+      </template>
+
+      <!-- ── 自定义模式（= 代码里的 `rule`；五个要素可叠加）── -->
+      <template v-else-if="isRuleMode">
         <label class="md-rulepanel__label">前缀</label>
         <input
           class="md-input"
@@ -654,8 +785,38 @@ function setNumber(
         </p>
       </template>
 
-      <!-- EL-044 区分大小写：规则化模式下不出现（该模式不涉及匹配）-->
-      <label v-if="!isRuleMode" class="md-check md-rulepanel__span">
+      <!-- ── EL-138 扩展名小组（P3-5）────────────────────────────────────
+           ★ 放在「进阶设置」折叠区**外面**：它虽然默认关，但要能被看见 ——
+           藏进折叠区就等于没有（P2-C 的教训：有开关没入口 = 等于没有，设计 §2.3 / §5.②）。
+           ★ 它不是第六个模式，而是与「大小写转换」同级的「结果处理」（设计 §1.6）。 -->
+      <div class="md-rulepanel__group" data-ext-group>
+        <label class="md-check">
+          <input type="checkbox" data-ext-toggle :checked="extOn" @change="onExtToggle" />
+          <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
+          <span class="md-check__label">改扩展名</span>
+        </label>
+        <div v-if="extOn" class="md-rulepanel__seqline">
+          <select class="md-select" data-ext-mode :value="rule.rule.extMode" @change="onExtMode">
+            <option v-for="o in EXT_MODE_OPTIONS" :key="o.value" :value="o.value">
+              {{ o.label }}
+            </option>
+          </select>
+          <input
+            v-if="extNeedsValue"
+            class="md-input md-input--ext"
+            data-ext-value
+            placeholder="如 pdf"
+            :value="rule.rule.extValue"
+            @input="rule.patch({ extValue: ($event.target as HTMLInputElement).value })"
+          />
+        </div>
+        <p class="md-hint md-rulepanel__span" data-ext-hint>
+          与「全部小写」互不影响：扩展名按你写的样子来（写 <code>PDF</code> 就是 <code>.PDF</code>）。
+        </p>
+      </div>
+
+      <!-- EL-044 区分大小写：只在删除 / 替换模式出现（正面判断，P3-5 修）-->
+      <label v-if="isMatchMode" class="md-check md-rulepanel__span">
         <input
           type="checkbox"
           :checked="rule.rule.caseSensitive"
@@ -667,7 +828,7 @@ function setNumber(
     </div>
 
     <!-- EL-056 进阶设置折叠条（默认折起；有启用项时高亮 + 徽标）-->
-    <div class="md-adv">
+    <div v-if="showAdvanced" class="md-adv">
       <button
         type="button"
         class="md-adv__bar"
@@ -685,7 +846,7 @@ function setNumber(
 
       <div v-if="advancedOpen" class="md-adv__body">
         <!-- EL-057 正则匹配开关：仅删除 / 替换模式出现 -->
-        <template v-if="!isRuleMode">
+        <template v-if="isMatchMode">
           <!-- 「?」按钮必须待在 <label> **外面** —— 塞进 label 里点它会连带勾选复选框 -->
           <div class="md-adv__switchrow">
             <label class="md-check">
@@ -1158,6 +1319,11 @@ code {
 .md-input--date {
   width: 142px;
   font-family: var(--md-font-num);
+}
+
+/* ★ P3-5：扩展名输入框宽 120px（够 pdf / bak / tar.gz，设计 §7.6） */
+.md-input--ext {
+  width: 120px;
 }
 
 /* EL-125「换一批」。高 28px 是**单独给的**：既有按钮类只有 22px，够不上

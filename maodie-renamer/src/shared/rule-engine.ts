@@ -9,7 +9,7 @@
  *    这样同一个函数在测试里能给出确定结果。
  */
 
-import type { CaseTransform, DateFormat, ItemAttrs, RuleConfig, SizeUnit } from './types'
+import type { CaseTransform, DateFormat, ExtMode, ItemAttrs, RuleConfig, SizeUnit } from './types'
 import type { NameParts } from './name-split'
 
 export interface RuleContext {
@@ -391,6 +391,77 @@ export function applyReplace(
   return spliceAll(stem, find, to, caseSensitive)
 }
 
+/* ── P3-5：插入模式（设计 §3.2）─────────────────────────────────────── */
+
+/**
+ * 插入模式的算法：在主体的第 k 个**码点**之后插入一段文字。
+ *
+ * 三条边界（与设计 §4 逐条对应）：
+ *  1. 按**码点**切（`Array.from`）—— 直接 `slice(k)` 会把 emoji / 增补平面字符
+ *     劈成半个代理对，生成**非法文件名**（这正是 P3-1 `seqPosition='at'` 踩过的坑）；
+ *  2. 越界**自动落到末尾**、负数当 0，不报错；
+ *  3. 插入文字为空 → 规则不生效（等价于不改，与 P0「空规则」一致）。
+ *
+ * ⚠️ 插入模式**不认识变量**（`{n}` `{d}` `{创建}`…）—— 原样插进去，不做替换。
+ *    要「把序号/日期插到中间」请用「自定义」里的第三档位置。
+ */
+export function applyInsert(stem: string, at: number, text: string): string {
+  if (text === '') return stem
+  const chars = Array.from(stem)
+  const raw = Math.trunc(at) || 0
+  const k = Math.min(Math.max(0, raw), chars.length)
+  return chars.slice(0, k).join('') + text + chars.slice(k).join('')
+}
+
+/* ── P3-5：扩展名处理（设计 §3.4）───────────────────────────────────── */
+
+/**
+ * 把用户填的扩展名规范化成「一个点 + 内容」。
+ *
+ * 打不打点都行（`pdf` 与 `.pdf` 等价）—— 少一处会打错的地方。
+ * 连续的点压成一个（`pdf.` / `.pdf.` / `..pdf` → `.pdf`）；全是点时退化成空串
+ * （等价于「删掉扩展名」）。内部点保留：`tar.gz` 是合法扩展名。
+ */
+function normalizeExt(v: string): string {
+  const collapsed = v.trim().replace(/\.+/g, '.')
+  const core = collapsed.replace(/^\.+/, '').replace(/\.+$/, '')
+  return core === '' ? '' : `.${core}`
+}
+
+/**
+ * 算出**要拼回去的扩展名**（设计 §3.4）。默认 `'keep'` 时原样返回 ——
+ * 也就是「现在的行为，一个字不变」。
+ *
+ * ⚠️ 文件夹**一律不生效**（它没有扩展名概念）—— 恒返回原值。
+ * ⚠️ 与 `caseTransform` 正交：这里返回什么，就原样拼进去，不参与大小写转换。
+ */
+export function extText(
+  originalExt: string,
+  isDir: boolean,
+  extMode: ExtMode,
+  extValue: string,
+): string {
+  if (isDir) return originalExt
+  switch (extMode) {
+    case 'keep':
+      return originalExt
+    case 'set':
+      return normalizeExt(extValue)
+    case 'remove':
+      return ''
+    case 'append': {
+      const e = normalizeExt(extValue)
+      return e === '' ? originalExt : originalExt + e
+    }
+    default: {
+      // ★ 穷尽兜底：将来再加档位时，「忘了写分支」是**编译期错误**，
+      //   而不是静默走进兜底（设计 §1.2 的根治手法）。
+      const never: never = extMode
+      return never
+    }
+  }
+}
+
 /* ── 规则化模式的组合公式（★ 唯一权威：技术方案 §4.1.2 / PRD §4.2.5）── */
 
 /**
@@ -584,10 +655,17 @@ export function computeNewStem(
   // ★ P3-4：表里已经写好了新名 —— **别再算了**，原样用它。
   //   刻意连「大小写转换」也一并跳过：表里那一格就是用户最终要的名字，
   //   再加工一道反而会跟他看到的不一样。
-  if (ctx.override !== undefined && ctx.override !== '') return ctx.override
+  // ★ P3-5：**加上模式门槛** —— override 只在「导入」模式下生效。
+  //   第 4 批它是「叠加覆盖层」（任何模式下都生效），本批收回，改成五选一互斥：
+  //   选了别的模式，表格整个不生效（连提示条都不该出现，设计 §7.5 第 10 行）。
+  if (rule.mode === 'import' && ctx.override !== undefined && ctx.override !== '') {
+    return ctx.override
+  }
 
   const stem = computeStemByMode(parts, rule, ctx)
-  return applyCaseTransform(stem, rule.caseTransform ?? 'none')
+  // ★ P3-5：导入模式**整个不参与「结果处理」**（连大小写转换也不做）——
+  //   没有表项的项按 §1.5「保持原名不动」，不能被别处残留的「全部小写」改掉。
+  return rule.mode === 'import' ? stem : applyCaseTransform(stem, rule.caseTransform ?? 'none')
 }
 
 function computeStemByMode(parts: NameParts, rule: RuleConfig, ctx: RuleContext): string {
@@ -602,9 +680,22 @@ function computeStemByMode(parts: NameParts, rule: RuleConfig, ctx: RuleContext)
         rule.caseSensitive,
         rule.regexEnabled ?? false,
       )
+    case 'insert':
+      return applyInsert(parts.stem, rule.insert.at, rule.insert.text)
     case 'rule':
       return applyRuleMode(parts.stem, rule.rule, ctx)
-    default:
+    case 'import':
+      // ★ 导入模式：新名来自**表格**（override），引擎不参与。
+      //   没有表项的文件 → 保持原名不动（设计 §1.5 / §3.3）—— 所以返回原主体，
+      //   而不是空串（返回空串会 joinName 成 `.jpg`，把名字改成只剩扩展名）。
+      //   注意 override 的判断在 computeNewStem 里、且只对本模式生效。
       return parts.stem
+    default: {
+      // ★★ 穷尽兜底（设计 §1.2 / §7.2 第 4 条）：加模式时「忘了写分支」变编译期错误。
+      //   从前这里是 `default: return parts.stem` —— 那正是「兜底式代码把新模式
+      //   静默吞掉」的形态：新值掉进兜底、界面正常、行为全错。
+      const never: never = rule.mode
+      return never
+    }
   }
 }

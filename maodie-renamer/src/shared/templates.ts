@@ -32,10 +32,11 @@ export interface RuleTemplate {
  * 但手写六份完整对象里全是重复的默认值 —— 改一个默认值要改六遍，必漏。
  * 这里从 `DEFAULT_RULE` 起底，只写「这个模板跟默认不一样的地方」。
  */
-type TemplateRulePatch = Partial<Omit<RuleConfig, 'delete' | 'replace' | 'rule'>> & {
+type TemplateRulePatch = Partial<Omit<RuleConfig, 'delete' | 'replace' | 'rule' | 'insert'>> & {
   delete?: Partial<RuleConfig['delete']>
   replace?: Partial<RuleConfig['replace']>
   rule?: Partial<RuleConfig['rule']>
+  insert?: Partial<RuleConfig['insert']>
 }
 
 function withRule(patch: TemplateRulePatch): RuleConfig {
@@ -45,6 +46,7 @@ function withRule(patch: TemplateRulePatch): RuleConfig {
     delete: { ...DEFAULT_RULE.delete, ...(patch.delete ?? {}) },
     replace: { ...DEFAULT_RULE.replace, ...(patch.replace ?? {}) },
     rule: { ...DEFAULT_RULE.rule, ...(patch.rule ?? {}) },
+    insert: { ...DEFAULT_RULE.insert, ...(patch.insert ?? {}) },
   }
 }
 
@@ -59,7 +61,7 @@ function withRule(patch: TemplateRulePatch): RuleConfig {
 const BRACKET_RE = '[（(【\\[](?:[^）)】\\]]*)[）)】\\]]'
 
 /**
- * 六个内置模板。**顺序就是界面上的顺序**（先给能看懂的一键入口）。
+ * 七个内置模板。**顺序就是界面上的顺序**（先给能看懂的一键入口）。
  *
  * ⚠️ 这些是**模块级常量**，绝不能被写坏 —— 套用前必须 `cloneTemplateRule()`。
  *    直接 `rule.value = t.rule` 把引用赋进去的话，用户随后每一次编辑都会改到
@@ -131,6 +133,30 @@ export const RULE_TEMPLATES: readonly RuleTemplate[] = [
       mode: 'rule',
       caseTransform: 'lower',
       rule: { keepOriginal: true },
+    }),
+  },
+  // ★ P3-5（EL-139）：「只用编号」—— P3-1 已确认它「现在就能等价做到」
+  //   （取消保留原文件名 + 前后缀留空 + 不启用日期 + 启用序号），所以本批**不加新机制**，
+  //   只加一个显眼入口。P2-B 的模板机制本来就是「点一下整份替换 RuleConfig」
+  //   —— 与「套用一组配置」是同一件事，再加按钮就是造第二套机制（设计 §2.4 / §3.5）。
+  //   seqPad=0 → 得到 `1.jpg`（不是 `001.jpg`），与设计 §3.5 的效果示例一致。
+  {
+    id: 'seqOnly',
+    name: '只用编号',
+    hint: '把文件名换成 1、2、3 这样的编号，不要原来的名字',
+    rule: withRule({
+      mode: 'rule',
+      rule: {
+        prefix: '',
+        suffix: '',
+        seqEnabled: true,
+        seqStart: 1,
+        seqStep: 1,
+        seqPad: 0,
+        seqPosition: 'suffix',
+        dateEnabled: false,
+        keepOriginal: false,
+      },
     }),
   },
 ]

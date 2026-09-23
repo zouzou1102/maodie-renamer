@@ -9,6 +9,7 @@ import type {
   ConflictKind,
   DateFormat,
   ExportFormat,
+  ExtMode,
   ItemStatus,
   SeqKind,
   SeqPosition,
@@ -91,6 +92,13 @@ export const SIZE_UNIT_OPTIONS: Array<{ value: SizeUnit; label: string }> = [
 export function sizeUnitLabel(v: SizeUnit): string {
   return SIZE_UNIT_OPTIONS.find((o) => o.value === v)?.label ?? '自动'
 }
+
+/** ★ P3-5：扩展名处理三档。`'keep'` 不在这张表里 —— 它由「改扩展名」那个勾的「不勾」表示 */
+export const EXT_MODE_OPTIONS: Array<{ value: ExtMode; label: string }> = [
+  { value: 'set', label: '改成指定扩展名' },
+  { value: 'remove', label: '删掉扩展名' },
+  { value: 'append', label: '在后面再加一个' },
+]
 
 /** F-14 主题三选一的选项（顺序即界面顺序：跟随系统 / 始终浅色 / 始终深色）*/
 export const THEME_OPTIONS: Array<{ value: Theme; label: string }> = [
