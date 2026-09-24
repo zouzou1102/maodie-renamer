@@ -204,6 +204,30 @@ export default tseslint.config(
     },
   },
 
+  // ── P-03 的第二处豁免：merge-service.ts 的「剪切」模式 ─────────────────
+  // ★ 这是全产品**唯一**会删用户文件的地方（其余功能绝不动用户文件，P-03 铁律不变）。
+  //   背景：文件夹合并的「剪切」= 移动文件，本质是「先确认全部复制成功 → 再统一删源」。
+  //   它受多重保护，不是裸删：
+  //     ① 剪切默认关，必须用户主动打开 + 点「确认执行」才发生；
+  //     ② 两阶段：先 fs.cp 全部成功，才开始删源；删失败 → 半移动态(EX-20)标红，
+  //        已复制内容**不回滚**（绝不让用户丢数据）；
+  //     ③ 复制阶段已做「绝不覆盖」双重检查（计划 + 执行前再判磁盘）。
+  //   豁免面刻意只放开 `.rm` / `.rmSync`（移动用的 API），`.unlink` / `.rmdir` 仍禁止。
+  //   ⚠️ 设计冲突已写入 P3-7 交付报告，请产品负责人确认「剪切」是否保留。
+  {
+    files: ['src/main/services/merge-service.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...DESTRUCTIVE.filter(
+          (s) => s.selector !== "CallExpression[callee.property.name='rm']" &&
+                 s.selector !== "CallExpression[callee.property.name='rmSync']",
+        ),
+        ...REALPATH,
+      ],
+    },
+  },
+
   // v-html 只用于渲染构建期打包进来的自有 SVG 字符串（切图资源），
   // 不涉及任何用户输入，也没有任何网络内容 —— 这条 XSS 告警在此不适用
   // （TitleBar 渲染的是 resources/cats/ui-btn-*.svg 这些自有切图；

@@ -42,6 +42,16 @@ export const MD_ERROR = {
   E_TABLE_UNREADABLE: 'E_TABLE_UNREADABLE',
   E_TABLE_TOO_BIG: 'E_TABLE_TOO_BIG',
 
+  // —— 文件夹合并（P3-7 / 第 7 批）——
+  // ★ 设计初稿只列了 EX-19 / EX-20 两个新码。实现时为给用户清晰的中文原因，
+  //   补了下面两条**结构化拒绝码**（目标落在源内部 / 新建目标已存在）——
+  //   它们不是「读写出错」，而是「这个合并根本不该开始」。复用 EX-20 的
+  //   「半移动态」文案会让用户看不懂，故各自独立成码（交付报告已如实标注）。
+  E_FLATTEN_OVERFLOW: 'E_FLATTEN_OVERFLOW', // EX-19：递归摊平超上限（深度/文件数）
+  E_HALF_MOVED: 'E_HALF_MOVED', // EX-20：剪切中途源删不掉（半移动态）
+  E_TARGET_INSIDE_SOURCE: 'E_TARGET_INSIDE_SOURCE', // 目标文件夹落在源文件夹内部
+  E_TARGET_EXISTS: 'E_TARGET_EXISTS', // 「新建」模式下的目标已存在
+
   E_UNKNOWN: 'E_UNKNOWN',
 } as const
 
@@ -73,6 +83,11 @@ export const MD_ERROR_TEXT: Record<MdErrorCode, string> = {
   // EX-18（两个码共用这一个编号）
   E_TABLE_UNREADABLE: '表格读不出来，可能是加密或损坏的',
   E_TABLE_TOO_BIG: '这张表太大了，读不动（只支持单表 1 万行以内）',
+  // P3-7：文件夹合并的结构化错误（EX-19 / EX-20 + 两条拒绝码）
+  E_FLATTEN_OVERFLOW: '源里的文件超过 {n} 个，先分批整理再合并',
+  E_HALF_MOVED: '有文件移动后删不掉，已复制的部分保留在目标处',
+  E_TARGET_INSIDE_SOURCE: '目标文件夹不能设在源文件夹里面，否则会把自己复制进去',
+  E_TARGET_EXISTS: '这个文件夹已经存在了，换个名字或改用「选择已有」',
   E_UNKNOWN: '出了点小意外，稍后再试试',
 }
 

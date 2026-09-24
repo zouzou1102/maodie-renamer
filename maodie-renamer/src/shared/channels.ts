@@ -5,11 +5,12 @@
  * 杜绝「一边写 `md:fs:pickFiles`、另一边写 `md:fs:pickfiles`」这类拼写事故。
  *
  * 命名规范：`md:<域>:<动作>`；事件通道用过去式 / 名词表示「已发生」。
- * 合计 **18** 个请求响应通道 + 3 个事件通道。
+ * 合计 **20** 个请求响应通道 + 3 个事件通道。
  *
  * ⚠️ 这个数字曾经滞后：P2-C 加 `HISTORY_CLEAR` 之后实际是 16 个，
  *    但文件头一直写着 15。P3-2 加 `FS_EXPORT_LIST` 时校正为 17，
- *    P3-4 加 `FS_IMPORT_TABLE` 时校正为 18。**加通道必须同时改这个数** ——
+ *    P3-4 加 `FS_IMPORT_TABLE` 时校正为 18。P3-7 加 `MERGE_PLAN` / `MERGE_RUN`
+ *    （文件夹合并，破轻量化新增的两条）时校正为 20。**加通道必须同时改这个数** ——
  *    本项目就靠它做通道数对账。
  */
 
@@ -50,6 +51,13 @@ export const CH = {
   // P2-C（DEC-12）：清空历史记录。**不复用撤销通道** —— 「清空」不是「撤销」，
   // 硬塞进现有通道会把语义搞乱（P2-C §4）。请求响应通道 15 → 16，事件通道仍 3 个。
   HISTORY_CLEAR: 'md:history:clear',
+
+  /* ── md:merge:* ── 文件夹合并（P3-7 / 第 7 批，业务通道）──
+   * ★ 本批破「轻量化」新增的两条通道（设计 §0）：合并是**独立搬文件子系统**，
+   *   渲染层对话框要驱动主进程去复制 / 移动文件，必须新增 `merge:plan`（干跑）
+   *   与 `merge:run`（执行）。18 → 20。 */
+  MERGE_PLAN: 'md:merge:plan',
+  MERGE_RUN: 'md:merge:run',
 
   /* ── 事件通道（main → renderer）── */
   EV_RENAME_PROGRESS: 'md:rename:progress',

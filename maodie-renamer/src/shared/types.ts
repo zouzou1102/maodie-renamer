@@ -665,6 +665,91 @@ export type PrefsFile = Envelope<{
 
 /* ══ preload 暴露面（window.maodie）════════════════════════════════════ */
 
+/* ══ 文件夹合并（P3-7 / 第 7 批）═════════════════════════════════ */
+
+/**
+ * ★ 合并方式（四种，互斥；拍板第 1 条）。
+ *
+ * 用正面枚举，不要用「兜底式」写法（设计 §1.2 / P3-5 同款教训）：
+ * 加新方式时若写 `A || B ? x : y` 会静默掉进兜底分支，界面正常、行为全错。
+ */
+export type MergeMode = 'same' | 'byExt' | 'byCreated' | 'byModified'
+
+/**
+ * 复制 vs 剪切（拍板第 2 条，剪切默认关）。
+ *
+ * · copy = 保留源
+ * · cut  = 移动（删源）；两阶段：先确保**全部**复制成功，再删源（§4 边界 4）
+ */
+export type MergeOperation = 'copy' | 'cut'
+
+/** 干跑 / 执行共用的请求形状（接口文档 §3 的字段权威来源）*/
+export interface MergeRequest {
+  /** 目标根目录 T（绝对路径，反斜杠形式）*/
+  target: string
+  mode: MergeMode
+  operation: MergeOperation
+  /** 用户选中的源路径（文件与/或文件夹），由主进程 `fs-walk` 递归摊平 */
+  sourcePaths: string[]
+  /** 是否递归摊平源里的文件夹（拍板第 6 条，默认开）*/
+  recurse: boolean
+  /** 目标给法：true = 新建（父目录 + 名称）；false = 选择已有（设计 §3.3）*/
+  targetNew: boolean
+  /** 执行成功后用系统资源管理器打开目标目录（拍板第 9 条，默认勾）*/
+  openAfter: boolean
+}
+
+/** 合并后单个文件的落点计算结果 */
+export interface MergePlanEntry {
+  /** 实际源文件绝对路径（递归摊平后）*/
+  srcPath: string
+  /** 算出的目标绝对路径 */
+  destPath: string
+  /** ready = 将复制/移动；skip = 冲突（绝不覆盖，跳过）；error = 无法处理 */
+  outcome: 'ready' | 'skip' | 'error'
+  /** 冲突 / 错误码（outcome 为 skip/error 时填）*/
+  code?: MdErrorCode
+  /** 可直接显示的中文原因（冲突 / 错误时填，用于报告标红）*/
+  reason?: string
+}
+
+export interface MergePlanResult {
+  /** 规范化后的目标根 T */
+  target: string
+  /** 摊平后实际参与的文件数 */
+  fileCount: number
+  entries: MergePlanEntry[]
+  summary: { ready: number; skip: number; error: number }
+  /**
+   * 整批被拒（一个都不对执行）的结构性错误：
+   * 如递归超限（EX-19）/ 目标在源内部 / 新建目标已存在 / 空源。
+   * 有它时 entries 仍可少量展示，但「确认执行」按钮必须禁用。
+   */
+  rejected?: { code: MdErrorCode; reason: string }
+}
+
+export interface MergeRunResult {
+  target: string
+  summary: {
+    /** 复制成功（含剪切的复制阶段）*/
+    copied: number
+    /** 冲突跳过 */
+    skipped: number
+    /** 处理失败（含半移动态标红）*/
+    errored: number
+    /** 剪切时成功删除的源数 */
+    deleted: number
+  }
+  /** 与 plan 逐字节对应的逐条结果（TC-87：干跑 ≡ 执行）*/
+  entries: MergePlanEntry[]
+  /** 执行中是否触发了半移动态（EX-20）*/
+  halfMoved: boolean
+  openAfter: boolean
+  /** 执行后资源管理器打开是否成功（静默失败不影响主结果）*/
+  revealed: boolean
+  elapsedMs: number
+}
+
 export interface MaoDieAPI {
   app: {
     getInfo(): Promise<AppInfo>
@@ -716,6 +801,13 @@ export interface MaoDieAPI {
     undoAll(): Promise<MdResult<UndoAllResult>>
     /** ★ P2-C：清空全部历史记录。**只删记录，绝不触碰任何文件** */
     clear(): Promise<MdResult<ClearHistoryResult>>
+  }
+
+  // ★ P3-7：文件夹合并。**破「5 个命名空间」白名单新增的第 6 个**（设计 §0 已说明）。
+  //   `API_NAMESPACES` 随之 5 → 6，`tests/unit/preload-api.spec.ts` 的断言数据驱动、自动跟进。
+  merge: {
+    plan(req: MergeRequest): Promise<MdResult<MergePlanResult>>
+    run(req: MergeRequest): Promise<MdResult<MergeRunResult>>
   }
 }
 
