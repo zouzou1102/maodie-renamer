@@ -5,13 +5,14 @@
  * 杜绝「一边写 `md:fs:pickFiles`、另一边写 `md:fs:pickfiles`」这类拼写事故。
  *
  * 命名规范：`md:<域>:<动作>`；事件通道用过去式 / 名词表示「已发生」。
- * 合计 **20** 个请求响应通道 + 3 个事件通道。
+ * 合计 **22** 个请求响应通道 + 3 个事件通道。
  *
  * ⚠️ 这个数字曾经滞后：P2-C 加 `HISTORY_CLEAR` 之后实际是 16 个，
  *    但文件头一直写着 15。P3-2 加 `FS_EXPORT_LIST` 时校正为 17，
  *    P3-4 加 `FS_IMPORT_TABLE` 时校正为 18。P3-7 加 `MERGE_PLAN` / `MERGE_RUN`
- *    （文件夹合并，破轻量化新增的两条）时校正为 20。**加通道必须同时改这个数** ——
- *    本项目就靠它做通道数对账。
+ *    （文件夹合并，破轻量化新增的两条）时校正为 20。P3-8 加 `EXTRACT_PLAN` /
+ *     `EXTRACT_RUN`（文件提取，复用运输层、独立通道，破轻量化再 +2）时校正为
+ *     **22**。**加通道必须同时改这个数** —— 本项目就靠它做通道数对账。
  */
 
 export const CH = {
@@ -58,6 +59,13 @@ export const CH = {
    *   与 `merge:run`（执行）。18 → 20。 */
   MERGE_PLAN: 'md:merge:plan',
   MERGE_RUN: 'md:merge:run',
+
+  /* ── md:extract:* ── 文件提取（P3-8 / 第 8 批，业务通道）──
+   * ★ 复用 P3-7 运输层（`merge-plan` / `merge-service`），本批只新增筛选器。
+   *   选法 B：新增 `extract:plan`（干跑）/ `extract:run`（执行）两个独立通道
+   *   （设计 §0 / §7）。20 → 22。 */
+  EXTRACT_PLAN: 'md:extract:plan',
+  EXTRACT_RUN: 'md:extract:run',
 
   /* ── 事件通道（main → renderer）── */
   EV_RENAME_PROGRESS: 'md:rename:progress',

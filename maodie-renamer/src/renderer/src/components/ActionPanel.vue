@@ -10,6 +10,7 @@ import { ref } from 'vue'
 import MdIcon from './MdIcon.vue'
 import ExportOptionsModal from './ExportOptionsModal.vue'
 import MergeDialog from './MergeDialog.vue'
+import ExtractDialog from './ExtractDialog.vue'
 import { useFilesStore } from '../stores/files'
 import { useRuleStore } from '../stores/rule'
 import { useTaskStore } from '../stores/task'
@@ -22,6 +23,10 @@ const busy = ref(false)
 /** EL-141：文件夹合并（P3-7 / 第 7 批）入口。独立对话框，不碰主流程。
  *  用本地状态（与导出气泡同款）打开；它只被左栏这一个按钮打开、只用一次。 */
 const mergeOpen = ref(false)
+
+/** EL-149：文件提取（P3-8 / 第 8 批）入口。独立对话框，源=主列表，不碰主流程。
+ *  与文件夹合并同款：本地状态、只被这一个按钮打开、关掉零副作用。 */
+const extractOpen = ref(false)
 
 /**
  * EL-127 导出选项气泡的开合（P3-2）。
@@ -94,6 +99,17 @@ async function onImportClick(): Promise<void> {
       <MdIcon name="folder" :size="15" />
       文件夹合并
     </button>
+    <!-- EL-149 文件提取（P3-8）。紧挨「文件夹合并」：两者都是**独立搬文件子系统**、
+         与改名主流程零耦合（拍板第 5 条）。源=主列表，复用 P3-7 运输层。 -->
+    <button
+      class="md-btn md-btn--secondary md-actionpanel__wide"
+      data-extract-open
+      :disabled="files.items.length === 0"
+      @click="extractOpen = true"
+    >
+      <MdIcon name="folder" :size="15" />
+      文件提取
+    </button>
     <!-- EL-132 导入表格（P3-4）。
          放在「添加文件夹」下面：它和上面两个同属「**往里加东西**」那一类；
          「导出清单」是产出、「清空列表」是销毁，都在它下面（设计 §2.1）。
@@ -133,6 +149,9 @@ async function onImportClick(): Promise<void> {
 
     <!-- EL-141 文件夹合并（P3-7）。独立对话框，Teleport 到 body。 -->
     <MergeDialog :open="mergeOpen" @close="mergeOpen = false" />
+
+    <!-- EL-149 文件提取（P3-8）。独立对话框，Teleport 到 body。 -->
+    <ExtractDialog :open="extractOpen" @close="extractOpen = false" />
   </section>
 </template>
 

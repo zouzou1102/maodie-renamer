@@ -52,6 +52,13 @@ export const MD_ERROR = {
   E_TARGET_INSIDE_SOURCE: 'E_TARGET_INSIDE_SOURCE', // 目标文件夹落在源文件夹内部
   E_TARGET_EXISTS: 'E_TARGET_EXISTS', // 「新建」模式下的目标已存在
 
+  // —— 文件提取（P3-8 / 第 8 批）——
+  // EX-21：按 Excel 提取时「原文件名」列没认出来（解析失败）；
+  //        或 Excel 名单里的文件名在主列表里一个都没对上（未匹配）。
+  E_EXCEL_UNMATCHED: 'E_EXCEL_UNMATCHED',
+  // EX-22：按名称开了正则，但表达式语法非法（计划阶段拦截，拒绝干跑）。
+  E_REGEX_INVALID: 'E_REGEX_INVALID',
+
   E_UNKNOWN: 'E_UNKNOWN',
 } as const
 
@@ -88,6 +95,9 @@ export const MD_ERROR_TEXT: Record<MdErrorCode, string> = {
   E_HALF_MOVED: '有文件移动后删不掉，已复制的部分保留在目标处',
   E_TARGET_INSIDE_SOURCE: '目标文件夹不能设在源文件夹里面，否则会把自己复制进去',
   E_TARGET_EXISTS: '这个文件夹已经存在了，换个名字或改用「选择已有」',
+  // P3-8：文件提取（EX-21 / EX-22）
+  E_EXCEL_UNMATCHED: 'Excel 里的「原文件名」列没找到，或里面的名字在主列表里一个都没对上',
+  E_REGEX_INVALID: '按名称的正则表达式语法不对，请检查后再干跑',
   E_UNKNOWN: '出了点小意外，稍后再试试',
 }
 

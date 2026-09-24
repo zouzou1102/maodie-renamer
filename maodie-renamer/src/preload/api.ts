@@ -17,6 +17,9 @@ import type {
   ExecuteResult,
   ExportListRequest,
   ExportListResult,
+  ExtractPlanResult,
+  ExtractRequest,
+  ExtractRunResult,
   ImportTableResult,
   MaoDieAPI,
   MergePlanResult,
@@ -107,6 +110,15 @@ export function buildMaodieApi(bridge: PreloadBridge): MaoDieAPI {
       run: (req: MergeRequest) =>
         bridge.invoke(CH.MERGE_RUN, req) as Promise<MdResult<MergeRunResult>>,
     },
+
+    // ★ P3-8：文件提取。**复用 P3-7 运输层**，本批只新增筛选器 + 这两个通道（选法 B）。
+    //   独立子系统、与改名无关，破「轻量化」第 7 个命名空间（设计 §7）。
+    extract: {
+      plan: (req: ExtractRequest) =>
+        bridge.invoke(CH.EXTRACT_PLAN, req) as Promise<MdResult<ExtractPlanResult>>,
+      run: (req: ExtractRequest) =>
+        bridge.invoke(CH.EXTRACT_RUN, req) as Promise<MdResult<ExtractRunResult>>,
+    },
   }
 
   return api
@@ -114,8 +126,10 @@ export function buildMaodieApi(bridge: PreloadBridge): MaoDieAPI {
 
 /** 命名空间白名单 —— 多一个都算越界（P-06）。
  *  ★ P3-7 破例从 5 个加到 6 个（`merge`）：合并是独立搬文件子系统，
- *    与改名无关，硬塞进既有命名空间会糊掉接口语义。该测试数据驱动本常量，
- *   加了 `merge` 后 `tests/unit/preload-api.spec.ts` 自动从 5 跟到 6。 */
-export const API_NAMESPACES = ['app', 'window', 'fs', 'rename', 'history', 'merge'] as const
+ *    与改名无关，硬塞进既有命名空间会糊掉接口语义。
+ *  ★ P3-8 再破例从 6 个加到 7 个（`extract`）：文件提取是又一个独立搬文件子系统，
+ *    复用 P3-7 运输层、但接口独立。该测试数据驱动本常量，
+ *    加了 `extract` 后 `tests/unit/preload-api.spec.ts` 自动从 6 跟到 7。 */
+export const API_NAMESPACES = ['app', 'window', 'fs', 'rename', 'history', 'merge', 'extract'] as const
 
 export type { StorageWarningPayload }

@@ -750,6 +750,83 @@ export interface MergeRunResult {
   elapsedMs: number
 }
 
+/* ══ 文件提取（P3-8 / 第 8 批）═════════════════════════════════ */
+
+/**
+ * 文件类别（按扩展名归类；与 P3-7②「按扩展名建文件夹」共用同一张映射表，
+ * 真源在 `extract-filter.ts` 的 `CATEGORY_EXTENSIONS`）。
+ */
+export type FileCategory = 'image' | 'doc' | 'video' | 'audio' | 'archive' | 'other'
+
+/** 提取源的一个文件（从主列表裁剪出的最小信息，避免把整个 `FileItem` 跨 IPC 传）*/
+export interface ExtractSourceFile {
+  /** 绝对路径（反斜杠形式）*/
+  fullPath: string
+  /** 完整文件名（含扩展名）*/
+  name: string
+  /** 扩展名（含点；无则空串）*/
+  ext: string
+  /** 是否为文件夹 */
+  isDir: boolean
+}
+
+/**
+ * 三种筛选条件（各自独立启用，最后取交集 AND，设计 §3.2 / 拍板第 3 条）。
+ *
+ * ⚠️ 用**正面字段**而不是「兜底式」开关：每多一种条件就显式加一个字段，
+ *   绝不用 `A || B ? x : y` —— 否则新条件会静默掉进兜底分支，界面正常、行为全错
+ *   （与 P3-5 / P3-7 同款教训，设计 §1.2）。
+ */
+export interface ExtractFilter {
+  /** 按类型：勾选的类别；空 / 未设 = 不按类型筛 */
+  categories?: FileCategory[]
+  /** 按名称：关键词 + 是否按正则（复用 F10 正则开关与校验）*/
+  name?: { keyword: string; useRegex: boolean }
+  /** 按 Excel：复用 P3-4 解析器得到的文件名数组（纯名字列表，路径比对在 filter 内做）*/
+  excelNames?: string[]
+}
+
+/** 提取请求（渲染层把主列表裁成 `ExtractSourceFile[]` 后整包发给主进程）*/
+export interface ExtractRequest {
+  /** 目标根目录 T（绝对路径，反斜杠形式）*/
+  target: string
+  operation: MergeOperation
+  /** 当前主列表裁剪出的源文件 */
+  items: ExtractSourceFile[]
+  /** 筛选条件 */
+  filter: ExtractFilter
+  /** 目标「新建」模式（默认选已有）*/
+  targetNew: boolean
+  /** 执行成功后打开目标目录（默认勾）*/
+  openAfter: boolean
+}
+
+/**
+ * 干跑计划结果（在 `merge-plan` 的落点结果上，叠加「源总数 / 命中数 / Excel 未匹配」）。
+ *
+ * ★ 干跑与执行共用 `merge-plan` 的逐条落点（设计 §7.3 第 3 行）→ 报告说跳过几个、
+ *   执行就绝不覆盖那几个。这里不重算任何落点，只把筛选出的命中集交给运输层。
+ */
+export interface ExtractPlanResult {
+  target: string
+  /** 主列表总文件数 */
+  sourceCount: number
+  /** 筛出的文件数（= 喂给 merge-plan 的源数）*/
+  hitCount: number
+  fileCount: number
+  entries: MergePlanEntry[]
+  summary: { ready: number; skip: number; error: number }
+  /** Excel 名单里、列表里没有的文件名（EX-21 逐条标，不阻塞整批）*/
+  unmatched: string[]
+  /** 友好提示（如「没有符合条件的文件」）；不必然禁用执行（与 `rejected` 不同）*/
+  note?: string
+  /** 结构性拒绝（空列表 / 目标在源内 / 新建目标已存在 / 正则非法）→ 禁用执行 */
+  rejected?: { code: MdErrorCode; reason: string }
+}
+
+/** 执行结果 = 复用 merge 的执行结果（落点逐字节一致，TC-95）*/
+export type ExtractRunResult = MergeRunResult
+
 export interface MaoDieAPI {
   app: {
     getInfo(): Promise<AppInfo>
@@ -808,6 +885,15 @@ export interface MaoDieAPI {
   merge: {
     plan(req: MergeRequest): Promise<MdResult<MergePlanResult>>
     run(req: MergeRequest): Promise<MdResult<MergeRunResult>>
+  }
+
+  // ★ P3-8：文件提取。**复用 P3-7 运输层**（`merge-plan` / `merge-service`），
+  //   本批只新增一个「筛选器」+ 这两个独立通道（选法 B，设计 §7）。
+  //   独立子系统、与改名无关，破「轻量化」第 7 个命名空间；
+  //   `API_NAMESPACES` 随之 6 → 7（单测数据驱动自动跟进）。
+  extract: {
+    plan(req: ExtractRequest): Promise<MdResult<ExtractPlanResult>>
+    run(req: ExtractRequest): Promise<MdResult<ExtractRunResult>>
   }
 }
 
