@@ -3,8 +3,9 @@
  *
  * 为什么把 api 对象的构造与 `contextBridge.exposeInMainWorld` 分成两个文件：
  * 后者需要 `electron` 运行时，而前者只做「把 bridge 包装成 window.maodie 的形状」。
- * 拆开之后，接口文档 §9.4 要求的「断言 window.maodie 的键只有 5 个命名空间」
- * 才能被单测覆盖 —— 白名单桥一旦被谁顺手加了第 6 个命名空间，测试立刻红。
+ * 拆开之后，接口文档 §9.4 要求的「断言 window.maodie 的键只有白名单里的命名空间」
+ * 才能被单测覆盖 —— 白名单桥一旦被谁顺手加了第 7 个命名空间，测试立刻红。
+ * （当前 6 个：app / window / fs / rename / history / merge；P3-7 破例新增 `merge`。）
  */
 
 import { CH } from '@shared/channels'
@@ -16,8 +17,14 @@ import type {
   ExecuteResult,
   ExportListRequest,
   ExportListResult,
+  ExtractPlanResult,
+  ExtractRequest,
+  ExtractRunResult,
   ImportTableResult,
   MaoDieAPI,
+  MergePlanResult,
+  MergeRequest,
+  MergeRunResult,
   MdResult,
   Prefs,
   RenameTask,
@@ -94,12 +101,35 @@ export function buildMaodieApi(bridge: PreloadBridge): MaoDieAPI {
       // P2-C：清空历史。**不加新命名空间**（仍是 5 个），只是 history 下多一个方法
       clear: () => bridge.invoke(CH.HISTORY_CLEAR) as Promise<MdResult<ClearHistoryResult>>,
     },
+
+    // ★ P3-7：文件夹合并。**破「5 个命名空间」白名单新增的第 6 个**（设计 §0 已说明）。
+    //   独立搬文件子系统，与改名完全无关，理应独立命名空间。
+    merge: {
+      plan: (req: MergeRequest) =>
+        bridge.invoke(CH.MERGE_PLAN, req) as Promise<MdResult<MergePlanResult>>,
+      run: (req: MergeRequest) =>
+        bridge.invoke(CH.MERGE_RUN, req) as Promise<MdResult<MergeRunResult>>,
+    },
+
+    // ★ P3-8：文件提取。**复用 P3-7 运输层**，本批只新增筛选器 + 这两个通道（选法 B）。
+    //   独立子系统、与改名无关，破「轻量化」第 7 个命名空间（设计 §7）。
+    extract: {
+      plan: (req: ExtractRequest) =>
+        bridge.invoke(CH.EXTRACT_PLAN, req) as Promise<MdResult<ExtractPlanResult>>,
+      run: (req: ExtractRequest) =>
+        bridge.invoke(CH.EXTRACT_RUN, req) as Promise<MdResult<ExtractRunResult>>,
+    },
   }
 
   return api
 }
 
-/** 五个命名空间 —— 多一个都算越界（P-06）*/
-export const API_NAMESPACES = ['app', 'window', 'fs', 'rename', 'history'] as const
+/** 命名空间白名单 —— 多一个都算越界（P-06）。
+ *  ★ P3-7 破例从 5 个加到 6 个（`merge`）：合并是独立搬文件子系统，
+ *    与改名无关，硬塞进既有命名空间会糊掉接口语义。
+ *  ★ P3-8 再破例从 6 个加到 7 个（`extract`）：文件提取是又一个独立搬文件子系统，
+ *    复用 P3-7 运输层、但接口独立。该测试数据驱动本常量，
+ *    加了 `extract` 后 `tests/unit/preload-api.spec.ts` 自动从 6 跟到 7。 */
+export const API_NAMESPACES = ['app', 'window', 'fs', 'rename', 'history', 'merge', 'extract'] as const
 
 export type { StorageWarningPayload }

@@ -34,11 +34,11 @@ function makeBridge() {
   }
 }
 
-describe('preload · window.maodie 的键只有 5 个命名空间（P-06）', () => {
+describe('preload · window.maodie 的键只有白名单里的命名空间（P-06）', () => {
   it('顶层键恰好是 app / window / fs / rename / history', () => {
     const api = buildMaodieApi(makeBridge())
     expect(Object.keys(api).sort()).toEqual([...API_NAMESPACES].sort())
-    expect(Object.keys(api)).toHaveLength(5)
+    expect(Object.keys(api)).toHaveLength(6)
   })
 
   it('不暴露 ipcRenderer / require / process / Buffer / shell 等危险能力', () => {
@@ -62,6 +62,8 @@ describe('preload · window.maodie 的键只有 5 个命名空间（P-06）', ()
     expect(Object.keys(api.fs).sort()).toEqual(['pickDirectory', 'pickFiles', 'resolvePaths'])
     expect(Object.keys(api.rename).sort()).toEqual(['cancel', 'execute', 'onProgress'])
     expect(Object.keys(api.history).sort()).toEqual(['list', 'undoAll', 'undoTask'])
+    // ★ P3-7：新增的 merge 命名空间，方法集合也必须是白名单（plan / run）
+    expect(Object.keys(api.merge).sort()).toEqual(['plan', 'run'])
   })
 })
 
