@@ -163,3 +163,30 @@ test('直接选文件：源是单个文件 → 它自己作为一条 item', asyn
   assert.equal(r.files[0].isDir, false)
   assert.equal(r.files[0].ext, '.jpg', '扩展名由 splitName 正确取出')
 })
+
+/* ══ 8. 混合源：文件 + 文件夹一起摊平（bug 报障 ② 的回归守护）══════════ */
+
+test('★ 混合源：单个文件 + 一个文件夹一起选，recurse 把文件夹展开、文件自带，合并成一条清单', async (t) => {
+  const dir = tmpDir()
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  // 单独的文件（不在文件夹内）
+  const lone = path.join(dir, '单独.txt')
+  write(lone)
+  // 一个文件夹，内含两层子文件
+  const sub = path.join(dir, '资料')
+  fs.mkdirSync(sub)
+  write(path.join(sub, 'a.png'))
+  const sub2 = path.join(sub, '子')
+  fs.mkdirSync(sub2)
+  write(path.join(sub2, 'b.png'))
+
+  // 一次性把「文件」和「文件夹」都作为源传入（用户拖入/按钮混合添加的场景）
+  const r = await walkSources([lone, sub], true)
+  assert.equal(r.error, undefined, '混合源不应有结构化错误')
+  // 注意：walkSources 的遍历顺序是实现相关的（盘符/文件系统返回顺序），
+  // 这里只断言「这 3 个名字都在、不多不少」，顺序无关 —— 故双方都按名字排序后比。
+  const names = r.files.map((f) => f.name).sort()
+  assert.deepEqual(names, ['a.png', 'b.png', '单独.txt'].sort(), '文件自带 + 文件夹递归展开，三者都在')
+  assert.equal(r.files.length, 3, '混合源摊平后共 3 条')
+  assert.ok(r.files.every((f) => f.isDir === false), '摊平结果里不应混进文件夹自身')
+})

@@ -147,17 +147,47 @@ function removeSource(i: number): void {
   sourcePaths.value.splice(i, 1)
 }
 
-/** 拖入文件 / 文件夹（Electron 渲染层可直接读 dataTransfer.files[].path）*/
+/**
+ * 从 DataTransfer 挑出真实文件系统路径（与 useDragDrop 的 extractPaths 同款逻辑）。
+ * ★ 关键：必须在 `items` 上取 `getAsFile()?.path` —— 在 `contextIsolation:true` 下，
+ *   `dataTransfer.files[i].path` 经常是 `undefined`，只有 `items` 这条路能拿到真实路径
+ *   （这正是「拖不进」的根因）。文件夹在 Windows 上也走 'Files'，同样能拿到。
+ */
+function extractDroppedPaths(dt: DataTransfer | null): string[] {
+  if (!dt) return []
+  const out: string[] = []
+  for (const it of Array.from(dt.items ?? [])) {
+    if (it.kind !== 'file') continue
+    const p = (it.getAsFile() as (File & { path?: string }) | null)?.path
+    if (typeof p === 'string' && p !== '') out.push(p)
+  }
+  if (out.length > 0) return out
+  // 兜底：某些环境只有 files 带 path
+  for (const file of Array.from(dt.files ?? [])) {
+    const p = (file as File & { path?: string }).path
+    if (typeof p === 'string' && p !== '') out.push(p)
+  }
+  return out
+}
+
+/** 拖拽悬停：必须 preventDefault + 显式 dropEffect='copy'，否则 drop 事件不会触发（bug 报障 ①）*/
+function onDragOver(e: DragEvent): void {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    const hasFs = Array.from(e.dataTransfer.types ?? []).includes('Files')
+    e.dataTransfer.dropEffect = hasFs ? 'copy' : 'none'
+  }
+}
+
+/** 拖拽进入：同样 preventDefault，给后续 drop 放行 */
+function onDragEnter(e: DragEvent): void {
+  e.preventDefault()
+}
+
+/** 拖入文件 / 文件夹（Electron 渲染层读 dataTransfer 的真实路径）*/
 function onDrop(e: DragEvent): void {
   e.preventDefault()
-  const files = e.dataTransfer?.files
-  if (!files || files.length === 0) return
-  const paths: string[] = []
-  for (let i = 0; i < files.length; i++) {
-    // Electron 渲染层实际会带上 .path（拖入的真实文件路径），但 TS 的 DOM File 类型没有它
-    const f = files.item(i) as (File & { path?: string }) | null
-    if (f?.path) paths.push(f.path)
-  }
+  const paths = extractDroppedPaths(e.dataTransfer)
   if (paths.length) pushSources(paths)
 }
 
@@ -180,6 +210,15 @@ async function doPlan(): Promise<void> {
       return
     }
     plan.value = res.data
+  } catch (err) {
+    // ★ 任何意外（IPC 异常等）都应显式展示，绝不让「点击没反应」静默发生（bug 报障 ②）
+    plan.value = {
+      target: target.value,
+      fileCount: 0,
+      entries: [],
+      summary: { ready: 0, skip: 0, error: 0 },
+      rejected: { code: 'E_UNKNOWN', reason: `干跑失败：${err instanceof Error ? err.message : String(err)}` },
+    }
   } finally {
     planning.value = false
   }
@@ -220,7 +259,7 @@ function outcomeLabel(o: 'ready' | 'skip' | 'error'): string {
 </script>
 
 <template>
-  <AppModal v-if="props.open" title="文件夹合并" :width="600" @close="emit('close')">
+  <AppModal v-if="props.open" title="文件夹合并" :width="720" @close="emit('close')">
     <div class="md-merge">
       <!-- ── SCR-11 表单 ── -->
       <section class="md-merge__form">
@@ -232,7 +271,8 @@ function outcomeLabel(o: 'ready' | 'skip' | 'error'): string {
               class="md-merge__drop"
               data-merge-drop
               :class="{ 'is-empty': sourceCount === 0 }"
-              @dragover.prevent
+              @dragenter="onDragEnter"
+              @dragover="onDragOver"
               @drop="onDrop"
             >
               <p v-if="sourceCount === 0" class="md-hint">拖入文件 / 文件夹，或点下面按钮添加</p>
@@ -463,7 +503,7 @@ function outcomeLabel(o: 'ready' | 'skip' | 'error'): string {
 
 .md-merge__list li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--md-space-2);
   font-size: 12.5px;
   color: var(--md-ink-2);
@@ -471,9 +511,10 @@ function outcomeLabel(o: 'ready' | 'skip' | 'error'): string {
 
 .md-merge__item {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
 }
 
 .md-merge__x {
@@ -526,10 +567,11 @@ function outcomeLabel(o: 'ready' | 'skip' | 'error'): string {
 .md-merge__targetpath {
   font-size: 12.5px;
   color: var(--md-ink-2);
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex-basis: 100%;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
 }
 
 .md-merge__new {
@@ -598,10 +640,10 @@ function outcomeLabel(o: 'ready' | 'skip' | 'error'): string {
 }
 
 .md-merge__epath {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 220px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
 }
 .md-merge__arrow {
   color: var(--md-ink-3);
