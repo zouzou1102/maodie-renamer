@@ -231,3 +231,25 @@ test('★ 汇总计数正确（ready/skip/error/fileCount 各自对得上）', (
   assert.equal(r.summary.skip, 2, '两个 b.jpg：1 磁盘冲突 + 1 批量冲突')
   assert.equal(r.summary.error, 0)
 })
+
+/* ══ 10. 混合源（文件 + 文件夹）干跑的落点（bug 报障 ② 回归守护）══════ */
+
+test('★ 混合源：单独文件 + 文件夹内文件 → 各自落点、互不冲突、全部 ready', () => {
+  const r = plan(
+    [
+      // 拖入的「单独文件」
+      item({ name: '单独.txt', ext: '.txt', srcPath: 'D:\\源\\单独.txt' }),
+      // 来自某个文件夹、递归摊平后的子文件
+      item({ name: 'a.png', ext: '.png', srcPath: 'D:\\源\\资料\\a.png' }),
+      item({ name: 'b.png', ext: '.png', srcPath: 'D:\\源\\资料\\子\\b.png' }),
+    ],
+    'same',
+  )
+  assert.equal(r.rejected, undefined, '混合源不应被结构性拒绝')
+  assert.equal(r.fileCount, 3)
+  assert.equal(r.entries.length, 3)
+  assert.deepEqual(r.entries.map((e) => e.outcome), ['ready', 'ready', 'ready'], '三者落点不同、均 ready')
+  assert.equal(r.summary.ready, 3)
+  assert.equal(r.summary.skip, 0)
+  assert.equal(r.summary.error, 0)
+})
