@@ -640,37 +640,52 @@ textarea {
  * 放在 base.css 而不是 RulePanel 的 scoped 块里：与 `.md-titlebar` / `.md-filelist__row`
  * 同一个理由 —— 这一层放的是「跨组件共享的组件样式」，一条规则只在一处描述。
  *
- * 视觉：一行、左边一个小标签、右边一句话，**做成凹陷槽**（比面板暗一档），
- * 让它读起来是「这句话是从当前设置里算出来的」，而不是又一块可点的控件。 */
+ * ★ 2026-09-27 照设计稿 `.sentence` 改回**无底色的 25px 大字**：
+ *   原来做成「凹陷槽」（8/12 内边距 + 下沉底）是 P3-9 的取舍，但设计稿与规格书
+ *   §04 都写的是「第 2 行 25px 大字、允许换行」—— 一屏里最该被读到的一句话，
+ *   不该被压到 13.5px 挤在一个小槽里。 */
 
 .md-sentence {
   display: flex;
-  align-items: baseline;
-  gap: var(--md-space-2);
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
   margin: 0 0 var(--md-space-3);
-  padding: 8px 12px;
-  border-radius: var(--md-radius-input);
-  background: var(--md-bg-sunken);
 }
 
 .md-sentence__label {
   flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--md-ink-3);
+  /* 设计：9.5px / 全大写 / 字距 1.7px / --ink4（与区块标签同一档）*/
+  font-family: var(--md-font-num);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
+  color: var(--md-ink-4);
 }
 
 .md-sentence__text {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 13.5px;
-  line-height: 20px;
-  font-weight: 500;
+  /* 设计：25px / 600 / 行高 1.5 / 字距 −0.2px */
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  line-height: 1.5;
   color: var(--md-ink-1);
   /* 规则描述可能很长（属性变量全开时），最多两行，超出打点 */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 摘要里的高亮词 = **用户填的那个值**（设计 §04：内边距 0 12px 2px / 圆角 6 /
+   淡橘底 + 橘字 + 橘 40% 边框）。零新增令牌：底用 brand-tint、字用品牌橘、边框 color-mix。 */
+.md-sentence__hl {
+  padding: 0 12px 2px;
+  border-radius: var(--md-radius-badge);
+  background: var(--md-brand-tint);
+  color: var(--md-orange-primary);
+  border: 1px solid color-mix(in srgb, var(--md-orange-primary) 40%, transparent);
 }

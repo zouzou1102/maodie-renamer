@@ -24,7 +24,7 @@ import {
 import { ATTR_VARS } from '@shared/attr-vars'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
 import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
-import { buildRuleSummary } from '@shared/rule-summary'
+import { buildRuleSummaryParts } from '@shared/rule-summary'
 import { joinName, splitName } from '@shared/name-split'
 import { applyDelete, applyInsert, applyReplace, applyRuleMode, dateText, sizeText } from '@shared/rule-engine'
 import { todayYmd } from '@shared/today'
@@ -56,16 +56,19 @@ function clearImported(): void {
 /**
  * EL-156 规则「一句话」（P3-9 · 照 C 方案）。
  *
- * ★ **不另写一套摘要逻辑**：直接用 `buildRuleSummary` ——
- *   历史卡片、撤销确认弹窗用的都是它。这里要是抄一份，迟早出现
- *   「面板上写的是 A、历史记录里写的是 B」的漂移，而那种漂移没人会发现。
+ * ★ **不另写一套摘要逻辑**：直接用 `buildRuleSummaryParts` —— 它就是
+ *   `buildRuleSummary`（历史卡片、撤销确认弹窗用的那份字符串）的**分段形式**，
+ *   两者是同一份逻辑（拼回去逐字节相等，单测钉着）。
+ *   这里要是抄一份，迟早出现「面板上写的是 A、历史记录里写的是 B」的漂移，
+ *   而那种漂移没人会发现。
+ *   分段的目的只有一个：按 `hl` 把**用户填的值**做成橘色小块（设计 §04 高亮词）。
  *
  * ⚠️ 刻意**不传** `imported`（表格导入说明）：那条信息已经有 `data-import-bar`
  *   专门在讲了（P3-5 起导入是五选一互斥的，只在导入模式下生效），
  *   摘要在别的模式下提它就是误导；而且这里多一个 `mode === 'import'` 判断
  *   就多一处「判断写错→静默显示错文案」的口子。少一处比多一处好。
  */
-const sentence = computed(() => buildRuleSummary(rule.rule))
+const sentenceParts = computed(() => buildRuleSummaryParts(rule.rule))
 
 /**
  * P2-B EL-120 / IX-106：点一下 chip = 套用整份模板。
@@ -404,7 +407,13 @@ function onExtMode(e: Event): void {
          只是少几行滚动。折叠这件事，本软件已有「⚙ 进阶设置」在承担。 -->
     <p class="md-sentence" data-rule-sentence>
       <span class="md-sentence__label">规则</span>
-      <span class="md-sentence__text">{{ sentence }}</span>
+      <span class="md-sentence__text">
+        <span
+          v-for="(p, i) in sentenceParts"
+          :key="i"
+          :class="{ 'md-sentence__hl': p.hl }"
+        >{{ p.text }}</span>
+      </span>
     </p>
 
     <!-- ★ P3-10（照设计稿 C 浅色版）：进阶设置不再「就地展开把参数往下顶」，
@@ -496,25 +505,31 @@ function onExtMode(e: Event): void {
       </div>
     </AppModal>
 
-    <!-- EL-055 自动处理重名冲突（DEC-05：默认未勾选）-->
+    <!-- EL-055 自动处理重名冲突（DEC-05：默认未勾选）
+         ★ 2026-09-27 照画廊 `.rfoot`：**一整排** = [开关+「自动处理重名冲突」] +
+         [一句说明] + [「改动唯一真源…」右对齐]；「进阶设置」入口**另起一排**。
+         为什么末尾不再重复「当前规则：X」：它与上面那句 25px 大字是**同一个函数**
+         生成的同一句话，同屏出现两次只会占掉这一排的最后 100px（实测放不下）。 -->
     <footer class="md-rulepanel__foot">
-      <label class="md-switch">
-        <input
-          type="checkbox"
-          :checked="rule.rule.autoResolveConflict"
-          @change="rule.patch({ autoResolveConflict: ($event.target as HTMLInputElement).checked })"
-        />
-        <span class="md-switch__track"><span class="md-switch__thumb" /></span>
-        <span class="md-switch__label">自动处理重名冲突</span>
-      </label>
-      <p class="md-hint">
-        关闭时冲突项会被跳过。无论开关如何，都「不会覆盖」任何已有文件。当前规则：{{ rule.summary }}
-      </p>
+      <div class="md-rulefoot__row">
+        <label class="md-switch md-rulefoot__sw">
+          <input
+            type="checkbox"
+            :checked="rule.rule.autoResolveConflict"
+            @change="rule.patch({ autoResolveConflict: ($event.target as HTMLInputElement).checked })"
+          />
+          <span class="md-switch__track"><span class="md-switch__thumb" /></span>
+          <span class="md-switch__label">自动处理重名冲突</span>
+        </label>
+        <span class="md-hint md-rulefoot__note">
+          关闭时冲突项会被跳过。无论开关如何，都「不会覆盖」任何已有文件。
+        </span>
+        <span class="md-rulefoot__motto">改动唯一真源就是这一句 · 改一个字下面那张表立刻重算</span>
+      </div>
 
-      <!-- ★ P3-10（照设计稿 C 的 `.pe__f`）：左下说明 + **右下角一行小字链接**。
-           进阶设置从这里进 —— 弹窗承载，不再就地展开把上面的参数顶下去。 -->
-      <div v-if="showAdvanced" class="md-rulefoot__row">
-        <span class="md-rulefoot__note">改动唯一真源就是这一句 · 改一个字下面那张表立刻重算</span>
+      <!-- ★ P3-10（照设计稿 C 的 `.pe__f`）：进阶设置从这里进 —— 弹窗承载，
+           不再就地展开把上面的参数顶下去。里自己一排、右对齐。 -->
+      <div v-if="showAdvanced" class="md-rulefoot__row md-rulefoot__row--adv">
         <button type="button" class="md-rulefoot__adv" data-adv-open @click="advancedOpen = true">
           <span v-if="advancedCount > 0" class="md-rulefoot__badge">已启用 {{ advancedCount }} 项</span>
           进阶设置 · 正则 / 大小写<span class="md-rulefoot__caret" aria-hidden="true">›</span>
@@ -1037,9 +1052,12 @@ function onExtMode(e: Event): void {
 
 .md-tabsrow__label {
   flex: 0 0 auto;
-  font-size: 11px;
+  /* 设计 §04：区块标签 9.5px / 全大写 / 字距 1.7px / --ink4 */
+  font-family: var(--md-font-num);
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
   color: var(--md-ink-4);
   white-space: nowrap;
 }
@@ -1062,8 +1080,9 @@ function onExtMode(e: Event): void {
 
 .md-tab {
   flex: 0 0 auto;
-  height: 28px;
-  padding: 0 13px;
+  /* 设计 §04：页签高 32px / 圆角 99 / 内边距 0 14px / 12px */
+  height: 32px;
+  padding: 0 14px;
   border: 1px solid var(--md-line-strong);
   border-radius: 99px;
   background: transparent;
@@ -1086,25 +1105,49 @@ function onExtMode(e: Event): void {
   background: var(--md-orange-primary);
   border-color: var(--md-orange-primary);
   color: var(--md-on-brand);
-  font-weight: 500;
+  /* 设计 §04：选中＝橘底深字 **600** */
+  font-weight: 600;
   box-shadow: none;
 }
 
-/* ── ★ P3-10：左下说明 + 右下角「进阶设置」入口（照设计稿 `.pe__f`）── */
+/* ── ★ 2026-09-27 照画廊 `.rfoot`：底栏是**一排**（开关 + 说明 + 右推的真源句）──
+   设计来源 `.rfoot{display:flex;align-items:center;gap:14px;border-top:1px solid;margin-top:auto}`；
+   「进阶设置」入口另起一排（`.md-rulefoot__row--adv`）。 */
 .md-rulefoot__row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--md-space-3);
-  margin-top: var(--md-space-2);
+  align-items: center;
+  gap: 14px;
+  /* 规格书 §4.2 铁律⑤：放不下就**换行**，不缩字、不压字。
+     1440 下三件同一排；窗口收到最窄（1180）时，真源句自己换到下一排并右对齐。 */
+  flex-wrap: wrap;
   min-width: 0;
 }
 
+/* 进阶入口那一排：无边框、右对齐（画廊里它是第二个 `.rfoot`）*/
+.md-rulefoot__row--adv {
+  justify-content: flex-end;
+  margin-top: var(--md-space-1);
+}
+
+.md-rulefoot__sw {
+  flex: 0 0 auto;
+}
+
+/* 说明：11.5px / --ink3（`.md-hint` 就是这两个值）；可以让位（flex 1 1 auto）
+   但**不给省略号** —— 「不会覆盖任何已有文件」这半句是安全承诺，不能看不全；
+   真放不下时由上面那条 flex-wrap 把真源句换到下一排。 */
 .md-rulefoot__note {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 真源句：等宽 11px / --ink3，**推到这排的最右**（画廊 `.rfoot__btn{margin-left:auto}`）*/
+.md-rulefoot__motto {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-family: var(--md-font-num);
   font-size: 11px;
-  color: var(--md-ink-4);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--md-ink-3);
   white-space: nowrap;
 }
 
@@ -1185,15 +1228,19 @@ function onExtMode(e: Event): void {
    与下面「⚙ 进阶设置」是两种相反的东西，视觉上也要分得开：
    这里是常显的一键入口（橘色 chip），那里是折起的进阶开关区。
    下边框把它和页签分开 —— 它是**独立一行**，不是页签组的一部分。 */
+/* ★ 2026-09-27 照画廊 `.tpl`：「常用规则」标签与 7 个 chip **同一排**
+   （label 左、chips 顺排；一行放不下时 chips 自己换行，不缩字、不换行成两排标题+内容）。 */
 .md-tpl {
   display: flex;
-  flex-direction: column;
-  gap: var(--md-space-1);
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   padding-bottom: var(--md-space-3);
   border-bottom: 1px solid var(--md-line);
 }
 
 .md-tpl__title {
+  flex: 0 0 auto;
   font-size: 12px;
   font-weight: 500;
   color: var(--md-ink-3);

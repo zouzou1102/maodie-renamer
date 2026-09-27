@@ -18,7 +18,7 @@ import {
   computeNewStem,
   REGEX_MAX_LENGTH,
 } from '../src/shared/rule-engine'
-import { buildRuleSummary } from '../src/shared/rule-summary'
+import { buildRuleSummary, buildRuleSummaryParts } from '../src/shared/rule-summary'
 import { joinName, splitName } from '../src/shared/name-split'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '../src/shared/regex-cheatsheet'
 import { DEFAULT_RULE, type RuleConfig } from '../src/shared/types'
@@ -162,6 +162,80 @@ test('规则摘要：正则标记与大小写后缀', () => {
     buildRuleSummary(rule({ mode: 'rule', regexEnabled: true }, { prefix: 'P' })),
     '前缀「P」 + 保留原名',
   )
+})
+
+/* ── 摘要分段（2026-09-27：规则块那句 25px 大字要按段高亮）────────────
+   ★ 两条必须同时成立，缺一不可：
+     ① 分段拼回去 == `buildRuleSummary`（否则界面上那句大字与写进 history.json
+        的字符串就是两份东西，迟早漂移）；
+     ② 只有**用户填的值**被标 `hl`（把标签/括号也高亮，看起来就是「整句都重要」，
+        等于没高亮）。 */
+
+test('摘要分段：拼回去与字符串形式逐字节一致（每个模式都过一遍）', () => {
+  const cases: RuleConfig[] = [
+    rule({ mode: 'delete', regexEnabled: true, delete: { text: '\\d+' } }),
+    rule({ mode: 'delete', regexEnabled: true, delete: { text: '广告' }, caseSensitive: true }),
+    rule({ mode: 'delete', delete: { text: '' } }),
+    rule({ mode: 'replace', regexEnabled: true, replace: { find: '(\\d{4})-(\\d{2})', to: '$2/$1' } }),
+    rule({ mode: 'replace', replace: { find: '广告', to: '' } }),
+    rule({ mode: 'replace', replace: { find: '', to: 'x' } }),
+    rule({ mode: 'rule' }, { prefix: '{d}-', suffix: '-终', dateEnabled: true, keepOriginal: false }),
+    rule({ mode: 'rule' }, { seqEnabled: true, seqKind: 'number', seqStart: 4, seqStep: 2, seqPad: 3 }),
+    rule({ mode: 'rule' }, { seqEnabled: true, seqKind: 'random', seqRandomLen: 6 }),
+    rule({ mode: 'rule' }, { seqEnabled: true, seqKind: 'time', seqPosition: 'at', seqAt: 3 }),
+    rule({ mode: 'rule' }),
+    rule({ mode: 'insert', insert: { at: 3, text: '2026' } }),
+    rule({ mode: 'insert', insert: { at: 0, text: '' } }),
+    rule({ mode: 'import' }),
+    rule({ mode: 'delete', delete: { text: 'x' }, caseTransform: 'lower' }),
+  ]
+  for (const r of cases) {
+    const joined = buildRuleSummaryParts(r).map((p) => p.text).join('')
+    assert.equal(joined, buildRuleSummary(r), `分段拼回去与字符串形式不一致：${r.mode}`)
+    assert.equal(
+      buildRuleSummaryParts(r).map((p) => p.text).join(''),
+      buildRuleSummary(r),
+      '两次调用结果应稳定',
+    )
+  }
+  // 带「表格导入」后缀时同样要一致
+  assert.equal(
+    buildRuleSummaryParts(rule({ mode: 'import' }), { count: 3, source: '对照表.csv' })
+      .map((p) => p.text)
+      .join(''),
+    buildRuleSummary(rule({ mode: 'import' }), { count: 3, source: '对照表.csv' }),
+  )
+})
+
+test('摘要分段：只有用户填的值被高亮，括号与标签不高亮', () => {
+  const hlOf = (parts: ReturnType<typeof buildRuleSummaryParts>) =>
+    parts.filter((p) => p.hl).map((p) => p.text)
+
+  assert.deepEqual(
+    hlOf(buildRuleSummaryParts(rule({ mode: 'replace', replace: { find: '广告', to: '推广' } }))),
+    ['广告', '推广'],
+    '替换模式：查找与替换内容都要高亮',
+  )
+  assert.deepEqual(
+    hlOf(buildRuleSummaryParts(rule({ mode: 'delete', delete: { text: '广告' } }))),
+    ['广告'],
+  )
+  assert.deepEqual(
+    hlOf(buildRuleSummaryParts(rule({ mode: 'insert', insert: { at: 2, text: '2026' } }))),
+    ['2026'],
+  )
+  assert.deepEqual(
+    hlOf(buildRuleSummaryParts(rule({ mode: 'rule' }, { prefix: 'P-', suffix: '-S' }))),
+    ['P-', '-S'],
+    '规则化模式：前缀与后缀高亮',
+  )
+  assert.deepEqual(
+    hlOf(buildRuleSummaryParts(rule({ mode: 'rule' }, { seqEnabled: true, seqKind: 'number' }))),
+    [],
+    '序号是算出来的，没有用户填的值 → 一个都不高亮',
+  )
+  assert.deepEqual(hlOf(buildRuleSummaryParts(rule({ mode: 'rule' }))), [], '「未设置任何规则要素」不高亮')
+  assert.deepEqual(hlOf(buildRuleSummaryParts(rule({ mode: 'import' }))), [], '导入模式没有可填项')
 })
 
 /* ── TC-26 P0 逐字节回归（红线：正则关 + 大小写 none 必须与 P0 一致）── */
