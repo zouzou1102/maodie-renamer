@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="zh-CN" data-dark="1">
+<head>
+<meta charset="utf-8">
+<title>方案 3 · 抽屉工作台 — 耄耋改名</title>
+<style>
+:root{
+  --app:#1A1614; --panel:#241E1A; --panel2:#2C2521; --sunken:#14100E;
+  --ink:#F2E9E0; --ink2:#C4B5A5; --ink3:#8E8072; --ink4:#6B5D52;
+  --line:#3A312B; --line2:#4E4239;
+  --orange:#F5A623; --orange-soft:rgba(245,166,35,.16); --gold:#E5C68A;
+  --ok:#5FBF8A; --cat:#F2B36A; --cat-line:#B4712A;
+  --sans:"Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --mono:"JetBrains Mono",Consolas,"Cascadia Mono",monospace;
+  --rail:56px; --drawer:340px;
+}
+html[data-dark="0"]{
+  --app:#F7F4EF; --panel:#FFFFFF; --panel2:#F2EDE6; --sunken:#EDE7DE;
+  --ink:#221D18; --ink2:#5C5349; --ink3:#8C8177; --ink4:#B0A69B;
+  --line:#E3DCD2; --line2:#CFC5B8;
+  --orange:#D97F26; --orange-soft:rgba(217,127,38,.13); --gold:#A8802F;
+  --cat:#F9C077; --cat-line:#D98B33;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#151515;font-family:var(--sans);display:flex;flex-direction:column;align-items:center;padding:22px 0 46px;gap:16px}
+.bar{display:flex;align-items:center;gap:14px;color:#c9c9c9;font-size:13px}
+.bar b{color:#fff;font-weight:600}
+.bar .tag{font-size:11px;color:#8a8a8a;border:1px solid #3a3a3a;border-radius:99px;padding:3px 10px}
+.bar button{font-family:var(--sans);font-size:12px;color:#cfcfcf;background:#262626;border:1px solid #3a3a3a;border-radius:6px;padding:5px 12px;cursor:pointer}
+.bar button.on{background:#fff;color:#111;border-color:#fff}
+
+.win{width:1280px;height:800px;border-radius:10px;overflow:hidden;background:var(--app);color:var(--ink);
+  display:flex;flex-direction:column;box-shadow:0 30px 90px rgba(0,0,0,.65);border:1px solid var(--line)}
+
+/* ── 标题栏（极窄） ── */
+.head{height:38px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--sunken);border-bottom:1px solid var(--line)}
+.head__name{font-size:13.5px;font-weight:700;letter-spacing:3px}
+.head__crumb{font-size:11.5px;color:var(--ink3);font-family:var(--mono)}
+.head__crumb b{color:var(--gold);font-weight:400}
+.head__right{margin-left:auto;display:flex;align-items:center;gap:4px}
+.tb-btn{width:30px;height:26px;border:none;background:transparent;border-radius:4px;display:grid;place-items:center;cursor:pointer;color:var(--ink3)}
+.tb-btn:hover{background:var(--orange-soft);color:var(--orange)}
+.tb-key{width:30px;height:26px;border:none;background:transparent;color:var(--ink3);font-size:12px;cursor:pointer;border-radius:4px}
+.tb-key--close:hover{background:#C0392B;color:#fff}
+
+/* ── 主体 ── */
+.body{flex:1;min-height:0;display:flex}
+
+/* 图标轨道 */
+.rail{flex:0 0 var(--rail);background:var(--sunken);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;padding:10px 0 8px;gap:4px}
+.rail__btn{width:38px;height:38px;border:none;background:transparent;border-radius:8px;display:grid;place-items:center;
+  cursor:pointer;color:var(--ink3);position:relative}
+.rail__btn:hover{background:var(--panel2);color:var(--ink)}
+.rail__btn.on{color:var(--orange);background:var(--orange-soft)}
+.rail__btn.on::before{content:"";position:absolute;left:-9px;top:9px;width:3px;height:20px;border-radius:2px;background:var(--orange)}
+.rail__sep{width:22px;height:1px;background:var(--line);margin:5px 0}
+.rail__cat{margin-top:auto;position:relative}
+.catbtn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line2);background:var(--panel2);
+  display:grid;place-items:center;cursor:pointer;overflow:hidden;padding:0}
+.catbtn:hover{border-color:var(--orange)}
+.catbtn svg{width:34px;height:34px;display:block;margin-top:3px}
+.bubble{position:absolute;left:46px;bottom:4px;background:var(--panel);border:1px solid var(--line2);
+  border-radius:8px;padding:7px 11px;font-size:11.5px;color:var(--ink2);white-space:nowrap;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);display:none}
+.bubble::after{content:"";position:absolute;left:-5px;bottom:12px;width:8px;height:8px;background:var(--panel);
+  border-left:1px solid var(--line2);border-bottom:1px solid var(--line2);transform:rotate(45deg)}
+.bubble.show{display:block}
+.bubble b{color:var(--orange);font-weight:400}
+
+/* 主工作区 */
+.work{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--app)}
+.toolbar{height:48px;display:flex;align-items:center;gap:9px;padding:0 14px;border-bottom:1px solid var(--line)}
+.search{flex:0 0 240px;height:30px;background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  display:flex;align-items:center;gap:7px;padding:0 10px;color:var(--ink3);font-size:12.5px}
+.search input{flex:1;background:none;border:none;outline:none;color:var(--ink);font-family:var(--sans);font-size:12.5px}
+.sel{height:30px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--ink2);
+  font-family:var(--sans);font-size:12.5px;padding:0 8px;outline:none;cursor:pointer}
+.btn{font-family:var(--sans);cursor:pointer;border-radius:6px;white-space:nowrap;border:none}
+.btn--sm{height:30px;padding:0 12px;font-size:12.5px;background:var(--panel);border:1px solid var(--line);color:var(--ink2)}
+.btn--sm:hover{border-color:var(--orange);color:var(--orange)}
+.toolbar__stat{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.5px}
+.toolbar__stat b{color:var(--orange);font-weight:400}
+
+.grid{flex:1;min-height:0;display:flex;flex-direction:column}
+.grid__head,.gr{display:grid;grid-template-columns:34px 42px 44px minmax(0,1fr) minmax(0,1fr) 66px 74px;align-items:center;font-size:12.5px}
+.grid__head{height:30px;background:var(--panel2);border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--ink3)}
+.grid__head>*,.gr>*{padding:0 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid__scroll{flex:1;min-height:0;overflow-y:auto}
+.gr{height:36px;border-bottom:1px solid var(--line);color:var(--ink2)}
+.gr:hover{background:var(--panel)}
+.gr.sel{background:var(--orange-soft);box-shadow:inset 2px 0 0 var(--orange)}
+.gr .no{font-family:var(--mono);font-size:10.5px;color:var(--ink4)}
+.box{width:14px;height:14px;border:1.5px solid var(--line2);border-radius:3px;background:var(--panel);position:relative}
+.box.on{background:var(--orange);border-color:var(--orange)}
+.box.on::after{content:"";position:absolute;left:3.5px;top:1px;width:4px;height:7px;
+  border-right:2px solid #2A1A10;border-bottom:2px solid #2A1A10;transform:rotate(40deg)}
+.del{color:var(--ink4);text-decoration:line-through;text-decoration-thickness:2px}
+.add{color:var(--orange);background:var(--orange-soft);border-radius:3px;padding:1px 3px}
+.none{color:var(--line2)}
+.chipst{font-family:var(--mono);font-size:9.5px;letter-spacing:.5px;border-radius:3px;padding:2px 6px}
+.chipst--ok{background:var(--orange-soft);color:var(--orange)}
+.chipst--no{background:var(--panel2);color:var(--ink3)}
+.dropmore{height:150px;margin:12px;border:1.5px dashed var(--line);border-radius:8px;display:grid;place-content:center;
+  gap:6px;text-align:center;color:var(--ink4);font-size:12.5px}
+.dropmore b{color:var(--ink3);font-weight:400}
+
+/* 规则抽屉 */
+.drawer{flex:0 0 var(--drawer);min-width:0;overflow:hidden;background:var(--panel);border-left:1px solid var(--line);
+  display:flex;flex-direction:column;transition:flex-basis .18s ease}
+.drawer.collapsed{flex-basis:46px}
+.drawer.collapsed .drawer__inner,.drawer.collapsed .drawer__foot,.drawer.collapsed .drawer__title{display:none}
+.drawer.collapsed .drawer__vert{display:block}
+.handle{height:34px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid var(--line);
+  color:var(--ink3);cursor:grab;user-select:none}
+.handle i{width:14px;height:9px;flex:0 0 auto;
+  background-image:repeating-linear-gradient(to bottom,var(--line2) 0 1.5px,transparent 1.5px 4.5px)}
+.drawer__title{font-size:12px;letter-spacing:2px;color:var(--ink2)}
+.handle .col{margin-left:auto;background:none;border:none;color:var(--ink3);cursor:pointer;font-size:13px}
+.handle .col:hover{color:var(--orange)}
+.drawer__vert{display:none;font-size:12px;letter-spacing:3px;color:var(--ink3);writing-mode:vertical-rl;
+  margin:auto;font-family:var(--mono)}
+.drawer__inner{flex:1;min-height:0;overflow-y:auto;padding:12px 12px 4px;display:flex;flex-direction:column;gap:11px}
+.sect__t{font-size:11px;letter-spacing:1.5px;color:var(--ink3);font-family:var(--mono);display:flex;align-items:center;gap:7px}
+.sect__t::after{content:"";flex:1;height:1px;background:var(--line)}
+.tabs{display:flex;gap:3px;background:var(--sunken);border-radius:7px;padding:3px}
+.tab{flex:1;height:26px;border:none;background:transparent;color:var(--ink3);font-family:var(--sans);font-size:12px;
+  border-radius:5px;cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--panel2);color:var(--orange);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.f{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.f__l{flex:0 0 42px;font-size:12px;color:var(--ink3)}
+.inp{height:30px;flex:1;min-width:0;background:var(--sunken);border:1px solid var(--line);border-radius:6px;
+  color:var(--ink);font-family:var(--sans);font-size:12.5px;padding:0 9px;outline:none}
+.inp:focus{border-color:var(--orange);box-shadow:0 0 0 2px var(--orange-soft)}
+.inp--n{flex:0 0 54px;text-align:center;font-family:var(--mono);padding:0 4px}
+.sel2{height:30px;flex:1;min-width:0;background:var(--sunken);border:1px solid var(--line);border-radius:6px;
+  color:var(--ink2);font-family:var(--sans);font-size:12.5px;padding:0 8px;outline:none;cursor:pointer}
+.cbx{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink2);cursor:pointer}
+.vars{display:flex;gap:5px;flex-wrap:wrap}
+.var{font-size:11.5px;color:var(--ink2);background:var(--sunken);border:1px solid var(--line);border-radius:5px;
+  padding:4px 8px;cursor:pointer}
+.var:hover{border-color:var(--orange);color:var(--orange)}
+.adv{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink3);background:none;border:none;cursor:pointer;padding:0}
+.adv:hover{color:var(--orange)}
+.drawer__foot{padding:10px 12px;border-top:1px solid var(--line);display:flex;gap:8px}
+.btn--go{flex:1;height:40px;background:var(--orange);color:#2A1A10;font-size:14px;font-weight:700;letter-spacing:2px}
+.btn--go:hover{filter:brightness(1.08)}
+.btn--go:active{transform:scale(.98)}
+
+/* 状态条 */
+.status{height:30px;display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--sunken);
+  border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.status__sp{margin-left:auto}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<filter id="fur3" x="-25%" y="-25%" width="150%" height="150%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.085" numOctaves="2" seed="19" result="n"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="6.5" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+</defs>
+</svg>
+
+<header class="bar">
+  <b>方案 3 · 抽屉工作台</b>
+  <span class="tag">1280×800</span>
+  <span class="tag">暖黑 · 橘 · 默认深色</span>
+  <button id="b-light">浅色</button>
+  <button id="b-dark" class="on">深色</button>
+</header>
+
+<div class="win">
+
+  <div class="head">
+    <span class="head__name">耄耋改名</span>
+    <span class="head__crumb">工作区 / <b>主界面</b></span>
+    <div class="head__right">
+      <button class="tb-btn" title="设置">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="currentColor" stroke="none"/>
+          <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="8" cy="17" r="2" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <button class="tb-key">—</button><button class="tb-key">□</button><button class="tb-key tb-key--close">✕</button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <nav class="rail">
+      <button class="rail__btn on" title="文件列表">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      </button>
+      <button class="rail__btn" title="撤销 / 历史">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 10h9a5 5 0 1 1 0 10H8"/><path d="M7.5 6.5 4 10l3.5 3.5"/></svg>
+      </button>
+      <div class="rail__sep"></div>
+      <button class="rail__btn" title="文件夹合并">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 13h6"/><path d="M12.5 10.5 15 13l-2.5 2.5"/></svg>
+      </button>
+      <button class="rail__btn" title="文件提取">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v11"/><path d="M8 10.5 12 14.5 16 10.5"/><path d="M4 18h16"/></svg>
+      </button>
+      <div class="rail__sep"></div>
+      <button class="rail__btn" title="导入表格">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9 9.5v10"/></svg>
+      </button>
+      <button class="rail__btn" title="导出清单">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21V10"/><path d="M8 13.5 12 9.5 16 13.5"/><path d="M4 6h16"/></svg>
+      </button>
+
+      <div class="rail__cat">
+        <div class="bubble" id="bubble">今天要改点啥？<b>点我把规则抽屉拉开</b></div>
+        <button class="catbtn" id="catbtn" title="耄耋在这儿">
+          <svg viewBox="0 0 100 100">
+            <g filter="url(#fur3)">
+              <path d="M23 45 L29 15 L47 30 Z" fill="var(--cat)"/>
+              <path d="M77 45 L71 15 L53 30 Z" fill="var(--cat)"/>
+              <circle cx="50" cy="55" r="31" fill="var(--cat)"/>
+            </g>
+            <circle cx="39" cy="51" r="3.6" fill="#3A2A20"/>
+            <circle cx="61" cy="51" r="3.6" fill="#3A2A20"/>
+            <path d="M50 58 l-4.5 -4 h9 z" fill="#E08B33"/>
+            <path d="M50 59 q-5 7 -9.5 1.5" stroke="#3A2A20" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            <path d="M50 59 q5 7 9.5 1.5" stroke="#3A2A20" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <section class="work">
+      <div class="toolbar">
+        <div class="search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+          <input placeholder="筛名字…（只看带「广告」的）">
+        </div>
+        <select class="sel"><option>按加入顺序</option><option>按名字</option><option>按大小</option><option>按类型</option></select>
+        <button class="btn btn--sm">只看将变化</button>
+        <button class="btn btn--sm">全选</button>
+        <span class="toolbar__stat">6 项 · 将变化 <b>5</b> · 无变化 1 · 重名 0</span>
+      </div>
+
+      <div class="grid">
+        <div class="grid__head">
+          <span></span><span>#</span><span></span><span>原本的名字</span><span>改完的名字</span><span>状态</span><span>操作</span>
+        </div>
+        <div class="grid__scroll">
+          <div class="gr sel"><span><span class="box on"></span></span><span class="no">01</span><span></span>
+            <span><span class="del">广告</span>素材-01.png</span><span><span class="add">推广</span>素材-01.png</span>
+            <span><span class="chipst chipst--ok">将改</span></span><span style="color:var(--ink4)">移除</span></div>
+          <div class="gr"><span><span class="box on"></span></span><span class="no">02</span><span></span>
+            <span>夏季新品<span class="del">广告</span>主图.jpg</span><span>夏季新品<span class="add">推广</span>主图.jpg</span>
+            <span><span class="chipst chipst--ok">将改</span></span><span style="color:var(--ink4)">移除</span></div>
+          <div class="gr"><span><span class="box on"></span></span><span class="no">03</span><span></span>
+            <span><span class="del">广告</span>-详情页-03.webp</span><span><span class="add">推广</span>-详情页-03.webp</span>
+            <span><span class="chipst chipst--ok">将改</span></span><span style="color:var(--ink4)">移除</span></div>
+          <div class="gr"><span><span class="box on"></span></span><span class="no">04</span><span></span>
+            <span>主图-04-备用.jpg</span><span class="none">—</span>
+            <span><span class="chipst chipst--no">无变化</span></span><span style="color:var(--ink4)">移除</span></div>
+          <div class="gr"><span><span class="box on"></span></span><span class="no">05</span><span></span>
+            <span>banner<span class="del">广告</span>位-05.png</span><span>banner<span class="add">推广</span>位-05.png</span>
+            <span><span class="chipst chipst--ok">将改</span></span><span style="color:var(--ink4)">移除</span></div>
+          <div class="gr"><span><span class="box on"></span></span><span class="no">06</span><span></span>
+            <span><span class="del">广告</span>素材-06.gif</span><span><span class="add">推广</span>素材-06.gif</span>
+            <span><span class="chipst chipst--ok">将改</span></span><span style="color:var(--ink4)">移除</span></div>
+          <div class="dropmore">
+            <span>把文件拖到窗口里任何地方都行</span>
+            <b>也可以按 Ctrl+O</b>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="drawer" id="drawer">
+      <div class="handle" id="handle">
+        <i></i><span class="drawer__title">规 则</span>
+        <button class="col" id="colbtn" title="收起">»</button>
+      </div>
+      <div class="drawer__vert">规 则</div>
+      <div class="drawer__inner">
+        <div class="tabs">
+          <button class="tab">删除</button><button class="tab on">替换</button>
+          <button class="tab">自定义</button><button class="tab">插入</button><button class="tab">导入</button>
+        </div>
+        <div class="sect__t">替换内容</div>
+        <div class="f"><span class="f__l">把</span><input class="inp" value="广告"><span style="color:var(--orange)">→</span><input class="inp" value="推广"></div>
+        <div class="f"><label class="cbx"><span class="box"></span>区分大小写</label><span style="margin-left:auto;font-size:11.5px;color:var(--ink3)">? 看不懂？</span></div>
+        <div class="sect__t">序号</div>
+        <div class="f"><label class="cbx"><span class="box on"></span>启用序号</label><select class="sel2" style="max-width:118px"><option>排在最前</option><option>排在最后</option><option>第 n 个字符后</option></select></div>
+        <div class="f"><select class="sel2"><option>数字</option><option>字母</option><option>随机字符</option><option>时间</option></select></div>
+        <div class="f"><span class="f__l">起始</span><input class="inp inp--n" value="1"><span class="f__l" style="flex:0 0 auto">增量</span><input class="inp inp--n" value="1"><span class="f__l" style="flex:0 0 auto">位数</span><input class="inp inp--n" value="2"></div>
+        <div class="sect__t">属性</div>
+        <div class="vars"><span class="var">{文件名}</span><span class="var">{序号}</span><span class="var">{日期}</span><span class="var">{文件夹名}</span></div>
+        <div class="sect__t">扩展名</div>
+        <div class="f"><label class="cbx"><span class="box"></span>改扩展名</label><select class="sel2"><option>改成指定扩展名</option><option>删掉扩展名</option><option>在后面再加一个</option></select></div>
+        <button class="adv">⚙ 进阶设置 ›</button>
+      </div>
+      <div class="drawer__foot">
+        <button class="btn btn--go">开咬改名</button>
+      </div>
+    </aside>
+
+  </div>
+
+  <div class="status">
+    <span class="dot"></span>
+    <span>READY · 替换「广告」→「推广」 · 6 项 / 将变化 5 · 无重名</span>
+    <span class="status__sp">Ctrl+O 添加 · Ctrl+Z 撤销 · Enter 开咬 · Esc 关弹窗</span>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('b-light').onclick=function(){set(0,this)};
+document.getElementById('b-dark').onclick=function(){set(1,this)};
+function set(v,el){
+  document.documentElement.dataset.dark=v;
+  document.querySelectorAll('.bar button').forEach(function(b){b.classList.remove('on')});
+  el.classList.add('on');
+}
+var drawer=document.getElementById('drawer');
+function toggle(){drawer.classList.toggle('collapsed');
+  document.getElementById('colbtn').textContent=drawer.classList.contains('collapsed')?'«':'»';}
+document.getElementById('handle').addEventListener('click',function(e){if(e.target.id!=='colbtn')toggle()});
+document.getElementById('colbtn').addEventListener('click',function(e){e.stopPropagation();toggle()});
+var bubble=document.getElementById('bubble');
+document.getElementById('catbtn').addEventListener('click',function(){
+  bubble.classList.toggle('show');
+  if(bubble.classList.contains('show')&&drawer.classList.contains('collapsed'))toggle();
+});
+document.querySelectorAll('.gr').forEach(function(r){
+  r.addEventListener('click',function(){document.querySelectorAll('.gr').forEach(function(x){x.classList.remove('sel')});r.classList.add('sel')});
+});
+function fit(){
+  var w=document.querySelector('.win'),s=Math.min(1,(window.innerWidth-36)/1280);
+  w.style.transformOrigin='top center';
+  w.style.transform=s<1?'scale('+s+')':'none';
+}
+window.addEventListener('resize',fit);fit();
+</script>
+</body>
+</html>

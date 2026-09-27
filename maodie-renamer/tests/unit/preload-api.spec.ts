@@ -13,11 +13,15 @@ import { CH } from '@shared/channels'
 function makeBridge() {
   const invoke = vi.fn(async (..._args: unknown[]) => ({ ok: true, data: null }))
   const send = vi.fn((..._args: unknown[]) => undefined)
+  // ★ P3-7 修复：桥新增了 pathForFile（拖入文件取真实路径，非 IPC）。
+  //   这里是**假实现**，返回空串即可 —— 白名单测试只关心"方法在不在"。
+  const getPathForFile = vi.fn((_file: unknown) => '')
   const listeners = new Map<string, Set<(p: unknown) => void>>()
 
   return {
     invoke,
     send,
+    getPathForFile,
     on: (channel: string, cb: (p: unknown) => void) => {
       let set = listeners.get(channel)
       if (!set) {
@@ -35,10 +39,12 @@ function makeBridge() {
 }
 
 describe('preload · window.maodie 的键只有白名单里的命名空间（P-06）', () => {
-  it('顶层键恰好是 app / window / fs / rename / history', () => {
+  it('顶层键恰好是 app / window / fs / rename / history / merge / extract', () => {
     const api = buildMaodieApi(makeBridge())
     expect(Object.keys(api).sort()).toEqual([...API_NAMESPACES].sort())
-    expect(Object.keys(api)).toHaveLength(6)
+    // ★ 之前这里写死 6，P3-8 加了 extract 之后没人更新 → 这条断言早已失效。
+    //   改成跟着白名单走，以后加命名空间不会再"改了常量、测试还在数旧数"。
+    expect(Object.keys(api)).toHaveLength(API_NAMESPACES.length)
   })
 
   it('不暴露 ipcRenderer / require / process / Buffer / shell 等危险能力', () => {
@@ -59,11 +65,33 @@ describe('preload · window.maodie 的键只有白名单里的命名空间（P-0
       'onMaximizeChanged',
       'toggleMaximize',
     ])
-    expect(Object.keys(api.fs).sort()).toEqual(['pickDirectory', 'pickFiles', 'resolvePaths'])
+    // ★ 补齐漏掉的三批：P3-2 exportList、P3-4 importTable、P3-7修复 pathForFile。
+    //   原来的断言停在 P3-1，等于这个"白名单守卫"早就失效了。
+    expect(Object.keys(api.fs).sort()).toEqual([
+      'exportList',
+      'importTable',
+      'pathForFile',
+      'pickDirectory',
+      'pickFiles',
+      'resolvePaths',
+    ])
     expect(Object.keys(api.rename).sort()).toEqual(['cancel', 'execute', 'onProgress'])
-    expect(Object.keys(api.history).sort()).toEqual(['list', 'undoAll', 'undoTask'])
+    expect(Object.keys(api.history).sort()).toEqual(['clear', 'list', 'undoAll', 'undoTask'])
     // ★ P3-7：新增的 merge 命名空间，方法集合也必须是白名单（plan / run）
     expect(Object.keys(api.merge).sort()).toEqual(['plan', 'run'])
+    // ★ P3-8：文件提取，复用 P3-7 运输层但接口独立（plan / run）
+    expect(Object.keys(api.extract).sort()).toEqual(['plan', 'run'])
+  })
+
+  it('★ pathForFile 是同步能力，**不走 IPC**（拖入文件取真实路径，P3-7 修复）', () => {
+    const bridge = makeBridge()
+    const api = buildMaodieApi(bridge)
+    const fakeFile = { name: 'x.txt' }
+
+    expect(api.fs.pathForFile(fakeFile)).toBe('')
+    expect(bridge.getPathForFile).toHaveBeenCalledWith(fakeFile)
+    // 关键：它不该产生任何 IPC 调用（不是 invoke 型通道）
+    expect(bridge.invoke).not.toHaveBeenCalled()
   })
 })
 

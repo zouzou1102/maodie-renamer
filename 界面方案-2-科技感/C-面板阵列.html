@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>方案 C · 面板阵列 — 耄耋改名</title>
+<style>
+:root{
+  /* 三档表面：抬起 / 基础 / 下沉 —— 板子不再是一个样 */
+  --bg:#0B0A09;
+  --raise:#211D1A;   /* 猫块 · 规则句 · 执行块 */
+  --panel:#171413;   /* 文件表 · 控件区 */
+  --sink:#070605;    /* 三个指标板，数字沉在凹槽里 */
+  --hov:#26211D;
+  --line:#2A2521; --line2:#3A342E;
+  /* ink4 是 9.5px 大写小标题用的，AA 要求 4.5:1 —— 原来的 #4A443D 只有 1.91:1，根本读不出来 */
+  --ink:#F5F1EB; --ink2:#A69C90; --ink3:#9A8F82; --ink4:#8E8376;
+  /* ctl 专给「控件边界」：勾选框描边 / 开关底槽，AA 非文字对比要求 3:1（line2 只有 1.49:1，太淡） */
+  --ctl:#72665B;
+  --acc:#FF7A1A; --acc-ink:#1C0D03; --sel:rgba(255,122,26,.13);
+  --ok:#48B368; --warn:#D9A441; --bad:#F0604D;
+  --cat:#F9C077; --cat-line:#B4712A;
+  --hi:inset 0 1px 0 rgba(255,255,255,.065);        /* 抬起面的顶部内高光：物理光，不是发光 */
+  --lo:inset 0 1px 3px rgba(0,0,0,.45);             /* 下沉面的内阴影 */
+  --sh1:0 1px 2px rgba(0,0,0,.45);
+  --sh2:0 2px 4px rgba(0,0,0,.5),0 10px 24px rgba(0,0,0,.35);
+  --ui:"Segoe UI Variable Text","Segoe UI","Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  --disp:"Bahnschrift","Segoe UI Variable Display","Segoe UI",var(--ui);
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --r:18px; --r-md:12px; --r-sm:8px;
+}
+html[data-theme="light"]{
+  --bg:#EDEBE7;
+  --raise:#FFFFFF;
+  --panel:#FAF8F5;
+  --sink:#E3DFD8;
+  --hov:#F2EEE9;
+  --line:#E2DED6; --line2:#CBC4BA;
+  /* 浅色下这几条原来都差一点；橘色额外要过「橘字压橘色淡底」这一关（原 #DA5A12 只有 2.88:1） */
+  --ink:#17150F; --ink2:#5B554E; --ink3:#68635A; --ink4:#6A6257; --ctl:#9C8E7B;
+  --acc:#A1420D; --acc-ink:#FFFFFF; --sel:rgba(161,66,13,.10);
+  --ok:#19713E; --warn:#A87A12; --bad:#C4322A;
+  --hi:inset 0 1px 0 rgba(255,255,255,.95);
+  --lo:inset 0 1px 3px rgba(24,20,16,.07);
+  --sh1:0 1px 2px rgba(24,20,16,.08);
+  --sh2:0 2px 4px rgba(24,20,16,.10),0 10px 24px rgba(24,20,16,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050505;font-family:var(--ui);-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;align-items:center;padding:20px 0 40px;gap:14px}
+.pgbar{display:flex;align-items:center;gap:12px;color:#b9b9b9;font-size:12.5px}
+.pgbar b{color:#fff;font-weight:600}
+.pgbar .t{font-size:11px;color:#8a8a8a;border:1px solid #333;border-radius:99px;padding:3px 10px}
+.pgbar button{font-family:var(--ui);font-size:12px;color:#cfcfcf;background:#1E1E1E;border:1px solid #363636;
+  border-radius:7px;padding:5px 12px;cursor:pointer}
+.pgbar button.on{background:#fff;color:#111;border-color:#fff}
+
+.win{width:1440px;height:900px;background:var(--bg);color:var(--ink);border-radius:16px;overflow:hidden;
+  display:flex;flex-direction:column;border:1px solid var(--line);box-shadow:0 40px 120px rgba(0,0,0,.78)}
+
+.tbar{height:46px;flex:0 0 46px;display:flex;align-items:center;gap:12px;padding:0 18px}
+.brand{display:flex;align-items:center;gap:9px}
+.brand__mark{width:24px;height:24px;display:block}
+.brand__name{font-family:var(--disp);font-size:13.5px;font-weight:600;letter-spacing:2px;text-transform:uppercase}
+.tbar__c{margin-left:10px;font-size:11px;color:var(--ink3);font-family:var(--mono)}
+.tbar__r{margin-left:auto;display:flex;align-items:center;gap:6px}
+.tbtn{height:30px;padding:0 13px;border:1px solid var(--line);background:var(--panel);border-radius:99px;
+  color:var(--ink3);font-family:var(--ui);font-size:11.5px;cursor:pointer;
+  transition:border-color .15s var(--ease),color .15s var(--ease)}
+.tbtn:hover{border-color:var(--line2);color:var(--ink)}
+.wkey{width:32px;height:30px;border:none;background:none;color:var(--ink3);font-size:12px;cursor:pointer;border-radius:var(--r-sm);
+  transition:background-color .15s var(--ease),color .15s var(--ease)}
+.wkey:hover{background:var(--panel);color:var(--ink)}
+.wkey--x:hover{background:var(--bad);color:#fff}
+
+/* ── 网格：5 行不等高，有呼吸；最下面执行那行最有分量 ── */
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(12,1fr);
+  grid-template-rows:1.18fr 1fr .97fr .85fr 1fr;
+  gap:12px;padding:0 14px 14px}
+.p{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;
+  display:flex;flex-direction:column;min-width:0;min-height:0;
+  transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
+.p--raise{background:var(--raise);border-color:var(--line2);box-shadow:var(--hi),var(--sh1)}
+.p--sink{background:var(--sink);box-shadow:var(--lo)}
+.p:hover{border-color:var(--line2)}
+.pa{grid-column:1/5;grid-row:1/3}
+.pb{grid-column:5/8;grid-row:1}
+.pc{grid-column:8/11;grid-row:1}
+.pd{grid-column:11/13;grid-row:1}
+.pe{grid-column:5/13;grid-row:2}
+.pf{grid-column:1/9;grid-row:3/6;padding:0}
+.pg{grid-column:9/13;grid-row:3/5}
+.ph{grid-column:9/13;grid-row:5}
+.lbl{font-family:var(--disp);font-size:9.5px;letter-spacing:1.7px;text-transform:uppercase;font-weight:600;color:var(--ink4)}
+.bigno{font-family:var(--disp);font-size:60px;line-height:1;font-weight:600;font-variant-numeric:tabular-nums;
+  letter-spacing:-1.5px;margin-top:auto;transition:transform .3s var(--ease)}
+.bigsub{font-size:11.5px;color:var(--ink3);margin-top:9px;line-height:1.45}
+
+/* ── 入场编排：一次性、低频，8 块依次上浮 ── */
+@keyframes panelIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.p{animation:panelIn .46s var(--ease) both}
+.pa{animation-delay:.02s}.pb{animation-delay:.10s}.pc{animation-delay:.18s}.pd{animation-delay:.26s}
+.pe{animation-delay:.34s}.pf{animation-delay:.42s}.pg{animation-delay:.50s}.ph{animation-delay:.58s}
+
+/* ── A 猫块（抬起） ── */
+.pa{padding:20px 20px 18px;flex-direction:row;align-items:center;gap:20px;
+  transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
+@keyframes catbreathe{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-3px) rotate(-1.1deg)}}
+/* 给猫留出余量：呼吸动画里的 rotate 会把包围盒撑大约 4px，hero 格子必须比猫大 */
+.pa__hero{flex:0 0 240px;padding:8px;display:grid;place-items:center}
+.pa__breathe{animation:catbreathe 5.4s ease-in-out infinite}
+.pa__breathe .cat{width:224px;height:209px;display:block;transition:transform .3s var(--ease)}
+.pa:hover .pa__breathe .cat{transform:translateY(-4px)}
+/* 眨眼：只对 <use> 本身做 scaleY，transform-origin 用 viewBox 坐标写死，不依赖 bbox 计算 */
+@keyframes blink{0%,90%,100%{transform:scaleY(1)}93%{transform:scaleY(.06)}96%,99%{transform:scaleY(1)}}
+.eyes{transform-box:view-box;transform-origin:60px 57px;animation:blink 4.4s ease-in-out infinite}
+.pa__side{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:14px}
+.ring{position:relative;width:100px;height:100px}
+.ring svg{width:100px;height:100px;display:block;transform:rotate(-90deg)}
+@keyframes ringDraw{from{stroke-dasharray:0 251.3}}
+.ring circle:last-of-type{animation:ringDraw 1.35s var(--ease) .35s both}
+.ring__tx{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring__tx b{font-family:var(--disp);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;display:block;line-height:1}
+.ring__tx span{font-size:9.5px;color:var(--ink3);letter-spacing:1px}
+.pa__st{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+@keyframes breath{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.38;transform:scale(.76)}}
+.pa__st i{width:7px;height:7px;border-radius:50%;background:var(--ok);display:block;animation:breath 2.4s ease-in-out infinite}
+.pa__s{font-size:11.5px;color:var(--ink3);margin-top:-6px;font-variant-numeric:tabular-nums;text-align:center}
+
+/* ── B/C/D 指标（下沉） —— 三个板子共用一条「6 个文件」分段条，把数字变成形状 ── */
+.pb,.pc,.pd{justify-content:flex-start}
+.pb:hover .bigno,.pc:hover .bigno,.pd:hover .bigno{transform:translateY(-4px)}
+.fbar{display:flex;gap:4px;margin-top:13px}
+.fbar i{flex:1;height:7px;border-radius:3px;background:var(--line2);display:block;
+  transition:background-color .3s var(--ease),box-shadow .3s var(--ease)}
+.fbar i.on{background:var(--acc)}
+.fbar i.hollow{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ctl)}
+.fbar i.mut{background:var(--ink4);opacity:.32}
+.fbar i.pick{background:var(--acc);box-shadow:0 0 0 2px var(--sink),0 0 0 3.5px var(--acc)}
+/* 说明字落在下沉面上，--ink3 只有 4.15:1 → 换 ink2（实测 5.54:1） */
+.fbarcap{margin-top:9px;font-size:11px;color:var(--ink2)}
+.pd .fbar i{background:var(--ok)}
+
+/* ── E 规则（抬起） ── */
+.pe{gap:12px}
+.pe__r{display:flex;align-items:center;gap:10px}
+.tabs{display:flex;gap:4px;margin-left:auto}
+.tab{position:relative;height:32px;padding:0 14px;border:1px solid var(--line);background:transparent;border-radius:99px;
+  color:var(--ink3);font-family:var(--ui);font-size:12px;cursor:pointer;
+  transition:border-color .15s var(--ease),color .15s var(--ease),background-color .15s var(--ease)}
+/* 点击区补齐：32px 的胶囊视觉不变，实际可点高度 42px */
+.tab::before{content:"";position:absolute;inset:-5px 0;border-radius:99px}
+.tab:hover{border-color:var(--line2);color:var(--ink)}
+.tab.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
+.sentence{font-size:25px;font-weight:600;letter-spacing:-.2px;line-height:1.5;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.wd{padding:0 12px 2px;border-radius:var(--r-sm);background:var(--sel);color:var(--acc);
+  border:1px solid color-mix(in srgb,var(--acc) 40%,transparent);cursor:text;
+  transition:background-color .15s var(--ease)}
+.wd:hover{background:color-mix(in srgb,var(--acc) 22%,transparent)}
+.pe__f{margin-top:auto;display:flex;align-items:center;gap:14px;font-size:11.5px;color:var(--ink3)}
+.pe__f em{font-style:normal;color:var(--ink3);font-family:var(--mono);font-size:11px}
+
+/* ── F 文件表 ── */
+.pf{padding:0;overflow:hidden}
+.pf__h{height:46px;flex:0 0 46px;display:flex;align-items:center;gap:10px;padding:0 20px;border-bottom:1px solid var(--line)}
+.pf__h b{font-size:13px;font-weight:600}
+.pf__h span{font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.pf__h .r{margin-left:auto;display:flex;gap:6px}
+.ht{height:30px;flex:0 0 30px;display:grid;grid-template-columns:34px 42px minmax(0,1fr) minmax(0,1fr) 72px;align-items:center;
+  padding:0 20px;font-family:var(--disp);font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;
+  font-weight:600;color:var(--ink4);border-bottom:1px solid var(--line)}
+.tr{flex:1 1 46px;min-height:46px;display:grid;grid-template-columns:34px 42px minmax(0,1fr) minmax(0,1fr) 72px;
+  align-items:center;padding:0 20px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink2);
+  transition:background-color .12s var(--ease)}
+.tr:hover{background:var(--hov)}
+/* 选中行：类名必须避开 .sel —— 那是 <select> 的样式类（flex:1 → 1 1 0%），
+   同权重且排在后面，会把 .tr 的 flex-basis:46px 覆盖成 0%，导致选中行比其它行矮 12px */
+.tr.is-sel{background:var(--sel)}
+.tr>*{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .no{font-family:var(--mono);font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+/* 勾选框：视觉还是 15px，实际点区补到 35px（overflow 必须放行，否则被 .tr>* 裁掉） */
+.ckcell{display:grid;place-items:center;overflow:visible}
+.ck{position:relative;width:15px;height:15px;border:1.5px solid var(--ctl);border-radius:4px;display:block;cursor:pointer;
+  transition:background-color .15s var(--ease),border-color .15s var(--ease)}
+.ck::before{content:"";position:absolute;inset:-10px;border-radius:8px}
+.ck.on{background:var(--acc);border-color:var(--acc)}
+.ck.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border-right:2px solid var(--acc-ink);border-bottom:2px solid var(--acc-ink);transform:rotate(40deg)}
+.del{color:var(--ink3);text-decoration:line-through;text-decoration-thickness:2px}
+.add{color:var(--acc);background:var(--sel);border-radius:4px;padding:1px 4px;font-weight:600}
+.dim{color:var(--ink3)}
+.st{font-family:var(--disp);font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600}
+.st--go{color:var(--acc)}.st--hold{color:var(--ink3)}
+/* 表底摘要条：把空着的下半截用真实数据填掉 */
+.pf__ft{margin-top:auto;flex:0 0 54px;display:flex;align-items:center;gap:14px;padding:0 20px;
+  background:var(--bg)}
+.stack{flex:1;min-width:80px;display:flex;gap:3px;height:8px}
+.stack i{display:block;border-radius:2px;background:var(--line2)}
+.stack i.on{background:var(--acc)}
+.pf__lg{font-size:11px;color:var(--ink3);white-space:nowrap}
+.pf__lg b{font-family:var(--mono);font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ── G 控件 ── */
+.pg{gap:14px}
+.gsec__t{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.gsec__t::after{content:"";flex:1;height:1px;background:var(--line)}
+.row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.row__l{flex:0 0 38px;font-size:11.5px;color:var(--ink3)}
+.inp{flex:1;min-width:0;height:34px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--ink);font-family:var(--ui);font-size:12.5px;padding:0 10px;outline:none;
+  transition:border-color .15s var(--ease),box-shadow .15s var(--ease)}
+.inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--sel)}
+.inp--n{flex:0 0 56px;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.sel{flex:1;min-width:0;height:34px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--ink2);font-family:var(--ui);font-size:12.5px;padding:0 8px;outline:none;cursor:pointer}
+.sw{position:relative;width:40px;height:23px;flex:0 0 auto;background:var(--ctl);border-radius:99px;cursor:pointer;
+  transition:background-color .18s var(--ease)}
+.sw::before{content:"";position:absolute;inset:-9px -3px}   /* 点击区补到 46×41 */
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;
+  transition:translate .18s var(--ease)}
+.sw.on{background:var(--acc)}
+.sw.on::after{translate:17px 0}
+.vars{display:flex;gap:6px;flex-wrap:wrap}
+.var{font-family:var(--mono);font-size:11.5px;color:var(--ink2);background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:6px 10px;cursor:pointer;
+  transition:border-color .15s var(--ease),color .15s var(--ease),transform .15s var(--ease)}
+.var:hover{border-color:var(--acc);color:var(--acc);transform:translateY(-1px)}
+
+/* ── H 执行（抬起 + 加重阴影） ── */
+.ph{justify-content:center;gap:12px;border-color:color-mix(in srgb,var(--acc) 30%,var(--line2));box-shadow:var(--hi),var(--sh2)}
+.go{height:52px;width:100%;border:none;border-radius:var(--r-md);background:var(--acc);color:var(--acc-ink);
+  font-family:var(--ui);font-size:15px;font-weight:700;letter-spacing:.8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:transform .12s var(--ease),filter .15s var(--ease),background-color .25s var(--ease),color .25s var(--ease)}
+.go:hover{filter:brightness(1.08)}
+.go:active{transform:scale(.96)}
+/* 完成态：白字压 #48B368 只有 2.65:1 → 改用深墨绿字（7.00:1），绿本身不用动 */
+.go.done{background:var(--ok);color:#04170B}
+/* 图标交叉淡入（无动效库时按规范用这套值：scale .25→1 / opacity 0→1 / blur 4→0） */
+.goico{position:relative;width:18px;height:18px;flex:0 0 18px}
+.goico svg{position:absolute;inset:0;width:18px;height:18px;
+  transition:opacity .22s cubic-bezier(.2,0,0,1),transform .22s cubic-bezier(.2,0,0,1),filter .22s cubic-bezier(.2,0,0,1)}
+.ico--chk{opacity:0;transform:scale(.25);filter:blur(4px)}
+.go.done .ico--go{opacity:0;transform:scale(.25);filter:blur(4px)}
+.go.done .ico--chk{opacity:1;transform:scale(1);filter:blur(0)}
+.ph__k{display:flex;gap:14px;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--ink3)}
+.ph.done .ph__k{color:var(--ok)}
+
+/* ── 系统开了「减少动态效果」时，上面所有动画全部关掉（无障碍硬要求） ── */
+@media (prefers-reduced-motion: reduce){
+  .p,.pa__breathe,.eyes,.ring circle:last-of-type,.pa__st i{animation:none !important}
+  .p{opacity:1;transform:none}
+  .ring circle:last-of-type{stroke-dasharray:209.4 251.3}
+  *,*::before,*::after{transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<filter id="fur" x="-25%" y="-25%" width="150%" height="150%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" seed="11" result="n"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+<!-- 猫身（不含眼睛） -->
+<g id="catfig">
+  <g filter="url(#fur)">
+    <path d="M26 46 L34 12 L54 34 Z" fill="var(--cat)"/>
+    <path d="M94 46 L86 12 L66 34 Z" fill="var(--cat)"/>
+    <circle cx="60" cy="62" r="36" fill="var(--cat)"/>
+  </g>
+  <path d="M33 41 L37 20 L49 33 Z" fill="#E9A96A" opacity=".65"/>
+  <path d="M87 41 L83 20 L71 33 Z" fill="#E9A96A" opacity=".65"/>
+  <path d="M60 68 l-4.6 -4.2 h9.2 z" fill="#D97B2A"/>
+  <path d="M60 69 q-4.5 6.5 -9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M60 69 q4.5 6.5 9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="34" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <ellipse cx="86" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <path d="M28 62 h-14 M28 70 h-12 M92 62 h14 M92 70 h12" stroke="var(--cat-line)" stroke-width="1.8" stroke-linecap="round" opacity=".75"/>
+  <path d="M60 27 q4 -7 10 -3" stroke="var(--cat-line)" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".55"/>
+</g>
+<!-- 眼睛单独一份：<use> 的元素本身能被 CSS 选中，所以眨眼稳定可靠 -->
+<g id="eyesfig">
+  <ellipse cx="46" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <ellipse cx="74" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <circle cx="48.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+  <circle cx="76.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+</g>
+</defs>
+</svg>
+
+<header class="pgbar">
+  <b>方案 C · 面板阵列</b>
+  <span class="t">1440×900</span>
+  <span class="t">深色 · 有主次的板阵 · 会动</span>
+  <button id="t-dark" class="on">深色</button>
+  <button id="t-light">浅色</button>
+</header>
+
+<div class="win">
+
+  <div class="tbar">
+    <div class="brand">
+      <svg class="brand__mark" viewBox="0 0 120 112"><use href="#catfig"/><use href="#eyesfig"/></svg>
+      <span class="brand__name">Maodie</span>
+    </div>
+    <span class="tbar__c">改名工作台 · 6 项已就位</span>
+    <div class="tbar__r">
+      <button class="tbtn">文件夹合并</button>
+      <button class="tbtn">文件提取</button>
+      <button class="tbtn">撤销 / 历史</button>
+      <button class="wkey">—</button><button class="wkey">□</button><button class="wkey wkey--x">✕</button>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- A · 猫（抬起，画面主角） -->
+    <section class="p p--raise pa">
+      <div class="pa__hero">
+        <div class="pa__breathe">
+          <svg class="cat" viewBox="0 0 120 112" aria-label="耄耋">
+            <use href="#catfig"/><use class="eyes" href="#eyesfig"/>
+          </svg>
+        </div>
+      </div>
+      <div class="pa__side">
+        <div class="ring">
+          <svg viewBox="0 0 100 100" aria-label="将变化 5 / 6">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="6"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--acc)" stroke-width="6" stroke-linecap="round"
+              stroke-dasharray="209.4 251.3"/>
+          </svg>
+          <div class="ring__tx"><b>5/6</b><span>将变化</span></div>
+        </div>
+        <div class="pa__st"><i></i>耄耋待命</div>
+        <div class="pa__s">6 个文件 · 无重名</div>
+      </div>
+    </section>
+
+    <!-- B · 将变化（下沉） -->
+    <section class="p p--sink pb">
+      <div class="lbl">Will change / 将变化</div>
+      <div class="bigno" data-count="5">00</div>
+      <div class="fbar">
+        <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="hollow"></i>
+      </div>
+    </section>
+
+    <!-- C · 无变化（下沉） -->
+    <section class="p p--sink pc">
+      <div class="lbl">Keep / 无变化</div>
+      <div class="bigno" data-count="1">00</div>
+      <div class="fbar">
+        <i class="mut"></i><i class="mut"></i><i class="mut"></i><i class="pick"></i><i class="mut"></i><i class="mut"></i>
+      </div>
+      <div class="fbarcap">被圈住的就是那一个 · 主图-04-备用.jpg</div>
+    </section>
+
+    <!-- D · 冲突（下沉） -->
+    <section class="p p--sink pd">
+      <div class="lbl">Clash</div>
+      <div class="bigno" data-count="0">00</div>
+      <div class="fbar"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="fbarcap">六格全通 · 没有一个撞名</div>
+    </section>
+
+    <!-- E · 规则（抬起） -->
+    <section class="p p--raise pe">
+      <div class="pe__r">
+        <span class="lbl">Rule / 规则</span>
+        <div class="tabs">
+          <button class="tab">删除</button><button class="tab on">替换</button>
+          <button class="tab">自定义</button><button class="tab">插入</button><button class="tab">导入</button>
+        </div>
+      </div>
+      <div class="sentence">
+        把名字里所有的<span class="wd" data-w>广告</span>都换成<span class="wd" data-w>推广</span>
+      </div>
+      <div class="pe__f">
+        <span>改动唯一真源就是这一句 · 改一个字下面那张表立刻重算</span>
+        <em style="margin-left:auto">进阶设置 · 正则 / 大小写 ›</em>
+      </div>
+    </section>
+
+    <!-- F · 文件表 -->
+    <section class="p pf">
+      <div class="pf__h">
+        <b>文件</b><span>6 项</span>
+        <div class="r">
+          <button class="tab">只看将变化</button>
+          <button class="tab">全选</button>
+        </div>
+      </div>
+      <div class="ht"><span></span><span>No.</span><span>原本的名字</span><span>改完的名字</span><span>状态</span></div>
+
+      <div class="tr is-sel"><span class="ckcell"><span class="ck on"></span></span><span class="no">01</span>
+        <span><span class="del">广告</span>素材-01.png</span><span><span class="add">推广</span>素材-01.png</span>
+        <span class="st st--go">将改</span></div>
+      <div class="tr"><span class="ckcell"><span class="ck on"></span></span><span class="no">02</span>
+        <span>夏季新品<span class="del">广告</span>主图.jpg</span><span>夏季新品<span class="add">推广</span>主图.jpg</span>
+        <span class="st st--go">将改</span></div>
+      <div class="tr"><span class="ckcell"><span class="ck on"></span></span><span class="no">03</span>
+        <span><span class="del">广告</span>-详情页-03.webp</span><span><span class="add">推广</span>-详情页-03.webp</span>
+        <span class="st st--go">将改</span></div>
+      <div class="tr"><span class="ckcell"><span class="ck on"></span></span><span class="no">04</span>
+        <span>主图-04-备用.jpg</span><span class="dim">—</span>
+        <span class="st st--hold">无变化</span></div>
+      <div class="tr"><span class="ckcell"><span class="ck on"></span></span><span class="no">05</span>
+        <span>banner<span class="del">广告</span>位-05.png</span><span>banner<span class="add">推广</span>位-05.png</span>
+        <span class="st st--go">将改</span></div>
+      <div class="tr"><span class="ckcell"><span class="ck on"></span></span><span class="no">06</span>
+        <span><span class="del">广告</span>素材-06.gif</span><span><span class="add">推广</span>素材-06.gif</span>
+        <span class="st st--go">将改</span></div>
+
+      <div class="pf__ft">
+        <span class="lbl">改动摘要</span>
+        <div class="stack"><i class="on" style="flex:5"></i><i style="flex:1"></i></div>
+        <span class="pf__lg"><b>5</b> 将改</span>
+        <span class="pf__lg"><b>1</b> 无变化</span>
+        <span class="pf__lg"><b>0</b> 撞名</span>
+      </div>
+    </section>
+
+    <!-- G · 控件 -->
+    <section class="p pg">
+      <div>
+        <div class="gsec__t"><span class="lbl">序号</span></div>
+        <div class="row"><span class="row__l">启用</span><span class="sw on"></span>
+          <select class="sel"><option>加在最前面</option><option>加在最后面</option><option>第 n 个字符后</option></select></div>
+        <div class="row"><span class="row__l">类型</span>
+          <select class="sel"><option>数字</option><option>字母</option><option>随机字符</option><option>时间</option></select></div>
+        <div class="row"><input class="inp inp--n" value="1"><input class="inp inp--n" value="1"><input class="inp inp--n" value="2">
+          <span style="font-size:11px;color:var(--ink3);margin-left:2px">起始 / 增量 / 位数</span></div>
+      </div>
+      <div style="margin-top:4px">
+        <div class="gsec__t"><span class="lbl">属性</span></div>
+        <div class="vars"><span class="var">{文件名}</span><span class="var">{序号}</span>
+          <span class="var">{日期}</span><span class="var">{文件夹名}</span></div>
+      </div>
+    </section>
+
+    <!-- H · 执行（抬起 + 加重阴影） -->
+    <section class="p p--raise ph" id="ph">
+      <button class="go" id="go">
+        <span class="goico">
+          <svg class="ico--go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h13"/><path d="M12.5 6 18.5 12l-6 6"/></svg>
+          <svg class="ico--chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.5l4.6 4.5L19 7"/></svg>
+        </span>
+        <span id="gotx">开咬改名 · 5 个</span>
+      </button>
+      <div class="ph__k"><span>Ctrl O 添加</span><span>Ctrl Z 撤销</span><span>Enter 开咬</span></div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+document.getElementById('t-dark').onclick=function(){set('dark',this)};
+document.getElementById('t-light').onclick=function(){set('light',this)};
+function set(v,el){document.documentElement.dataset.theme=v;
+  document.querySelectorAll('.pgbar button').forEach(function(b){b.classList.remove('on')});el.classList.add('on')}
+
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    var sib=t.parentElement.querySelectorAll('.tab');
+    sib.forEach(function(x){x.classList.remove('on')});t.classList.add('on');
+  });
+});
+document.querySelectorAll('.tr').forEach(function(r){
+  r.addEventListener('click',function(){
+    document.querySelectorAll('.tr').forEach(function(x){x.classList.remove('is-sel')});r.classList.add('is-sel');
+  });
+});
+document.querySelectorAll('.sw,.ck,.wd').forEach(function(s){
+  s.addEventListener('click',function(e){e.stopPropagation();s.classList.toggle('on')});
+});
+
+/* 数字从 00 滚到目标值；系统开了减少动态效果就直接给最终值 */
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function countUp(el,to,dur){
+  if(reduce){ el.textContent=String(to).padStart(2,'0'); return; }
+  var t0=null;
+  function step(t){ if(t0===null)t0=t;
+    var p=Math.min(1,(t-t0)/dur);
+    el.textContent=String(Math.round(to*(1-Math.pow(1-p,3)))).padStart(2,'0');
+    if(p<1)requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+setTimeout(function(){
+  document.querySelectorAll('.bigno[data-count]').forEach(function(el){
+    countUp(el, parseInt(el.getAttribute('data-count'),10), 820);
+  });
+}, reduce?0:780);
+
+var g=document.getElementById('go'), ph=document.getElementById('ph'), done=false;
+g.onclick=function(){ done=!done;
+  g.classList.toggle('done',done);
+  ph.classList.toggle('done',done);
+  document.getElementById('gotx').textContent = done ? '改好啦 · 撤销' : '开咬改名 · 5 个';
+};
+
+function fit(){
+  var w=document.querySelector('.win'),s=Math.min(1,(window.innerWidth-36)/1440);
+  w.style.transformOrigin='top center';
+  w.style.transform=s<1?'scale('+s+')':'none';
+}
+window.addEventListener('resize',fit);fit();
+</script>
+</body>
+</html>

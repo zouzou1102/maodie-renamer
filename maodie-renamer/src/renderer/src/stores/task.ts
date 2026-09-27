@@ -51,6 +51,23 @@ export const useTaskStore = defineStore('task', () => {
   const modal = ref<ModalKind>('none')
   const confirmContext = ref<ConfirmContext | null>(null)
   const statusOverride = ref<string | null>(null)
+
+  /**
+   * P3-9：两个「搬文件」子系统的开合（文件夹合并 / 文件提取）。
+   *
+   * ★ 为什么从 `ActionPanel` 的组件本地状态搬到这里：P3-9 把这两个入口
+   *   从操作区**上移到了窗口标题栏**（照 C 方案），于是「谁点开」（标题栏）
+   *   与「谁挂弹窗」（主视图）**不再是同一个组件** —— 本地 ref 传不过去。
+   *   与 `openSettings` 同一个理由，放这里最省事。
+   *
+   * ⚠️ 与 `modal` 状态机**分开**、不合并：这两个对话框不是 SCR-03/04/05 那条
+   *   「同时只有一个弹窗」的链子上的（它们不读规则、不参与改名），
+   *   合并进去会给状态机加一个永远互斥的假分支。
+   * ⚠️ 会被打断的场景由 `MainView` 的 `onUnmounted` 兜底复位 ——
+   *   否则切到历史页再回来，弹窗会自己弹出来（旧实现里本地 ref 随组件销毁）。
+   */
+  const mergeOpen = ref(false)
+  const extractOpen = ref(false)
   let currentTaskId: string | null = null
   let offProgress: (() => void) | null = null
 
@@ -448,6 +465,26 @@ export const useTaskStore = defineStore('task', () => {
     modal.value = 'settings'
   }
 
+  /* ── P3-9：两个「搬文件」子系统的开关（入口在标题栏，弹窗挂主视图）── */
+
+  /** EL-141 文件夹合并（P3-7）。独立对话框，与改名主流程零耦合。*/
+  function openMerge(): void {
+    mergeOpen.value = true
+  }
+
+  /** EL-149 文件提取（P3-8）。源 = 主列表；列表空时入口本身就是禁用的，
+   *  这里再挡一道 —— store 是唯一的真源，不能只靠界面把按钮置灰。*/
+  function openExtract(): void {
+    if (files.items.length === 0) return
+    extractOpen.value = true
+  }
+
+  /** 两个一起关。`MainView` 卸载时调它，避免切页回来后弹窗「阴魂不散」。*/
+  function closeTools(): void {
+    mergeOpen.value = false
+    extractOpen.value = false
+  }
+
   /** P2-C 增量：打开「命令行怎么用」教程（SCR-08）。
    *
    * ★ 注意这里**不是** `settings` 的子状态 —— 教程占用同一个 modal 状态机，
@@ -475,6 +512,8 @@ export const useTaskStore = defineStore('task', () => {
     lastUndo,
     modal,
     confirmContext,
+    mergeOpen,
+    extractOpen,
     start,
     cancel,
     confirmYes,
@@ -489,6 +528,9 @@ export const useTaskStore = defineStore('task', () => {
     closeModal,
     openSettings,
     openCliGuide,
+    openMerge,
+    openExtract,
+    closeTools,
     setStatusOverride,
   }
 })

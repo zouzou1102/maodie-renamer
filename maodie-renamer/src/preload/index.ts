@@ -9,8 +9,17 @@
  * Buffer / __dirname、不暴露 shell.openExternal。
  */
 
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { buildMaodieApi, type PreloadBridge } from './api'
+
+/**
+ * `webUtils.getPathForFile` 的入参类型。
+ *
+ * 这里不直接写 `File`：本文件属于 `tsconfig.node`，`lib` 里没有 DOM，
+ * 直接引用 `File` 只能靠 electron.d.ts 的全局声明兜着 —— 太脆。
+ * 用 `Parameters<…>` 从函数签名反推，既准确又不依赖 DOM lib。
+ */
+type FileArg = Parameters<typeof webUtils.getPathForFile>[0]
 
 const bridge: PreloadBridge = {
   invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
@@ -20,6 +29,18 @@ const bridge: PreloadBridge = {
     const handler = (_e: unknown, payload: unknown): void => cb(payload)
     ipcRenderer.on(channel, handler)
     return () => ipcRenderer.removeListener(channel, handler)
+  },
+  /**
+   * ★ P3-7 修复：Electron 32 移除了 `File.path`，取路径的唯一正路是
+   * `webUtils.getPathForFile`。拿不到就返回**空串**（调用方丢弃），
+   * 绝不用文件名拼一个假路径出来 —— 假路径会让后续 fs 操作落到错误位置。
+   */
+  getPathForFile: (file) => {
+    try {
+      return webUtils.getPathForFile(file as FileArg)
+    } catch {
+      return ''
+    }
   },
 }
 

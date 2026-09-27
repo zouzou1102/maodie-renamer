@@ -48,6 +48,15 @@ export interface PreloadBridge {
    * 会因为参数逆变而无法赋值。宽进严出，这里放宽最省事。
    */
   on(channel: string, cb: (payload: any) => void): () => void
+  /**
+   * ★ P3-7 修复：把拖入的 `File` 换成真实磁盘路径。
+   *
+   * 之所以放进 bridge 而不是直接在这儿调 `webUtils`：`buildMaodieApi` 是**纯函数构造器**
+   * （只依赖 bridge，才能被单测覆盖白名单），碰 `electron` 会破坏这个约束。
+   * 入参用 `unknown` 而不是 `File`：本文件属于 `tsconfig.node`，`lib` 不含 DOM。
+   * 取不到（纯文本 / 链接 / 非文件对象）返回**空串**。
+   */
+  getPathForFile(file: unknown): string
 }
 
 export function buildMaodieApi(bridge: PreloadBridge): MaoDieAPI {
@@ -83,6 +92,9 @@ export function buildMaodieApi(bridge: PreloadBridge): MaoDieAPI {
       //   渲染层给不了任何输入（与导出对称）。少一个入参就少一处漏网的收口点。
       importTable: () =>
         bridge.invoke(CH.FS_IMPORT_TABLE) as Promise<MdResult<ImportTableResult>>,
+      // ★ P3-7 修复：拖入文件的真实路径。**不是 IPC** —— 由预加载同步调
+      //   `webUtils.getPathForFile`（Electron 32 移除 `File.path` 后的官方替代品）。
+      pathForFile: (file: unknown) => bridge.getPathForFile(file),
     },
 
     rename: {

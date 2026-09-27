@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>给编程的入口清单 · C 面板阵列 — 耄耋改名</title>
+<style>
+/* 配色沿用 C 方案设计稿的浅色令牌（规格书 / 画廊同一套，别另起一套） */
+:root{
+  --bg:#EDEBE7; --raise:#FFFFFF; --panel:#FAF8F5; --sink:#E3DFD8;
+  --line:#E2DED6; --line2:#CBC4BA;
+  --ink:#17150F; --ink2:#5B554E; --ink3:#68635A; --ink4:#6A6257;
+  --acc:#A1420D; --acc-ink:#FFFFFF; --sel:rgba(161,66,13,.10);
+  --ok:#19713E; --bad:#C4322A;
+  --ui:"Segoe UI Variable Text","Segoe UI","Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  --disp:"Bahnschrift","Segoe UI Variable Display","Segoe UI",var(--ui);
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --r:18px; --r-md:12px; --r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);
+  -webkit-font-smoothing:antialiased;line-height:1.75;padding:34px 30px 70px}
+.wrap{max-width:1080px;margin:0 auto}
+
+/* 头 */
+.hd{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:8px}
+.hd__k{font-family:var(--disp);font-size:11px;letter-spacing:2.4px;text-transform:uppercase;
+  font-weight:600;color:var(--ink3)}
+.hd__t{font-family:var(--disp);font-size:32px;line-height:1.2;font-weight:600;letter-spacing:-.4px;margin-top:6px}
+.hd__s{font-size:13px;color:var(--ink3);margin-top:8px}
+.hd__s b{color:var(--acc);font-weight:600}
+
+/* 一句开场 */
+.lead{margin:22px 0 30px;padding:18px 22px;background:var(--raise);border:1px solid var(--line);
+  border-left:4px solid var(--acc);border-radius:var(--r-md);font-size:15px}
+.lead b{font-weight:600;color:var(--acc)}
+
+/* 节 */
+h2{font-family:var(--disp);font-size:13px;letter-spacing:2px;text-transform:uppercase;font-weight:600;
+  color:var(--ink);margin:34px 0 14px;display:flex;align-items:center;gap:12px}
+h2::after{content:"";flex:1;height:1px;background:var(--line2)}
+h2 i{font-style:normal;font-family:var(--mono);font-size:11px;letter-spacing:0;
+  background:var(--ink);color:#fff;border-radius:99px;padding:2px 9px;text-transform:none}
+
+/* 卡片卡片 */
+.step{background:var(--raise);border:1px solid var(--line);border-radius:var(--r);
+  padding:18px 20px;margin-bottom:14px;display:flex;gap:18px}
+.step__n{flex:0 0 auto;width:34px;height:34px;border-radius:50%;background:var(--acc);color:var(--acc-ink);
+  font-family:var(--disp);font-size:17px;font-weight:600;display:grid;place-items:center;margin-top:2px}
+.step__b{flex:1;min-width:0}
+.step__t{font-size:15px;font-weight:600;line-height:1.5}
+.step__w{font-size:13px;color:var(--ink2);margin-top:5px}
+.step__w b{color:var(--ink);font-weight:600}
+
+/* 文件列表 */
+.files{margin-top:10px;display:flex;flex-direction:column;gap:7px}
+.f{display:flex;align-items:baseline;gap:10px;padding:9px 12px;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--r-sm)}
+.f__p{font-family:var(--mono);font-size:12px;color:var(--acc);white-space:nowrap;flex:0 0 auto}
+.f__d{font-size:12.5px;color:var(--ink2);flex:1;min-width:0}
+.f__d b{color:var(--ink);font-weight:600}
+.ul{margin:8px 0 0 18px;font-size:13px;color:var(--ink2)}
+.ul li{margin-bottom:5px}
+.ul b{color:var(--ink);font-weight:600}
+
+/* 注意 / 警告 */
+.warn{border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:var(--r-md);
+  background:#FDF4F2;padding:16px 20px;margin-bottom:12px}
+.warn__t{font-size:13.5px;font-weight:600;color:var(--bad);margin-bottom:6px}
+.warn p{font-size:13px;color:var(--ink2)}
+.warn b{color:var(--ink);font-weight:600}
+
+/* 验收四条 */
+.acc{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.acc__i{background:var(--sink);border-radius:var(--r-md);padding:14px 16px;border:1px solid var(--line)}
+.acc__v{font-family:var(--disp);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.acc__l{font-size:12px;color:var(--ink3);margin-top:6px}
+.acc__l b{color:var(--acc);font-weight:600}
+
+/* 表格 */
+table{width:100%;border-collapse:collapse;background:var(--raise);
+  border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;font-size:13px}
+th{background:var(--sink);text-align:left;font-family:var(--disp);font-size:10px;letter-spacing:1.4px;
+  text-transform:uppercase;font-weight:600;color:var(--ink4);padding:10px 14px}
+td{padding:10px 14px;border-top:1px solid var(--line);color:var(--ink2);vertical-align:top}
+td b{color:var(--ink);font-weight:600}
+td.mono{font-family:var(--mono);font-size:12px;color:var(--acc);white-space:nowrap}
+
+.foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line2);
+  font-size:12px;color:var(--ink3);display:flex;gap:14px;flex-wrap:wrap}
+.foot b{color:var(--ink);font-weight:600}
+@media print{body{background:#fff;padding:0}.step,.warn,.f,table{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hd">
+    <div class="hd__k">耄耋改名 · 主界面</div>
+    <div class="hd__t">给编程的入口清单</div>
+    <div class="hd__s">2026-09-27 · 照这个顺序看，<b>先看图、再量刑</b> · 排版以「C 面板阵列」为准</div>
+  </div>
+
+  <div class="lead">
+    <b>一句话：</b>先滚一遍画廊，知道「做出来该是什么样」；再打开规格书，照里面的数字做。
+    <b>画廊给的是样子，规格书给的是尺寸</b> —— 两个一起看才不会做歪。
+    验收别用眼睛看，走规格书 §07 那四条可量的数字。
+  </div>
+
+  <h2>按顺序看这四组 <i>1 → 4</i></h2>
+
+  <div class="step">
+    <div class="step__n">1</div>
+    <div class="step__b">
+      <div class="step__t">先看图 · 主界面状态画廊</div>
+      <div class="step__w">24 屏，把五个模式、各种按钮点击后的样子全画出来了。浅色/深色可切，能切到 100% 看细节。</div>
+      <div class="files">
+        <div class="f"><span class="f__p">主界面状态画廊-C面板阵列.html</span>
+          <span class="f__d">双击打开。顶部两个开关：<b>浅色 / 深色</b>、<b>75% / 100%</b>。</span></div>
+      </div>
+      <ul class="ul">
+        <li>第 <b>01–07</b> 屏：五个模式各长什么样</li>
+        <li>第 <b>11</b> 屏：G 格内容全览（这一屏故意不滚，方便看全）</li>
+        <li>第 <b>24</b> 屏：数字很大时，环心自动改成百分比</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step__n">2</div>
+    <div class="step__b">
+      <div class="step__t">再量刑 · 主界面排版规格书（这份是准绳）</div>
+      <div class="step__w">不用全读，重点这五节：</div>
+      <div class="files">
+        <div class="f"><span class="f__p">主界面排版规格书-C面板阵列.html</span>
+          <span class="f__d"><b>§02</b> 精确几何（12 列 × 5 行，算式可复算）</span></div>
+        <div class="f"><span class="f__p">§04</span>
+          <span class="f__d">功能控件全量清单 —— 一格一张表，<b>照着摆界面就一样</b></span></div>
+        <div class="f"><span class="f__p">§05</span>
+          <span class="f__d">设计稿 ↔ 当前实现对照表 —— 哪一块对应哪个文件</span></div>
+        <div class="f"><span class="f__p">§07</span>
+          <span class="f__d">验收判据 —— <b>可量的数字，别靠眼看</b></span></div>
+        <div class="f"><span class="f__p">§09</span>
+          <span class="f__d">动手顺序 —— 先做什么后做什么</span></div>
+      </div>
+      <ul class="ul">
+        <li><b>§08</b> 是「设计稿没规定、由本文定死」的清单，做完自检时对着过一遍</li>
+        <li><b>§03.5</b> 记着「窗口固定 900 + G 格自己滚」这条<b>推翻过一版</b>，别照旧版做</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step__n">3</div>
+    <div class="step__b">
+      <div class="step__t">对素材 · 设计稿原稿与切图</div>
+      <div class="files">
+        <div class="f"><span class="f__p">界面方案-2-科技感/C-面板阵列.html</span>
+          <span class="f__d">设计稿的<b>可运行原型</b>，双击打开能看原始 CSS</span></div>
+        <div class="f"><span class="f__p">…/shots/C-面板阵列-另色(浅色).png</span>
+          <span class="f__d">浅色终稿</span></div>
+        <div class="f"><span class="f__p">…/shots/C-面板阵列-默认.png</span>
+          <span class="f__d">深色终稿</span></div>
+        <div class="f"><span class="f__p">切图资源/cats/　切图资源/icons/</span>
+          <span class="f__d">猫与图标</span></div>
+      </div>
+      <ul class="ul">
+        <li>⚠️ 新增图标<b>必须同时补进</b> <span class="f__p">maodie-renamer/src/renderer/src/assets/icons/</span> —— 两边都不能漏</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step__n">4</div>
+    <div class="step__b">
+      <div class="step__t">改代码时开着 · 块与文件的对应</div>
+      <table>
+        <thead><tr><th>块</th><th>文件</th><th>要点</th></tr></thead>
+        <tbody>
+          <tr><td><b>标题栏</b></td><td class="mono">TitleBar.vue</td>
+            <td>左组 添加文件 / 添加文件夹 / 导入表格；右组 导出清单 / 清空列表 / 文件夹合并 / 文件提取 / 撤销·历史</td></tr>
+          <tr><td><b>A</b> 猫 / 状态</td><td class="mono">CatStage.vue</td>
+            <td>跨行 1-2；猫 224×209、进度环 100；<b>环心数字绝对定位钉圆心</b></td></tr>
+          <tr><td><b>B / C / D</b> 统计卡</td><td class="mono">StatsPanel.vue</td>
+            <td>一个组件出 <b>3 个根节点</b>，样式点名用 <span class="f__p">data-*</span></td></tr>
+          <tr><td><b>E</b> 规则块</td><td class="mono">RulePanel.vue</td>
+            <td><b>只放「改成什么」</b>：常用规则 + 五个页签 + 一句话 + 底栏 + 进阶设置入口；<b>一个输入框都不放</b></td></tr>
+          <tr><td><b>F</b> 文件列表</td><td class="mono">FileList.vue / FileRow.vue</td>
+            <td>三段式 + <b>内部滚</b>；<b>行高固定</b>，不能被旁边带高</td></tr>
+          <tr><td><b>G</b> 控件块</td><td class="mono">RulePanel.vue（第二根 .md-numbering）</td>
+            <td>只放「怎么操作」：参数 → 改扩展名 → 区分大小写 → 序号 → 示例·日期 → 属性；<b>自己滚</b></td></tr>
+          <tr><td><b>H</b> 开始改名</td><td class="mono">ActionBar.vue</td><td>按钮占满格宽，图标叠放交叉淡入</td></tr>
+          <tr><td>网格容器</td><td class="mono">MainView.vue / .md-grid</td>
+            <td>12 列 + grid-template-areas；行高 <b>auto auto minmax(0,1fr) minmax(0,1fr) auto</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2>三件必须提前讲清的 <i>别踩</i></h2>
+
+  <div class="warn">
+    <div class="warn__t">① §05 对照表里「当前代码 = 旧排布」的行，是要改的地方，不是参考</div>
+    <p>真机现在还是老布局（猫 112px、参数放在规则块里、「往里加东西」独立成块）。
+    那几行是在<b>如实描述现状、标注待改</b>，别当成标准照抄。</p>
+  </div>
+
+  <div class="warn">
+    <div class="warn__t">② 四条最容易被改坏的，做完一定要量</div>
+    <p>窗口<b>固定 900、不长高</b>；G 格装不下<b>自己滚</b>；文件行<b>恒为 46px</b>；环心数字<b>偏移 ≈ 0</b>。
+    这四条是实测踩出来的 —— 行高写全 <span class="f__p">auto</span> 会涨到 1271px，
+    照设计稿写纯 <span class="f__p">fr</span> 会撑到 2354px。</p>
+  </div>
+
+  <div class="warn">
+    <div class="warn__t">③ 有两块还没做进画廊 —— 别以为漏了，也别自己发挥</div>
+    <p><b>8 个弹窗与历史页</b>（当初定的是第二批，画廊里没有）；
+    <b>统计卡那条 6 格分段条在大数据时的表现</b>（画廊第 24 屏标了「⚠️ 没定死」）。
+    这两块要做，先来问，别照着自己的想法补。</p>
+  </div>
+
+  <h2>验收四条（可量，别靠眼看）</h2>
+  <div class="acc">
+    <div class="acc__i"><div class="acc__v">2 条</div>
+      <div class="acc__l">全窗口滚动条 —— <b>只有 G 格 + 文件列表</b>，主区不滚</div></div>
+    <div class="acc__i"><div class="acc__v">900</div>
+      <div class="acc__l">窗口高度（px）固定 —— <b>22 屏全部一样</b></div></div>
+    <div class="acc__i"><div class="acc__v">46</div>
+      <div class="acc__l">文件行高（px）恒定 —— 不随窗口拉伸</div></div>
+    <div class="acc__i"><div class="acc__v">0</div>
+      <div class="acc__l">环心数字相对圆心的偏移（px）</div></div>
+  </div>
+
+  <div class="foot">
+    <span><b>数字来源</b>：设计稿几何取自 <span class="f__p">界面方案-2-科技感/C-面板阵列.html</span> 的 &lt;style&gt;；换算算式在规格书 §2.1，可逐项复算。</span>
+    <span><b>有疑问</b>：规格书 §03 的规则是准绳；§05 的现状以你打开文件时的实际内容为准。</span>
+  </div>
+
+</div>
+</body>
+</html>

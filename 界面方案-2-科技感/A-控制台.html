@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>方案 A · 控制台 — 耄耋改名</title>
+<style>
+:root{
+  --s0:#0F0E0D; --s1:#161514; --s2:#1C1A19; --s3:#232120; --s4:#2B2826;
+  --line:#2C2A28; --line2:#3B3835;
+  --ink:#F4F1EE; --ink2:#A9A39C; --ink3:#726C66; --ink4:#4E4945;
+  --acc:#FF6A1F; --acc-ink:#1A0E06; --sel:rgba(255,106,31,.12);
+  --ok:#3FB950; --bad:#F85149;
+  --cat:#F9C077; --cat-line:#B4712A;
+  --r-win:0px; --r-lg:10px; --r-md:8px; --r-sm:6px;
+  --ui:"Segoe UI Variable Text","Segoe UI","Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  --disp:"Bahnschrift","Segoe UI Variable Display","Segoe UI",var(--ui);
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html[data-theme="light"]{
+  --s0:#FBFBFA; --s1:#F4F4F2; --s2:#FFFFFF; --s3:#EEEEEB; --s4:#E6E5E1;
+  --line:#E6E5E1; --line2:#D3D1CC;
+  --ink:#1A1816; --ink2:#5C5852; --ink3:#8C877F; --ink4:#B5B1AA;
+  --acc:#D9531A; --acc-ink:#FFFFFF; --sel:rgba(217,83,26,.10);
+  --bad:#C4322A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050505;font-family:var(--ui);-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;align-items:center;padding:20px 0 40px;gap:14px}
+.pgbar{display:flex;align-items:center;gap:12px;color:#b9b9b9;font-size:12.5px}
+.pgbar b{color:#fff;font-weight:600}
+.pgbar .t{font-size:11px;color:#8a8a8a;border:1px solid #333;border-radius:99px;padding:3px 10px}
+.pgbar button{font-family:var(--ui);font-size:12px;color:#cfcfcf;background:#1E1E1E;border:1px solid #363636;
+  border-radius:7px;padding:5px 12px;cursor:pointer}
+.pgbar button.on{background:#fff;color:#111;border-color:#fff}
+
+.win{width:1440px;height:900px;background:var(--s0);color:var(--ink);border-radius:var(--r-win);overflow:hidden;
+  display:flex;flex-direction:column;border:1px solid var(--line);box-shadow:0 40px 120px rgba(0,0,0,.75)}
+
+/* ───── 顶栏（兼拖拽区） ───── */
+.tbar{height:44px;flex:0 0 44px;display:flex;align-items:center;gap:16px;padding:0 12px 0 14px;
+  background:var(--s1);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.brand__mark{width:26px;height:26px;display:block}
+.brand__name{font-size:13px;font-weight:600;letter-spacing:1.2px}
+.brand__ver{font-family:var(--mono);font-size:9.5px;color:var(--ink3);border:1px solid var(--line2);
+  border-radius:4px;padding:1px 5px;letter-spacing:.4px}
+.crumb{font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.crumb b{color:var(--ink2);font-weight:400}
+.searchm{flex:1 1 auto;max-width:340px;height:30px;background:var(--s2);border:1px solid var(--line);
+  border-radius:var(--r-sm);display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--ink3)}
+.searchm input{flex:1;background:none;border:none;outline:none;color:var(--ink);font-family:var(--ui);font-size:12.5px}
+.searchm kbd{font-family:var(--mono);font-size:9.5px;color:var(--ink4);border:1px solid var(--line2);
+  border-radius:4px;padding:1px 4px}
+.tbar__right{margin-left:auto;display:flex;align-items:center;gap:4px}
+.ibtn{width:32px;height:28px;border:none;background:none;border-radius:var(--r-sm);display:grid;place-items:center;
+  color:var(--ink3);cursor:pointer;transition:background-color .15s var(--ease),color .15s var(--ease)}
+.ibtn:hover{background:var(--s3);color:var(--ink)}
+.tbar__sep{width:1px;height:18px;background:var(--line2);margin:0 5px}
+.wkey{width:34px;height:28px;border:none;background:none;color:var(--ink3);font-size:12px;cursor:pointer;border-radius:var(--r-sm);
+  transition:background-color .15s var(--ease),color .15s var(--ease)}
+.wkey:hover{background:var(--s3);color:var(--ink)}
+.wkey--x:hover{background:var(--bad);color:#fff}
+
+.shell{flex:1;min-height:0;display:flex}
+
+/* ───── 侧栏 ───── */
+.side{flex:0 0 240px;background:var(--s1);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;padding:12px 10px 10px}
+.side__grp{font-size:9.5px;letter-spacing:1.4px;color:var(--ink4);padding:0 8px 8px;font-weight:600;
+  text-transform:uppercase;font-family:var(--disp)}
+.side__sep{height:1px;background:var(--line);margin:10px 8px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav__i{position:relative;height:36px;display:flex;align-items:center;gap:10px;padding:0 10px;border:none;
+  background:none;border-radius:var(--r-md);color:var(--ink2);font-family:var(--ui);font-size:13px;cursor:pointer;
+  text-align:left;transition:background-color .15s var(--ease),color .15s var(--ease)}
+.nav__i:hover{background:var(--s3);color:var(--ink)}
+.nav__i.on{background:var(--sel);color:var(--ink);font-weight:600}
+.nav__i.on::before{content:"";position:absolute;left:-10px;top:9px;width:2.5px;height:18px;border-radius:0 2px 2px 0;background:var(--acc)}
+.nav__i svg{width:16px;height:16px;flex:0 0 auto;color:currentColor;opacity:.85}
+.nav__i.on svg{color:var(--acc);opacity:1}
+.nav__n{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--ink4);font-variant-numeric:tabular-nums}
+.side__foot{margin-top:auto;padding-top:12px}
+.catcard{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);
+  border-radius:var(--r-lg);background:var(--s2);cursor:pointer;
+  transition:border-color .15s var(--ease),background-color .15s var(--ease)}
+.catcard:hover{border-color:var(--line2);background:var(--s3)}
+.catcard__av{width:40px;height:40px;flex:0 0 auto;border-radius:50%;background:var(--s4);display:grid;place-items:center;overflow:hidden}
+.catcard__av svg{width:38px;height:38px;display:block;margin-top:4px}
+.catcard__tx{min-width:0}
+.catcard__t{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+.catcard__t i{width:6px;height:6px;border-radius:50%;background:var(--ok);display:block;flex:0 0 auto}
+.catcard__s{font-size:11px;color:var(--ink3);margin-top:2px;font-variant-numeric:tabular-nums}
+
+/* ───── 主区 ───── */
+.main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;background:var(--s0)}
+.tools{flex:0 0 58px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--line)}
+.tools__t{font-size:15px;font-weight:600;letter-spacing:.4px}
+.tools__sub{font-size:11.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.tools__r{margin-left:auto;display:flex;align-items:center;gap:6px}
+.chip{height:28px;padding:0 10px;border:1px solid var(--line);background:var(--s2);color:var(--ink2);
+  border-radius:var(--r-sm);font-family:var(--ui);font-size:11.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:border-color .15s var(--ease),color .15s var(--ease)}
+.chip:hover{border-color:var(--line2);color:var(--ink)}
+.chip.on{border-color:var(--acc);color:var(--acc);background:var(--sel)}
+.chip svg{width:13px;height:13px}
+
+.tblwrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.thead,.trow{display:grid;grid-template-columns:38px 46px minmax(0,1fr) minmax(0,1fr) 86px 66px 34px;align-items:center}
+.thead{height:34px;background:var(--s2);border-bottom:1px solid var(--line);
+  font-family:var(--disp);font-size:9.5px;letter-spacing:1.2px;color:var(--ink3);text-transform:uppercase;font-weight:600}
+.thead>*,.trow>*{padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbody{flex:1;min-height:0;overflow:hidden}
+.trow{height:40px;border-bottom:1px solid var(--line);color:var(--ink2);font-size:13px;cursor:default;
+  transition:background-color .12s var(--ease)}
+.trow:hover{background:var(--s2)}
+.trow.sel{background:var(--sel)}
+.trow .no{font-family:var(--mono);font-size:11px;color:var(--ink4);font-variant-numeric:tabular-nums}
+.trow .nm{color:var(--ink2)}
+.trow .sz{font-family:var(--mono);font-size:11px;color:var(--ink4);font-variant-numeric:tabular-nums}
+.ck{width:15px;height:15px;border:1.5px solid var(--line2);border-radius:4px;background:var(--s0);position:relative;display:block;cursor:pointer}
+.ck.on{background:var(--acc);border-color:var(--acc)}
+.ck.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border-right:2px solid var(--acc-ink);border-bottom:2px solid var(--acc-ink);transform:rotate(40deg)}
+.del{color:var(--ink4);text-decoration:line-through;text-decoration-thickness:2px}
+.add{color:var(--acc);background:var(--sel);border-radius:4px;padding:1px 4px;font-weight:600}
+.dim{color:var(--ink4)}
+.st{font-family:var(--disp);font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600}
+.st--go{color:var(--acc)}.st--hold{color:var(--ink4)}
+.ricon{width:26px;height:26px;padding:0;overflow:visible;border:none;background:none;border-radius:var(--r-sm);color:var(--ink4);cursor:pointer;
+  display:grid;place-items:center;justify-self:center;transition:background-color .15s var(--ease),color .15s var(--ease)}
+.ricon:hover{background:var(--s4);color:var(--ink)}
+.addrow{height:44px;display:flex;align-items:center;gap:9px;padding:0 14px;border-top:1px solid var(--line);
+  color:var(--ink3);font-size:12.5px;cursor:pointer;transition:background-color .15s var(--ease),color .15s var(--ease)}
+.addrow:hover{background:var(--s2);color:var(--ink)}
+.addrow b{color:var(--acc);font-size:15px;font-weight:400}
+
+/* ───── 右检查器 ───── */
+.insp{flex:0 0 320px;background:var(--s1);border-left:1px solid var(--line);display:flex;flex-direction:column}
+.insp__h{flex:0 0 58px;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--line)}
+.insp__h b{font-size:13px;font-weight:600;letter-spacing:.4px}
+.insp__h span{font-size:11px;color:var(--ink4);font-family:var(--mono)}
+.insp__b{flex:1;min-height:0;overflow-y:auto;padding:14px}
+.sec{margin-bottom:16px}
+.sec__t{font-family:var(--disp);font-size:9.5px;letter-spacing:1.3px;text-transform:uppercase;font-weight:600;
+  color:var(--ink4);display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.sec__t::after{content:"";flex:1;height:1px;background:var(--line)}
+.tabs{display:flex;gap:3px;background:var(--s0);border-radius:var(--r-md);padding:3px}
+.tab{flex:1;height:28px;border:none;background:none;color:var(--ink3);font-family:var(--ui);font-size:12px;
+  border-radius:var(--r-sm);cursor:pointer;transition:background-color .15s var(--ease),color .15s var(--ease)}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--s3);color:var(--acc);font-weight:600}
+.f{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.f:last-child{margin-bottom:0}
+.lab{flex:0 0 40px;font-size:11.5px;color:var(--ink4)}
+.inp{flex:1;min-width:0;height:32px;background:var(--s0);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--ink);font-family:var(--ui);font-size:12.5px;padding:0 10px;outline:none;
+  transition:border-color .15s var(--ease),box-shadow .15s var(--ease)}
+.inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--sel)}
+.inp--n{flex:0 0 56px;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.sel{flex:1;min-width:0;height:32px;background:var(--s0);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--ink2);font-family:var(--ui);font-size:12.5px;padding:0 8px;outline:none;cursor:pointer}
+.sw{position:relative;width:38px;height:22px;flex:0 0 auto;background:var(--s4);border-radius:99px;cursor:pointer;
+  transition:background-color .18s var(--ease)}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;
+  transition:translate .18s var(--ease)}
+.sw.on{background:var(--acc)}
+.sw.on::after{translate:16px 0}
+.vars{display:flex;gap:6px;flex-wrap:wrap}
+.var{font-size:11.5px;color:var(--ink2);background:var(--s2);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:5px 9px;cursor:pointer;font-family:var(--mono);
+  transition:border-color .15s var(--ease),color .15s var(--ease)}
+.var:hover{border-color:var(--acc);color:var(--acc)}
+.adv{width:100%;height:32px;border:1px dashed var(--line2);background:none;border-radius:var(--r-sm);color:var(--ink3);
+  font-family:var(--ui);font-size:12px;cursor:pointer;transition:border-color .15s var(--ease),color .15s var(--ease)}
+.adv:hover{border-color:var(--acc);color:var(--acc)}
+.insp__f{flex:0 0 76px;padding:12px 14px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.btn{font-family:var(--ui);cursor:pointer;border-radius:var(--r-md);height:44px;border:none;white-space:nowrap;
+  transition:transform .12s var(--ease),background-color .15s var(--ease)}
+.btn:active{transform:scale(.96)}
+.btn--go{flex:1;background:var(--acc);color:var(--acc-ink);font-size:14px;font-weight:600;letter-spacing:.6px}
+.btn--go:hover{background:color-mix(in srgb,var(--acc) 88%,#fff)}
+.btn--g2{width:44px;background:var(--s3);color:var(--ink2);display:grid;place-items:center}
+.btn--g2:hover{background:var(--s4);color:var(--ink)}
+
+/* ───── 状态条 ───── */
+.sbar{flex:0 0 32px;display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--s1);
+  border-top:1px solid var(--line);font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex:0 0 auto}
+.sbar__r{margin-left:auto;display:flex;gap:14px;font-family:var(--mono);font-size:10.5px;color:var(--ink4)}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<filter id="fur" x="-25%" y="-25%" width="150%" height="150%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" seed="11" result="n"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+<g id="catfig">
+  <g filter="url(#fur)">
+    <path d="M26 46 L34 12 L54 34 Z" fill="var(--cat)"/>
+    <path d="M94 46 L86 12 L66 34 Z" fill="var(--cat)"/>
+    <circle cx="60" cy="62" r="36" fill="var(--cat)"/>
+  </g>
+  <path d="M33 41 L37 20 L49 33 Z" fill="#E9A96A" opacity=".65"/>
+  <path d="M87 41 L83 20 L71 33 Z" fill="#E9A96A" opacity=".65"/>
+  <ellipse cx="46" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <ellipse cx="74" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <circle cx="48.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+  <circle cx="76.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+  <path d="M60 68 l-4.6 -4.2 h9.2 z" fill="#D97B2A"/>
+  <path d="M60 69 q-4.5 6.5 -9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M60 69 q4.5 6.5 9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="34" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <ellipse cx="86" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <path d="M28 62 h-14 M28 70 h-12 M92 62 h14 M92 70 h12" stroke="var(--cat-line)" stroke-width="1.8" stroke-linecap="round" opacity=".75"/>
+  <path d="M60 27 q4 -7 10 -3" stroke="var(--cat-line)" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".55"/>
+</g>
+</defs>
+</svg>
+
+<header class="pgbar">
+  <b>方案 A · 控制台</b>
+  <span class="t">1440×900</span>
+  <span class="t">深色 · 暖中性黑 + 橘</span>
+  <button id="t-dark" class="on">深色</button>
+  <button id="t-light">浅色</button>
+</header>
+
+<div class="win">
+
+  <div class="tbar">
+    <div class="brand">
+      <svg class="brand__mark" viewBox="0 0 120 112"><use href="#catfig"/></svg>
+      <span class="brand__name">耄耋改名</span>
+      <span class="brand__ver">v1.0</span>
+    </div>
+    <div class="crumb">工作区 <span>/</span> <b>改名</b></div>
+    <div class="searchm">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input placeholder="搜索文件名，或直接输入规则">
+      <kbd>Ctrl K</kbd>
+    </div>
+    <div class="tbar__right">
+      <button class="ibtn" title="设置">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+          <path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="currentColor" stroke="none"/>
+          <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="8" cy="17" r="2" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <span class="tbar__sep"></span>
+      <button class="wkey">—</button><button class="wkey">□</button><button class="wkey wkey--x">✕</button>
+    </div>
+  </div>
+
+  <div class="shell">
+
+    <nav class="side">
+      <div class="side__grp">改名</div>
+      <div class="nav">
+        <button class="nav__i on">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          文件列表<span class="nav__n">6</span></button>
+        <button class="nav__i">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 13h6"/><path d="M12.5 10.5 15 13l-2.5 2.5"/></svg>
+          文件夹合并</button>
+        <button class="nav__i">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v11"/><path d="M8 10.5 12 14.5 16 10.5"/><path d="M4 18h16"/></svg>
+          文件提取</button>
+        <button class="nav__i">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9 9.5v10"/></svg>
+          导入表格</button>
+      </div>
+      <div class="side__sep"></div>
+      <div class="side__grp">记录</div>
+      <div class="nav">
+        <button class="nav__i">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 10h9a5 5 0 1 1 0 10H8"/><path d="M7.5 6.5 4 10l3.5 3.5"/></svg>
+          撤销 / 历史</button>
+        <button class="nav__i">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21V10"/><path d="M8 13.5 12 9.5 16 13.5"/><path d="M4 6h16"/></svg>
+          导出清单</button>
+      </div>
+      <div class="side__foot">
+        <div class="catcard" id="catcard">
+          <span class="catcard__av"><svg viewBox="0 0 120 112"><use href="#catfig"/></svg></span>
+          <span class="catcard__tx">
+            <span class="catcard__t"><i></i>耄耋待命</span>
+            <span class="catcard__s">6 / 6 已就位 · 随时开咬</span>
+          </span>
+        </div>
+      </div>
+    </nav>
+
+    <section class="main">
+      <div class="tools">
+        <div>
+          <div class="tools__t">文件列表</div>
+          <div class="tools__sub">6 项 · 将变化 5 · 无变化 1 · 重名 0</div>
+        </div>
+        <div class="tools__r">
+          <button class="chip on">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+            筛选
+          </button>
+          <button class="chip">按加入顺序</button>
+          <button class="chip">只看将变化</button>
+        </div>
+      </div>
+
+      <div class="tblwrap">
+        <div class="thead">
+          <span><span class="ck on"></span></span><span>No.</span><span>原本的名字</span><span>改完的名字</span>
+          <span>状态</span><span>大小</span><span></span>
+        </div>
+        <div class="tbody">
+          <div class="trow sel"><span><span class="ck on"></span></span><span class="no">01</span>
+            <span class="nm"><span class="del">广告</span>素材-01.png</span><span class="nm"><span class="add">推广</span>素材-01.png</span>
+            <span class="st st--go">将改</span><span class="sz">248 KB</span>
+            <button class="ricon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+          <div class="trow"><span><span class="ck on"></span></span><span class="no">02</span>
+            <span class="nm">夏季新品<span class="del">广告</span>主图.jpg</span><span class="nm">夏季新品<span class="add">推广</span>主图.jpg</span>
+            <span class="st st--go">将改</span><span class="sz">1.2 MB</span>
+            <button class="ricon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+          <div class="trow"><span><span class="ck on"></span></span><span class="no">03</span>
+            <span class="nm"><span class="del">广告</span>-详情页-03.webp</span><span class="nm"><span class="add">推广</span>-详情页-03.webp</span>
+            <span class="st st--go">将改</span><span class="sz">612 KB</span>
+            <button class="ricon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+          <div class="trow"><span><span class="ck on"></span></span><span class="no">04</span>
+            <span class="nm">主图-04-备用.jpg</span><span class="nm dim">—</span>
+            <span class="st st--hold">无变化</span><span class="sz">890 KB</span>
+            <button class="ricon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+          <div class="trow"><span><span class="ck on"></span></span><span class="no">05</span>
+            <span class="nm">banner<span class="del">广告</span>位-05.png</span><span class="nm">banner<span class="add">推广</span>位-05.png</span>
+            <span class="st st--go">将改</span><span class="sz">96 KB</span>
+            <button class="ricon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+          <div class="trow"><span><span class="ck on"></span></span><span class="no">06</span>
+            <span class="nm"><span class="del">广告</span>素材-06.gif</span><span class="nm"><span class="add">推广</span>素材-06.gif</span>
+            <span class="st st--go">将改</span><span class="sz">2.4 MB</span>
+            <button class="ricon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+        </div>
+        <div class="addrow"><b>＋</b> 继续添加文件 / 文件夹 <span style="margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--ink4)">Ctrl O</span></div>
+      </div>
+    </section>
+
+    <aside class="insp">
+      <div class="insp__h"><b>规则</b><span>替换 · 1 条</span>
+        <button class="ibtn" style="margin-left:auto" title="重置">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 10h9a5 5 0 1 1 0 10H8"/><path d="M7.5 6.5 4 10l3.5 3.5"/></svg>
+        </button>
+      </div>
+      <div class="insp__b">
+        <div class="sec">
+          <div class="sec__t">改法</div>
+          <div class="tabs">
+            <button class="tab">删除</button><button class="tab on">替换</button>
+            <button class="tab">自定义</button><button class="tab">插入</button><button class="tab">导入</button>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec__t">替换内容</div>
+          <div class="f"><span class="lab">把</span><input class="inp" value="广告"></div>
+          <div class="f"><span class="lab">换成</span><input class="inp" value="推广"></div>
+          <div class="f"><span class="lab"></span>
+            <label style="display:inline-flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink2);cursor:pointer">
+              <span class="ck"></span>区分大小写</label>
+            <span style="margin-left:auto;font-size:11px;color:var(--ink4);cursor:pointer">? 看不懂</span></div>
+        </div>
+        <div class="sec">
+          <div class="sec__t">序号</div>
+          <div class="f"><span class="lab">启用</span><span class="sw on"></span>
+            <span style="font-size:11.5px;color:var(--ink2)">加在</span>
+            <select class="sel" style="max-width:110px"><option>最前面</option><option>最后面</option><option>第 n 个字符后</option></select></div>
+          <div class="f"><span class="lab">类型</span>
+            <select class="sel"><option>数字</option><option>字母</option><option>随机字符</option><option>时间</option></select></div>
+          <div class="f"><input class="inp inp--n" value="1"><input class="inp inp--n" value="1"><input class="inp inp--n" value="2">
+            <span style="font-size:11px;color:var(--ink4)">起始 / 增量 / 位数</span></div>
+        </div>
+        <div class="sec">
+          <div class="sec__t">属性</div>
+          <div class="vars"><span class="var">{文件名}</span><span class="var">{序号}</span><span class="var">{日期}</span><span class="var">{文件夹名}</span></div>
+        </div>
+        <div class="sec">
+          <div class="sec__t">扩展名</div>
+          <div class="f"><span class="lab">改</span>
+            <select class="sel"><option>不改</option><option>改成指定扩展名</option><option>删掉扩展名</option><option>再加一个</option></select></div>
+        </div>
+        <button class="adv">⚙ 进阶设置 · 正则 / 大小写</button>
+      </div>
+      <div class="insp__f">
+        <button class="btn btn--go">开咬改名 · 5 个</button>
+        <button class="btn btn--g2" title="导出清单">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21V10"/><path d="M8 13.5 12 9.5 16 13.5"/><path d="M4 6h16"/></svg>
+        </button>
+      </div>
+    </aside>
+
+  </div>
+
+  <div class="sbar">
+    <span class="dot"></span>
+    <span>就绪 · 检查完 6 个文件，没有重名</span>
+    <span class="sbar__r"><span>Ctrl O 添加</span><span>Ctrl Z 撤销</span><span>Enter 开咬</span></span>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('t-dark').onclick=function(){set('dark',this)};
+document.getElementById('t-light').onclick=function(){set('light',this)};
+function set(v,el){document.documentElement.dataset.theme=v;
+  document.querySelectorAll('.pgbar button').forEach(function(b){b.classList.remove('on')});el.classList.add('on')}
+document.querySelectorAll('.trow').forEach(function(r){
+  r.addEventListener('click',function(){
+    document.querySelectorAll('.trow').forEach(function(x){x.classList.remove('sel')});r.classList.add('sel');
+  });
+});
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});t.classList.add('on');
+  });
+});
+document.querySelectorAll('.sw,.ck').forEach(function(s){
+  s.addEventListener('click',function(e){e.stopPropagation();s.classList.toggle('on')});
+});
+function fit(){
+  var w=document.querySelector('.win'),s=Math.min(1,(window.innerWidth-36)/1440);
+  w.style.transformOrigin='top center';
+  w.style.transform=s<1?'scale('+s+')':'none';
+}
+window.addEventListener('resize',fit);fit();
+</script>
+</body>
+</html>

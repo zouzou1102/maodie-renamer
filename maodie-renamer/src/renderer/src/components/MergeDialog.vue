@@ -93,12 +93,25 @@ const hiddenEntries = computed(() =>
   plan.value ? Math.max(0, plan.value.entries.length - VISIBLE_ENTRIES) : 0,
 )
 
+/**
+ * 组装 IPC 请求。
+ *
+ * ★★ 2026-09-25 修正（第二轮 · bug 报障 ② 的真根因）：
+ *   `sourcePaths.value` 是 Vue 的**响应式代理（Proxy）**，不能直接丢给 IPC ——
+ *   跨进程传参要过结构化克隆，遇到 Proxy 会抛
+ *   `An object could not be cloned.`，主进程根本收不到请求。
+ *   症状极具误导性：「点干跑没反应」（异常被静默吞掉时）/ 或只显示一句看不懂的失败。
+ *   必须**展开成普通数组**（`[...arr]`）再传。
+ *
+ *   对照：P3-8 的 `ExtractDialog` 一直是对的（`f.categories = [...categories.value]`），
+ *   所以同一个坑只在 P3-7 这一处漏了 —— 属于「跨层传响应式对象」这一类静默 bug。
+ */
 function buildReq(): MergeRequest {
   return {
     target: target.value,
     mode: mode.value,
     operation: operation.value,
-    sourcePaths: sourcePaths.value,
+    sourcePaths: [...sourcePaths.value],
     recurse: recurse.value,
     targetNew: targetMode.value === 'new',
     openAfter: openAfter.value,
@@ -148,24 +161,36 @@ function removeSource(i: number): void {
 }
 
 /**
- * 从 DataTransfer 挑出真实文件系统路径（与 useDragDrop 的 extractPaths 同款逻辑）。
- * ★ 关键：必须在 `items` 上取 `getAsFile()?.path` —— 在 `contextIsolation:true` 下，
- *   `dataTransfer.files[i].path` 经常是 `undefined`，只有 `items` 这条路能拿到真实路径
- *   （这正是「拖不进」的根因）。文件夹在 Windows 上也走 'Files'，同样能拿到。
+ * 从 DataTransfer 挑出真实文件系统路径。
+ *
+ * ★ 2026-09-25 修正（第二轮）：这里**不能读 `file.path`**。
+ *   `File.path` 是 Electron 的非标准扩展，**Electron 32.0 已正式移除**
+ *   （官方 breaking changes：「beginning in Electron 32.0 it has been removed in favor of
+ *   the `webUtils.getPathForFile` method」）。本项目是 Electron 32.3.3 ——
+ *   所以 `files[i].path` 和 `items[i].getAsFile().path` **一律是 `undefined`**，
+ *   换成从 `items` 取也一样（同一个 File 对象）。第一版修复把来源从 `files` 改成
+ *   `items` 正是踩了这个坑：看着改了，实际两条路都拿不到 → 拖了还是没反应。
+ *   现在统一走预加载暴露的 `fs.pathForFile`（内部是 `webUtils.getPathForFile`）。
+ *
+ * ⚠️ 拖触阶段（dragenter/dragover）**不能**调 `getPathForFile` —— 那时还没
+ *   形成真正落下的文件对象，只能读；真正的取路径只在 `drop` 时做。
  */
 function extractDroppedPaths(dt: DataTransfer | null): string[] {
   if (!dt) return []
   const out: string[] = []
+  const push = (p: string): void => {
+    if (p !== '' && !out.includes(p)) out.push(p)
+  }
+  // 首选 items：即使 files 被清空也能拿到（顺序也更稳定）
   for (const it of Array.from(dt.items ?? [])) {
     if (it.kind !== 'file') continue
-    const p = (it.getAsFile() as (File & { path?: string }) | null)?.path
-    if (typeof p === 'string' && p !== '') out.push(p)
+    const f = it.getAsFile()
+    if (f) push(window.maodie.fs.pathForFile(f))
   }
   if (out.length > 0) return out
-  // 兜底：某些环境只有 files 带 path
-  for (const file of Array.from(dt.files ?? [])) {
-    const p = (file as File & { path?: string }).path
-    if (typeof p === 'string' && p !== '') out.push(p)
+  // 兜底：某些环境只有 files
+  for (const f of Array.from(dt.files ?? [])) {
+    push(window.maodie.fs.pathForFile(f))
   }
   return out
 }

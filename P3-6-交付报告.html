@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>耄耋改名 · P3-6（第 6 批）交付报告</title>
+<style>
+  :root{
+    --bg:#faf7f2; --card:#fff; --ink:#2b2119; --ink2:#5c4d3f; --ink3:#8b7a68;
+    --line:#e8ded0; --warm:#fff6e9; --orange:#e08b33; --orange-d:#c9741f;
+    --ok:#2f8f4e; --ok-bg:#eef8f0; --bad:#d9534f; --warn:#b8860b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1c1713; --card:#241d17; --ink:#f2e9dd; --ink2:#cbbba8; --ink3:#9c8b78;
+      --line:#3a2f26; --warm:#2c231b; --ok:#7fd39a; --ok-bg:#1e2f22; --bad:#f08a86; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.7;
+    font-family:"Noto Sans SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:40px 22px 72px}
+  h1{font-size:27px;margin:0 0 6px}
+  h2{font-size:19px;margin:38px 0 12px;padding-left:11px;border-left:4px solid var(--orange)}
+  .sub{color:var(--ink3);font-size:13px;margin-bottom:22px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 26px}
+  .tag{background:var(--warm);border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:12px;color:var(--ink2)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .hero{border-left:5px solid var(--ok);background:var(--ok-bg)}
+  .hero .big{font-size:22px;font-weight:700;color:var(--ok);margin:0 0 6px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--ink3);font-weight:600;font-size:12.5px;background:var(--warm)}
+  tr:last-child td{border-bottom:none}
+  .ok{color:var(--ok);font-weight:700}
+  .num{font-variant-numeric:tabular-nums;font-weight:700}
+  code{background:var(--warm);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-family:Consolas,monospace;font-size:12.5px}
+  ul{margin:8px 0;padding-left:22px} li{margin:5px 0}
+  .muted{color:var(--ink3);font-size:13px}
+  .files{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .files a{display:inline-block;background:var(--warm);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:13px;color:var(--orange-d);text-decoration:none;font-weight:600}
+  .files a:hover{background:var(--orange);color:#fff}
+  .note{border-left:4px solid var(--warn);background:var(--warm);padding:12px 16px;border-radius:0 8px 8px 0;font-size:13.5px;color:var(--ink2);margin:12px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>耄耋改名 · P3-6（第 6 批）交付报告</h1>
+  <div class="sub">提取文件夹名 —— 新增 <code>{文件夹}</code> 变量 ｜ 2026-09-23</div>
+  <div class="meta">
+    <span class="tag">分支 fix → main</span>
+    <span class="tag">提交 <code>30dfee9</code></span>
+    <span class="tag">已推 GitHub（SHA 已核验）</span>
+  </div>
+
+  <div class="card hero">
+    <p class="big">结论：可以验收 ✅</p>
+    <div class="muted">「自定义」模式里多了一个变量 <code>{文件夹}</code>（取文件所在文件夹的名字）。
+    这是 8 批里**最便宜的一批** —— 没有加任何新通道 / 新字段 / 新界面概念。</div>
+  </div>
+
+  <div class="note" style="border-left-color:#d9534f;background:#fdeeed">
+    <b>⚠️ 交付过程中发生并已修复的一件事（如实记）</b><br>
+    提交并推送成功之后，这台机器的沙箱把 <code>maodie-renamer/</code> 整个目录树删掉了
+    （源码 + <code>node_modules</code> + <code>out/</code> + 冒烟报告）—— 这是本项目<b>记录过的沙箱故障</b>
+    （在 <code>git switch</code> / 删文件之后发生过）。<br>
+    <b>恢复</b>：① 源码用 <code>git restore</code> 从提交里恢复（而且 GitHub 上已有一份，双重保险）；
+    ② <code>node_modules</code> 用 <code>npm ci</code> 重装（10 分 46 秒）；③ 冒烟报告重新跑一遍生成。<br>
+    <b>★ 恢复后整条验证链全部重跑</b>：类型检查 0 错 · 规范 0 error · 单测 <b>257/257</b> · 构建 0 错 ·
+    冒烟 <b>79/79 × 2</b> —— 全绿。<b>本次交付的内容没有被这件事影响</b>（代码在吞之前就提交并推送成功了）。
+  </div>
+
+  <h2>一、验证证据（全部当场重跑）</h2>
+  <table>
+    <tr><th style="width:34%">项</th><th style="width:22%">结果</th><th>说明</th></tr>
+    <tr><td>类型检查</td><td class="ok">0 错</td><td>主进程 + 渲染层两套配置都过</td></tr>
+    <tr><td>代码规范</td><td class="ok">0 error</td><td>—</td></tr>
+    <tr><td>单元测试</td><td class="ok num">257 / 257</td><td>原 241 + 新增 16 条 P3-6 用例</td></tr>
+    <tr><td>生产构建</td><td class="ok">0 错</td><td>—</td></tr>
+    <tr><td>真机冒烟（慢速）</td><td class="ok num">79 / 79 × 2</td><td>两种夹具各一遍，两次都 exit 0</td></tr>
+    <tr><td>远端一致性</td><td class="ok">已核验</td><td><code>ls-remote</code>：main = fix = <code>30dfee9</code> = 本地</td></tr>
+  </table>
+
+  <h2>二、这一批做了什么</h2>
+  <table>
+    <tr><th style="width:26%">项</th><th>内容</th></tr>
+    <tr><td>新变量</td><td><code>{文件夹}</code> = 文件**所在文件夹的名字**（写在前后缀里，没有开关 —— 与 <code>{创建}</code> 等同一个机制）</td></tr>
+    <tr><td>界面上</td><td>属性组多一个 chip「文件夹名」；**前缀提示行改成由变量清单生成**（用户能看见它）</td></tr>
+    <tr><td>顺手做的小字</td><td>提示用户：只填 <code>{文件夹}</code> 的话同文件夹同类文件会重名 → 建议配 <code>{n}</code></td></tr>
+    <tr><td>★ 顺手根治一个坑</td><td>把属性变量清单收进 <code>shared/attr-vars.ts</code>，让「chip / 提示行 / 规则摘要」**三处用同一份数据** —— 「加了变量却忘了改提示行」这个坑已经咬过两次，**这次是第三次，从根上消掉了**</td></tr>
+    <tr><td>★ 编译期守卫</td><td><code>dirName</code> 做成**必填** —— 落地时它一次性列出了所有漏传点。从此「漏传」是**编译错误**，而不是「前缀静默消失」</td></tr>
+  </table>
+
+  <h2>三、你拍板的四条</h2>
+  <ul>
+    <li><b>盘符根取空串</b>（<code>D:\照片.jpg</code> + <code>{文件夹}_</code> → <code>_照片.jpg</code>，不报错）</li>
+    <li><b>只做「直接上级」</b>，不做「往上数 N 层」</li>
+    <li><b>做那个「三处同一份数据」的重构</b>（已完成）</li>
+    <li><b>标签叫「文件夹名」</b>（不叫「所在文件夹」）</li>
+  </ul>
+
+  <h2>四、复核时更正了设计文档一处错前提</h2>
+  <div class="note">
+    设计文档原来写着「<code>baseName("D:\\")</code> 得到 <code>D:</code>」—— <b>实测是空串</b>。<br>
+    真正的形态是：<code>D:\</code>（带分隔符的盘符根）<b>天然就是空串</b>；要挡的是<b>裸盘符 <code>D:</code></b> 那种形态。<br>
+    → 已按代码更正 §3.2 / §5.②，并留下 §14 复核记录。<b>结论（给空串）不变，只是理由写错了。</b>
+  </div>
+
+  <h2>五、两处「形状跟随」（不是放宽断言）</h2>
+  <table>
+    <tr><th style="width:40%">情况</th><th>处理</th></tr>
+    <tr><td>设计一边要求 <code>dirName</code> 必填，另一边写着「老用例一条都不改」</td><td>4 个老测试文件的**规则上下文**补了 <code>dirName</code> —— <b>断言与判定一个都没改、没放宽</b>，只是形状跟上</td></tr>
+    <tr><td>冒烟里「属性组 3 个 chip」那条断言</td><td>改成 4（本批多了一个）—— 同样是形状跟随</td></tr>
+  </table>
+
+  <h2>六、没验到的（如实列）</h2>
+  <ul>
+    <li><b>UNC 网络路径的真机表现</b> —— 我只能造出路径字符串，连不上真的网络共享。</li>
+    <li><b>盘符根下的文件加进列表后 <code>dirPath</code> 到底长什么样</b> —— 单测把两种形态都覆盖了，但真机上会是哪种只能实测。</li>
+    <li><b>隐藏文件夹 <code>.git</code> 那种名字进文件名后的观感</b>（会带一个点，合法但少见）。</li>
+    <li><b>真实改名那一步</b>（涉及确认弹窗与磁盘写入，本轮冒烟未自动覆盖）。</li>
+    <li><b>打包后的 exe</b> —— 本次测的是 <code>out/</code> 产物。</li>
+  </ul>
+
+  <h2>七、冒烟报告（带逐条截图）</h2>
+  <div class="files">
+    <a href="maodie-renamer/tests/artifacts/2026-09-23T04-48-17/report.html">夹具一 · withActive（79/79）</a>
+    <a href="maodie-renamer/tests/artifacts/2026-09-23T04-51-17/report.html">夹具二 · allUndone（79/79）</a>
+    <a href="设计稿-P3-6提取文件夹名.html">可视规格稿（设计稿）</a>
+  </div>
+
+  <h2>八、下一步（第 7 批）</h2>
+  <div class="muted">
+    第 7 批是「<b>文件夹合并</b>」。⚠️ <b>它会真的移动 / 复制文件，`需求清单` 已标「必须单独评审」</b> ——
+    而且它有个必须先回答的安全问题：<b>要不要做「移动 / 复制的撤销」</b>？<br>
+    （现在的 <code>F9</code> 撤销只回滚**改名**，回滚不了移动。要做的话，历史记录结构要扩；不做的话，界面必须在动手前明确告诉用户「这一步不可撤销」。）
+  </div>
+
+</div>
+</body>
+</html>

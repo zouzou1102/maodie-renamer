@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>耄耋改名 · P3-5（第 5 批）交付报告</title>
+<style>
+  :root{
+    --bg:#faf7f2; --card:#fff; --ink:#2b2119; --ink2:#5c4d3f; --ink3:#8b7a68;
+    --line:#e8ded0; --warm:#fff6e9; --orange:#e08b33; --orange-d:#c9741f;
+    --ok:#2f8f4e; --ok-bg:#eef8f0; --bad:#d9534f; --bad-bg:#fdeeed; --warn:#b8860b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1c1713; --card:#241d17; --ink:#f2e9dd; --ink2:#cbbba8; --ink3:#9c8b78;
+      --line:#3a2f26; --warm:#2c231b; --ok:#7fd39a; --ok-bg:#1e2f22; --bad:#f08a86; --bad-bg:#331e1d;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Noto Sans SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+    line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:40px 22px 72px}
+  h1{font-size:27px;margin:0 0 6px;letter-spacing:.2px}
+  h2{font-size:19px;margin:38px 0 12px;padding-left:11px;border-left:4px solid var(--orange)}
+  h3{font-size:15px;margin:22px 0 8px;color:var(--ink2)}
+  .sub{color:var(--ink3);font-size:13px;margin-bottom:22px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 26px}
+  .tag{background:var(--warm);border:1px solid var(--line);border-radius:999px;
+    padding:3px 11px;font-size:12px;color:var(--ink2)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;margin:14px 0;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .hero{border-left:5px solid var(--ok);background:var(--ok-bg)}
+  .hero .big{font-size:22px;font-weight:700;color:var(--ok);margin:0 0 6px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--ink3);font-weight:600;font-size:12.5px;background:var(--warm)}
+  tr:last-child td{border-bottom:none}
+  .ok{color:var(--ok);font-weight:700}
+  .bad{color:var(--bad);font-weight:700}
+  .num{font-variant-numeric:tabular-nums;font-weight:700}
+  code{background:var(--warm);border:1px solid var(--line);border-radius:5px;
+    padding:1px 5px;font-family:"JetBrains Mono",Consolas,monospace;font-size:12.5px}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:5px 0}
+  .muted{color:var(--ink3);font-size:13px}
+  .files{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .files a{display:inline-block;background:var(--warm);border:1px solid var(--line);
+    border-radius:8px;padding:7px 12px;font-size:13px;color:var(--orange-d);
+    text-decoration:none;font-weight:600}
+  .files a:hover{background:var(--orange);color:#fff}
+  .note{border-left:4px solid var(--warn);background:var(--warm);padding:12px 16px;
+    border-radius:0 8px 8px 0;font-size:13.5px;color:var(--ink2);margin:12px 0}
+  .bar{height:9px;border-radius:6px;background:var(--warm);overflow:hidden;margin-top:6px}
+  .bar>i{display:block;height:100%;background:var(--ok);width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>耄耋改名 · P3-5（第 5 批）交付报告</h1>
+  <div class="sub">三模式 → 五模式 ＋ 扩展名更改 ＋ 「只用编号」入口 ｜ 2026-09-23</div>
+  <div class="meta">
+    <span class="tag">分支 fix → main</span>
+    <span class="tag">提交 <code>227a8de</code></span>
+    <span class="tag">已推 GitHub（SHA 已核验）</span>
+    <span class="tag">跟踪文件 214 → 215</span>
+  </div>
+
+  <div class="card hero">
+    <p class="big">结论：可以验收 ✅</p>
+    <div class="muted">模式页签从 3 个变成 5 个；把第 4 批的「导入叠加」收回成「五选一互斥」；顺手拆掉了 4 处会让新模式<b>静默失效</b>的兜底代码。</div>
+    <div class="bar"><i></i></div>
+    <div class="muted" style="margin-top:6px">验证链：类型检查 · 规范 · 单测 · 构建 · 真机冒烟 —— 全部当场重跑，全绿。</div>
+  </div>
+
+  <h2>一、验证证据（全部当场重跑，不引用上一轮数字）</h2>
+  <table>
+    <tr><th style="width:34%">项</th><th style="width:22%">结果</th><th>说明</th></tr>
+    <tr><td>类型检查 <code>npm run typecheck</code></td><td class="ok">0 错</td><td>主进程 + 渲染层两套配置都过</td></tr>
+    <tr><td>代码规范 <code>npm run lint</code></td><td class="ok">0 error</td><td>1 个格式 warning 已修</td></tr>
+    <tr><td>单元测试 <code>npm run test:core</code></td><td class="ok num">241 / 241</td><td>原 221 + 新增 20 条 P3-5 用例</td></tr>
+    <tr><td>生产构建 <code>npm run build</code></td><td class="ok">0 错</td><td>顺带抓到并修了一个测试文件的类型错</td></tr>
+    <tr><td>真机冒烟（慢速）</td><td class="ok num">74 / 74 × 2</td><td>两种夹具各跑一遍（withActive / allUndone），两次都 exit 0</td></tr>
+    <tr><td>远端一致性</td><td class="ok">已核验</td><td><code>ls-remote</code>：main = fix = <code>227a8de</code> = 本地</td></tr>
+  </table>
+  <div class="muted">冒烟从 68 条扩到 <b>74 条</b>（新增 6 条 P3-5 用例）。</div>
+
+  <h2>二、这一批做了什么</h2>
+  <table>
+    <tr><th style="width:22%">层</th><th>内容</th></tr>
+    <tr><td>类型</td><td>模式 3 → 5：<b>自定义 / 插入 / 替换 / 删除 / 导入</b>；新增「扩展名处理」与「插入」两组字段</td></tr>
+    <tr><td>引擎</td><td>插入算法（<b>按码点切</b>，emoji 不会被劈成半个字）；扩展名处理；把 <code>default</code> 兜底改成「漏了新模式就<b>编译报错</b>」</td></tr>
+    <tr><td>主进程白名单</td><td><b>拆掉那个「不是 A 就是 B」的兜底式代码</b> —— 从前选「插入」，主进程会收到「删除」，而界面完全正常</td></tr>
+    <tr><td>预览</td><td>改扩展名后仍满足接口承诺「新名 = 主体 + 扩展名」</td></tr>
+    <tr><td>界面</td><td>5 个两字页签 ＋ 插入组 ＋ 导入组 ＋ 扩展名小组；<b>拆掉 4 处兜底 / 反向判断</b></td></tr>
+    <tr><td>第 4 批回退</td><td>导入从「叠加覆盖层」改成「五选一互斥」：表里没有的文件 <b>保持原名不动</b>，列表里逐条标「表里没有」</td></tr>
+    <tr><td>命令行</td><td>新增 <code>--insert</code> / <code>--table</code>；五个模式<b>两两互斥</b>（冲突会被拒绝，不再静默接受）</td></tr>
+    <tr><td>模板</td><td>第 7 个内置模板「<b>只用编号</b>」（零新机制 —— 复用既有模板条）</td></tr>
+  </table>
+
+  <h2>三、你拍板的 2 件事</h2>
+  <ul>
+    <li><b>默认页签改成「自定义」</b>（原来默认停在「删除」）—— 已按此落地；设计文档里那句「默认仍是自定义」与代码现状的矛盾，按你的选择统一到了「自定义」。</li>
+    <li><b>8 份文档一起同步</b> —— 已完成（PRD / 交互说明 / 设计规范 / 技术方案 / 接口文档 / 数据库设计 / 需求清单 / P3-4 设计文档 ＋ 总规划）。</li>
+  </ul>
+
+  <h2>四、顺手补了 2 个设计文档没点到的洞</h2>
+  <table>
+    <tr><th style="width:30%">洞</th><th>会发生什么</th><th style="width:30%">怎么修的</th></tr>
+    <tr>
+      <td>改扩展名后主体被删光</td>
+      <td>会产出一个<b>叫 <code>.pdf</code> 的文件</b>（名字被改成只剩扩展名），而校验没拦住</td>
+      <td>校验改成看<b>新</b>扩展名（原来是拿原始扩展名比，改了扩展名就漏判）</td>
+    </tr>
+    <tr>
+      <td>导入模式的「表外项」</td>
+      <td>如果用户同时开了「全部小写」或「改扩展名」，那些<b>本该保持原名不动</b>的文件会被悄悄改掉</td>
+      <td>导入模式下，表外项连「大小写」「扩展名」也不作用 —— 真正做到「保持原名完全不动」</td>
+    </tr>
+  </table>
+
+  <h2>五、没验到的（如实列，不含糊）</h2>
+  <ul>
+    <li><b>改了扩展名之后，Windows 能不能正常打开那些文件</b> —— 我只能验「名字变了」，验不了「关联程序认不认」。</li>
+    <li><b>5 个页签在最小窗口（宽 900）下会不会换行 / 挤压</b> —— 需要你亲眼看一眼（无头环境判不了）。</li>
+    <li><b>历史页里老记录（写「规则化」）与新记录（写「自定义」）并存的观感</b>。</li>
+    <li><b>命令行 <code>--table</code> 的真机端到端</b> —— 只做了「参数解析」这一层的单测（互斥、解析都对），没真跑一遍「读表 → 按表改名」的完整命令行流程。</li>
+    <li><b>打包后的 exe</b> —— 本次测的是 <code>out/</code> 产物，不是 <code>release/</code> 里的安装包。</li>
+  </ul>
+
+  <div class="note">
+    <b>一处如实说明</b>：<code>P3-4 / P3-5 设计文档</code> 与 <code>总规划</code> 这几个文件在 git 里<b>历来是「未跟踪」状态</b>（前几批也如此），
+    所以本次沿用惯例只提交了「代码 + 测试 + 7 份基础文档」。若你希望把设计文档也纳入版本管理，说一声我就补上。
+  </div>
+
+  <h2>六、冒烟报告（带逐条截图，可点开看）</h2>
+  <div class="files">
+    <a href="maodie-renamer/tests/artifacts/2026-09-23T02-29-00/report.html">夹具一 · withActive（74/74）</a>
+    <a href="maodie-renamer/tests/artifacts/2026-09-23T02-31-43/report.html">夹具二 · allUndone（74/74）</a>
+  </div>
+  <div class="muted" style="margin-top:10px">报告里能翻到新增的 6 条 P3-5 用例（5 个页签 / 插入 / 导入 / 扩展名 / 只用编号 / 进阶不出现）的截图。</div>
+
+  <h2>七、下一步（第 6 批）</h2>
+  <div class="muted">
+    按总规划，第 6 批是「<b>提取文件夹名</b>」。它落在「规则化模式内」（加新变量），<b>不依赖本批</b>，可以随时开工。
+    第 7、8 批（文件夹合并 / 文件提取）会<b>真的复制或删除文件</b>，按约定必须最后做、且单独评审。
+  </div>
+
+</div>
+</body>
+</html>

@@ -13,23 +13,32 @@ export interface DragDropOptions {
   onPaths: (paths: string[]) => void
 }
 
-/** 从 DataTransfer 里挑出真正的文件系统路径 */
+/**
+ * 从 DataTransfer 里挑出真正的文件系统路径。
+ *
+ * ★ 2026-09-25 修正：不再读 `file.path`。
+ *   `File.path` 是 Electron 的非标准扩展，**Electron 32.0 已移除**，
+ *   替代品是 `webUtils.getPathForFile`（只有预加载进程拿得到 electron 模块，
+ *   所以由 `window.maodie.fs.pathForFile` 代劳）。
+ *   改之前这里恒返回 `undefined` → 拖进来的文件一条都入不了列，界面却毫无报错。
+ *
+ * 目录在 Windows 上也走 'Files'，与文件同一条路。
+ */
 function extractPaths(dt: DataTransfer | null): string[] {
   if (!dt) return []
   const out: string[] = []
-  // 目录在 Windows 上也走 'Files'
+  const push = (p: string): void => {
+    if (p !== '' && !out.includes(p)) out.push(p)
+  }
   for (const item of Array.from(dt.items ?? [])) {
     if (item.kind !== 'file') continue
     const file = item.getAsFile()
-    // Electron 会给拖入的文件对象注入真实路径
-    const p = (file as (File & { path?: string }) | null)?.path
-    if (typeof p === 'string' && p !== '') out.push(p)
+    if (file) push(window.maodie.fs.pathForFile(file))
   }
   if (out.length > 0) return out
   // 兜底：某些环境只有 files
   for (const file of Array.from(dt.files ?? [])) {
-    const p = (file as File & { path?: string }).path
-    if (typeof p === 'string' && p !== '') out.push(p)
+    push(window.maodie.fs.pathForFile(file))
   }
   return out
 }

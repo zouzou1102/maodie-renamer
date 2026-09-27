@@ -18,7 +18,8 @@ import MdIcon from './MdIcon.vue'
       <span class="md-empty__blob" />
       <MdIcon name="folder" :size="16" />
     </div>
-    <p class="md-empty__title">把文件拖进来，或者点左边的按钮</p>
+    <!-- ★ 施工单 §八：按钮搬进标题栏后，空态文案跟着改（规格书 §08 定死）-->
+    <p class="md-empty__title">点左上角的「添加文件」，或者直接拖进来</p>
     <p class="md-empty__hint">支持文件和文件夹混着拖 · 单批最多 1 万个</p>
   </div>
 </template>

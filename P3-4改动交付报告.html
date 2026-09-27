@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P3-4 改动交付报告 · 删掉「按行顺序」</title>
+<style>
+  :root{
+    --bg:#F7F2EA; --card:#FFFFFF; --ink:#2A1A10; --ink2:#6B5A4A; --ink3:#94816F; --line:#E5DCD0;
+    --orange:#E08B33; --orange-d:#B96A18; --ok:#1E7A46; --bad:#B4453A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans SC","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+       line-height:1.75;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 28px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:32px}
+  .kicker{font-size:13px;letter-spacing:.18em;color:var(--orange-d);font-weight:700;margin:0 0 10px}
+  h1{margin:0;font-size:29px;letter-spacing:-.01em}
+  h1 small{display:block;font-size:14px;font-weight:400;color:var(--ink2);letter-spacing:0;margin-top:8px}
+  h2{font-size:19px;margin:44px 0 14px;padding-left:12px;border-left:5px solid var(--orange)}
+  h3{font-size:15px;margin:22px 0 8px}
+  .verdict{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--ok);
+           border-radius:10px;padding:18px 22px;font-size:16px}
+  .verdict b{color:var(--ok)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px;margin:18px 0 6px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .stat .n{font-size:25px;font-weight:700;letter-spacing:-.02em;color:var(--ok)}
+  .stat .l{font-size:12.5px;color:var(--ink2);margin-top:4px}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+        border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px;margin:14px 0}
+  th{background:#F0E8DC;text-align:left;font-weight:700;font-size:12.5px}
+  th,td{padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code{background:#F1EAE0;padding:1.5px 6px;border-radius:4px;font-size:12.5px;
+       font-family:"Cascadia Mono",Consolas,monospace}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .box.warn{border-left:6px solid var(--bad)}
+  .box.info{border-left:6px solid var(--orange)}
+  .box.ok{border-left:6px solid var(--ok)}
+  .box h3{margin-top:0}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:99px;margin-right:6px;vertical-align:1px}
+  .t-ok{background:#DFF0E5;color:var(--ok)}
+  .t-bad{background:#FBE6E2;color:var(--bad)}
+  .t-info{background:#F2E7D8;color:var(--orange-d)}
+  ul{margin:8px 0;padding-left:22px} li{margin:5px 0}
+  .mono{font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink2)}
+  .del{color:var(--bad);text-decoration:line-through}
+  .add{color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">耄耋改名 · MaoDie Renamer · 第 4 批 改动交付</p>
+  <h1>把「按行顺序」整档去掉 · 改成整体拒绝
+    <small>依据设计确认文档 §16「对已落地代码的改动清单」（5 处）｜ 2026-09-22</small>
+  </h1>
+</header>
+
+<div class="verdict">
+  <b>5 处全改完，验证全绿。</b>「按行顺序」已经<b>彻底不存在</b>了（代码、界面、测试用例里都搜不到），
+  检测不到「原文件名」列时<b>直接不导入</b>，并且<b>明确告诉用户怎么办</b>。<br>
+  单测 <b>221/221</b>、真机冒烟 <b>67/67 × 两套数据</b>、类型检查 / 规范 / 构建 0 错。
+</div>
+
+<h2>一、逐条对照（§16 的 5 处）</h2>
+<table>
+  <tr><th style="width:40px">#</th><th style="width:230px">位置</th><th>改了什么</th></tr>
+  <tr>
+    <td>1</td>
+    <td><code>shared/table-map.ts</code><br>决策树</td>
+    <td><span class="del">两条兜底分支：只认出新名列 → 按行顺序；都认不出 → 第一列=新名 + 按行顺序</span><br>
+        <span class="add">→ 合并成一个「整体拒绝」</span>，并给出原因：<br>
+        <code>我没找到「原文件名」列 —— 请在上面指定它是哪一列</code></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><code>table-map.ts</code><br>按行顺序实现</td>
+    <td><b>整段删掉</b>（含配对循环、行数不等那道闸、顺序校验那道闸、<code>OrderCheck</code> 类型）<br>
+        <b>不留死代码</b> —— 回读确认 <code>byOrder</code> / <code>MatchMode</code> / <code>orderCheck</code> 均为 <b>0 次</b></td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><code>ImportTableModal.vue</code></td>
+    <td>删掉「匹配方式」下拉（<code>MATCH_MODE_OPTIONS</code> 选项表一并删）<br>
+        删掉顺序警告那条 · 弹窗里<b>只剩两个列下拉</b></td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><code>tests/p3-4-import.test.ts</code></td>
+    <td><b>删掉 4 条「按行顺序」用例</b>（不是改成 <code>skip</code>）· 修 3 处相关断言<br>
+        <b>新增</b>：「检测不到原文件名列 → 不猜」「没指定原名列 → 整体拒绝 + 告诉用户怎么办」</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>界面补救提示</td>
+    <td>拒绝时明确说怎么办：<br><code>表里没指定「原文件名」列 —— 没有它没法知道每一行该配给哪个文件。请把原文件名也放进表里，或在上面手动指定哪一列是原文件名。</code></td>
+  </tr>
+</table>
+
+<div class="box ok">
+  <h3><span class="tag t-ok">红线守住了</span>用例是「删掉」不是「skip」</h3>
+  <p style="margin-bottom:0">按行顺序这个能力<b>已经不存在了</b>，所以测它的用例跟着退场 —— 这是「功能没了、用例退场」。
+  而 <code>skip</code> 是「功能还在、却不敢测」，两回事。全项目搜 <code>skip</code>，P3-4 相关为 <b>0</b>。</p>
+</div>
+
+<h2>二、验证（都是当场重跑）</h2>
+<div class="grid">
+  <div class="stat"><div class="n">221 / 221</div><div class="l">单元测试（本次 223 → 221，删 4 增 2）</div></div>
+  <div class="stat"><div class="n">67 / 67</div><div class="l">真机冒烟 · 两套数据各一遍</div></div>
+  <div class="stat"><div class="n">0 错 0 警</div><div class="l">类型检查 + 规范 + 构建</div></div>
+  <div class="stat"><div class="n">0</div><div class="l">动到你的文件（本批只读表格）</div></div>
+</div>
+<table>
+  <tr><th style="width:230px">验的东西</th><th>证据</th></tr>
+  <tr><td>单测 221 项</td><td><code>maodie-renamer/tests/artifacts/last-unit.json</code>（passed 221 / failed 0）</td></tr>
+  <tr><td>冒烟 67 项 · 第 1 轮</td><td><code>tests/artifacts/2026-09-22T07-58-17/report.html</code>（67/67）</td></tr>
+  <tr><td>冒烟 67 项 · 第 2 轮</td><td><code>tests/artifacts/2026-09-22T08-01-02/report.html</code>（67/67）</td></tr>
+  <tr><td>新增的真机用例</td><td>把「原文件名列」下拉设成「没有这一列」→ 断言：拒绝提示出现 · 文案里有「原文件名」且说了「放进表里」· 主按钮<b>真的置灰</b> · 两个列下拉还在（给用户手动指定的路）</td></tr>
+  <tr><td>异常检查</td><td>两轮都是 <b>0</b>：无界面报错、无未捕获异常、无资源加载失败</td></tr>
+</table>
+
+<h2>三、过程中发现并修掉的两个「坑」</h2>
+<p>这两个都不在设计清单里，是**做的时候撞上**的，都记进项目记忆了。</p>
+
+<div class="box warn">
+  <h3><span class="tag t-bad">坑 1</span>冒烟脚本里 <code>feature()</code> 的回调是【定义时】就执行的</h3>
+  <p>我第一版新用例写的是「在执行到这一步时，临时把环境变量指向另一张表」：</p>
+  <p class="mono" style="background:#F1EAE0;padding:10px;border-radius:6px">feature('...', (c) =&gt; {<br>
+  &nbsp;&nbsp;process.env.SMOKE_IMPORT_PATH = 另一张表;   // ← 以为是执行时才跑<br>
+  &nbsp;&nbsp;return c.click(...)<br>
+  })</p>
+  <p>但 <code>helpers.js:622</code> 是 <code>if (typeof build === 'function') build(makeRecorder(ops))</code> ——
+     <b>回调只用来收集 ops，是在定义那一刻就跑完的</b>。于是这句赋值在<b>跑任何用例之前</b>就把表换掉了 →
+     <b>前面所有 P3-4 用例都拿到了错的那张表</b>，一次挂 5 条。</p>
+  <p style="margin-bottom:0"><b>教训</b>：冒烟用例的回调里<b>不能有副作用</b>（改环境变量 / 改状态）。
+     要改就用 op 序列里的动作，或者提前在夹具区做好。</p>
+</div>
+
+<div class="box warn">
+  <h3><span class="tag t-bad">坑 2</span>弹窗是 fade-in，而「等它出现」只等了尺寸</h3>
+  <p>弹窗的可见性判定用的是 <code>checkVisibility({ checkOpacity: true })</code> —— <b>含透明度</b>。
+     而原来的等待条件只等「盒子有尺寸」，那个在第一帧就成立 → 断言撞在动画中间
+     （实测 <code>可见=false 尺寸=115x39</code>，尺寸正常但透明确实还没上来）。</p>
+  <p style="margin-bottom:0"><b>修法</b>：把等待条件改成「<b>真的可见</b>」（同一个 <code>checkVisibility</code> 判据）——
+     这是把「动画还没跑完」从断言里排除，<b>不是放宽断言</b>。</p>
+</div>
+
+<div class="box info">
+  <h3><span class="tag t-info">顺带一条</span>跑真机冒烟时别去操作别的窗口</h3>
+  <p style="margin-bottom:0">中间有一轮，一条<b>跟本批无关</b>的老用例（P2-B 模板 chip 的悬停变色）红了：
+     <code>waitFor 超时(4000ms) —— backgroundColor === 'rgb(245, 166, 35)'</code>。
+     原因是我在跑的同时操作了命令窗口，<b>被测窗口被遮挡 → <code>:hover</code> 不生效</b>。
+     全程不打扰它，那一轮就全绿了。这条也记进记忆了。</p>
+</div>
+
+<h2>四、改动的文件</h2>
+<table>
+  <tr><th style="width:330px">文件</th><th>改动</th></tr>
+  <tr><td class="mono">src/shared/table-map.ts</td><td>629 → 527 行：删 <code>MatchMode</code> / <code>ColumnChoice.mode</code> / <code>OrderCheck</code> / 两条兜底分支 / 按行顺序配对整段 / 第二道闸；新增「没指定原名列 → 整体拒绝」</td></tr>
+  <tr><td class="mono">src/shared/labels.ts</td><td>删 <code>MATCH_MODE_OPTIONS</code></td></tr>
+  <tr><td class="mono">src/renderer/src/components/ImportTableModal.vue</td><td>486 → 461 行：删「匹配方式」下拉、顺序警告、<code>mode</code> 状态；改文案</td></tr>
+  <tr><td class="mono">tests/p3-4-import.test.ts</td><td>删 4 条按行顺序用例 · 修 3 处断言 · 新增 2 条拒绝用例</td></tr>
+  <tr><td class="mono">tools/smoke.js</td><td>删 1 条「改匹配方式」用例 · 改下拉数断言 · <b>新增真机拒绝用例</b> · 修正等待条件</td></tr>
+</table>
+
+<h2>五、没验到的（照实说）</h2>
+<div class="box warn">
+  <ul>
+    <li><span class="tag t-bad">未覆盖</span><b>「表里只有一列新名、被自动判为不导入」这条完整链路</b> ——
+        单测覆盖了它（<code>detectColumns</code> 不猜 + <code>buildMapping</code> 整体拒绝），
+        但真机冒烟验的是<b>手动把原名列设成「没有这一列」</b>这条路径（因为中途换夹具会污染前面的用例）。
+        两条路径进的是<b>同一个拒绝分支</b>，但不是同一条入口。</li>
+    <li><span class="tag t-bad">沙箱做不到</span>弹窗与下拉在<b>深色模式</b>下的观感。</li>
+    <li><span class="tag t-bad">沙箱做不到</span>左栏 R-03 少了/多了控件之后的<b>高度与滚动</b>。</li>
+    <li><span class="tag t-bad">沙箱做不到</span><b>打包后的 exe</b>。</li>
+  </ul>
+</div>
+
+<footer>
+  耄耋改名 · P3-4 改动交付报告　｜　2026-09-22　｜　
+  单测 221/221 · 冒烟 67/67 × 2 · typecheck 0 · lint 0 · build 0
+</footer>
+
+</div>
+</body>
+</html>
