@@ -34,10 +34,14 @@ export function normalizeTheme(raw: unknown): Theme {
  * ⚠️ 这两个值必须与 `styles/tokens.css` 里 `--md-bg-cream` 的浅色值 / 深色值
  * 逐字节相同。靠人同步不住，所以 `tests/p2a-theme.test.ts` 会**解析 CSS** 把两边
  * 钉在一起：改了 CSS 忘了改这里，单测会红。
+ *
+ * ★ P3-9（DEC-30）把深底从暖褐 `#251a14` 换成中性近黑 `#0b0a09`、
+ *   浅底从奶油白 `#fffbf5` 换成浅灰 `#edebe7` —— 这两个值**必须一起改**，
+ *   只改一处会在启动那一帧闪出上一版的底色。
  */
 export const WINDOW_BG = {
-  light: '#fffbf5',
-  dark: '#251a14',
+  light: '#edebe7',
+  dark: '#0b0a09',
 } as const
 
 /** 深色与否 → 窗口底色（themeSource 为 system 时由主进程先解析成布尔）*/

@@ -1,0 +1,20 @@
+﻿=== diff --stat ===
+ maodie-renamer/src/preload/api.ts                  |  12 ++
+ maodie-renamer/src/preload/index.ts                |  23 ++-
+ .../src/renderer/src/components/MergeDialog.vue    |  47 ++++--
+ .../src/renderer/src/composables/useDragDrop.ts    |  23 ++-
+ maodie-renamer/src/shared/types.ts                 |  19 +++
+ maodie-renamer/tests/smoke/helpers.js              |  65 +++++++++
+ maodie-renamer/tests/unit/preload-api.spec.ts      |  36 ++++-
+ maodie-renamer/tools/smoke.js                      | 159 ++++++++++++++++++++-
+ 8 files changed, 360 insertions(+), 24 deletions(-)
+
+=== diff 摘要（只看改动类型）===
+12	0	maodie-renamer/src/preload/api.ts
+22	1	maodie-renamer/src/preload/index.ts
+36	11	maodie-renamer/src/renderer/src/components/MergeDialog.vue
+16	7	maodie-renamer/src/renderer/src/composables/useDragDrop.ts
+19	0	maodie-renamer/src/shared/types.ts
+65	0	maodie-renamer/tests/smoke/helpers.js
+32	4	maodie-renamer/tests/unit/preload-api.spec.ts
+158	1	maodie-renamer/tools/smoke.js

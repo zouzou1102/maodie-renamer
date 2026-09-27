@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P3-1 交付报告 · 编号系统升级 · 耄耋改名</title>
+<style>
+  :root{
+    --bg:#F7F2EA; --card:#FFFFFF; --ink:#2A1A10; --ink2:#6B5A4A; --line:#E5DCD0;
+    --orange:#E08B33; --orange-d:#B96A18; --ok:#1E7A46; --warn:#B4453A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans SC","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+       line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 28px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:34px}
+  .kicker{font-size:13px;letter-spacing:.18em;color:var(--orange-d);font-weight:700;margin:0 0 10px}
+  h1{margin:0;font-size:30px;letter-spacing:-.01em}
+  h1 small{display:block;font-size:14px;font-weight:400;color:var(--ink2);letter-spacing:0;margin-top:8px}
+  h2{font-size:19px;margin:44px 0 14px;padding-left:12px;border-left:5px solid var(--orange)}
+  h3{font-size:15px;margin:24px 0 8px;color:var(--ink)}
+  p{margin:8px 0}
+  .verdict{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--ok);
+           border-radius:10px;padding:18px 22px;font-size:16px}
+  .verdict b{color:var(--ok)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin:18px 0 6px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .stat .n{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .stat .l{font-size:12.5px;color:var(--ink2);margin-top:4px}
+  .stat.pass .n{color:var(--ok)}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+        border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px;margin:14px 0}
+  th{background:#F0E8DC;text-align:left;font-weight:700;font-size:12.5px;letter-spacing:.03em}
+  th,td{padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code{background:#F1EAE0;padding:1.5px 6px;border-radius:4px;font-size:12.5px;
+       font-family:"Cascadia Mono",Consolas,monospace}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:5px 0}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:99px;
+       vertical-align:1px;margin-right:6px}
+  .t-ok{background:#DFF0E5;color:var(--ok)}
+  .t-warn{background:#FBE6E2;color:var(--warn)}
+  .t-info{background:#F2E7D8;color:var(--orange-d)}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .box.warn{border-left:6px solid var(--warn)}
+  .box.info{border-left:6px solid var(--orange)}
+  .box.ok{border-left:6px solid var(--ok)}
+  .box h3{margin-top:0}
+  .mono{font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px;word-break:break-all}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+         font-size:12.5px;color:var(--ink2)}
+  .sha{background:#2A1A10;color:#F7F2EA;border-radius:8px;padding:12px 16px;margin:12px 0}
+  .sha div{margin:3px 0;font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px}
+  .sha b{color:#E08B33}
+  .stamp{display:inline-block;background:#DFF0E5;color:#1E7A46;border-radius:6px;
+         padding:3px 10px;font-size:12px;font-weight:700;letter-spacing:.02em}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">耄耋改名 · MaoDie Renamer · 第 3 阶段第 1 批</p>
+  <h1>P3-1 交付报告：编号系统升级
+    <small>4 种编号类型 · 位置第三档 · 示例行 · 换一批　｜　2026-09-18</small>
+  </h1>
+  <p style="margin-top:14px"><span class="stamp">本报告所有数字均为 2026-09-18 17:17–17:22 当场重跑复现</span></p>
+</header>
+
+<div class="verdict">
+  <b>结论：这一批做完了。代码已合并进主线、推送到 GitHub，并且从零重装依赖后完整重跑了一遍验证，全部通过。</b><br>
+  单测 118 项全过，真实程序冒烟 54 项全过（两套历史数据各跑一遍），类型检查与代码规范 0 错。
+  下面每一条都能自己点开证据核对；<b>没验到的东西单列在第七节，一条都没藏</b>。
+</div>
+
+<h2>一、数字（一眼看结论）</h2>
+<div class="grid">
+  <div class="stat pass"><div class="n">118 / 118</div><div class="l">单元测试（当场重跑）</div></div>
+  <div class="stat pass"><div class="n">54 / 54</div><div class="l">真机冒烟 · 两套数据各一遍</div></div>
+  <div class="stat pass"><div class="n">0 错 0 警</div><div class="l">类型检查 + 代码规范</div></div>
+  <div class="stat pass"><div class="n">0</div><div class="l">构建错误（产物完整）</div></div>
+  <div class="stat pass"><div class="n">96 × 2</div><div class="l">冒烟截图张数（两轮）</div></div>
+  <div class="stat pass"><div class="n">9 份</div><div class="l">下游文档已同步</div></div>
+</div>
+
+<h2>二、这一批到底加了什么</h2>
+<table>
+  <tr><th style="width:140px">能力</th><th>做了什么</th></tr>
+  <tr>
+    <td><b>4 种编号类型</b></td>
+    <td>原来的「序号」只有数字一种，现在有四种：<br>
+      · <b>数字</b>（1、2、3… 老样子）<br>
+      · <b>字母</b>（A、B…Z、AA、AB… 按 Excel 列标那样进位；<b>固定大写、不给开关</b>，避免同一功能两种写法）<br>
+      · <b>随机字符</b>（小写 a–z 加 0–9，长度 1–16）<br>
+      · <b>时间</b>（从你指定的起始日期按「每次加 N 天」推，日期样式共用同一张 5 档表）</td>
+  </tr>
+  <tr>
+    <td><b>位置第三档</b></td>
+    <td>原来只有「放前面 / 放后面」，现在多了 <b>「放在第 n 个字符后」</b>——填个数字，编号就插进去（按「字」算，中文一个字算 1，不会把一个汉字切成两半；扩展名永远不参与）。</td>
+  </tr>
+  <tr>
+    <td><b>示例行</b></td>
+    <td>规则区下方直接显示「改完长这样」，用的是<b>和真正改名完全同一套逻辑</b>，不是另写一份演示代码 —— 看到的就等于改完的。</td>
+  </tr>
+  <tr>
+    <td><b>换一批</b></td>
+    <td>随机编号不满意？点一下换一组。只动了随机种子（每次 +1），预览和执行立刻同步。</td>
+  </tr>
+  <tr>
+    <td><b>跨天提示</b></td>
+    <td>时间编号用的「今天」和真正执行时的日期不一致会出问题。现在主进程会<b>强制改用本机当天日期</b>，界面也常显一行日期提示，不会默默改错。</td>
+  </tr>
+</table>
+
+<h2>三、验证证据在哪（可自行打开核对）</h2>
+<table>
+  <tr><th style="width:220px">验的东西</th><th>证据文件</th></tr>
+  <tr><td>单元测试 118 项</td>
+      <td><code>maodie-renamer/tests/artifacts/last-unit.json</code><br>
+          <span class="mono" style="color:#6B5A4A">→ "passed": 118, "failed": 0, "total": 118, "failures": []</span><br>
+          本批新增用例在 <code>maodie-renamer/tests/p3-1-seq.test.ts</code>（已在 <code>package.json</code> 的 <code>test:core</code> 显式登记，避免「写了却从没跑过」）</td></tr>
+  <tr><td>真机冒烟 54 项 · 第 1 轮<br>（有进行中任务）</td>
+      <td><code>maodie-renamer/tests/artifacts/2026-09-18T09-18-14/report.html</code><br>
+          96 张截图 · 报告 3.95 MB · 退出码 0</td></tr>
+  <tr><td>真机冒烟 54 项 · 第 2 轮<br>（任务全部已撤销）</td>
+      <td><code>maodie-renamer/tests/artifacts/2026-09-18T09-20-28/report.html</code><br>
+          96 张截图 · 报告 3.96 MB · 退出码 0</td></tr>
+  <tr><td>「预览 = 执行」</td>
+      <td>专门的单测：同一条规则分别走预览和执行，结果<b>逐字节相等</b>。这是本批最容易翻车的地方（见第四节）</td></tr>
+  <tr><td>类型 &amp; 规范 &amp; 构建</td>
+      <td><code>npm run typecheck</code> / <code>npm run lint</code> / <code>npm run build</code>，退出码全为 0，<code>out/main</code>、<code>out/preload</code>、<code>out/renderer</code> 产物齐全</td></tr>
+</table>
+<div class="box info">
+  <h3>顺便记一下：东西都在哪</h3>
+  <p>这个仓库的<b>根目录放的是文档</b>（PRD、技术方案、设计稿那些），<b>真正能跑的代码在子文件夹 <code>maodie-renamer/</code> 里</b>。
+     你在根目录双击「一键启动.bat」就能开发调试；测试报告在 <code>maodie-renamer/tests/artifacts/</code>。</p>
+</div>
+
+<h2>四、本批最危险的一处（已经堵上）</h2>
+<div class="box warn">
+  <h3><span class="tag t-warn">风险</span>规则字段白名单漏一个，就会「预览对、执行错、界面毫无异常」</h3>
+  <p>程序里有一道<b>逐字段白名单</b>（<code>sanitizeRule</code>），规则从界面送去执行时只放行白名单里认识的字段。
+     这一批<b>新增了 6 个编号字段</b>，只要漏掉任何一个，症状就是：<b>预览看着完全正常，真正改名时那个设置被悄悄丢掉，界面一点报错都没有</b>。</p>
+  <p><b>两道防线：</b></p>
+  <ul>
+    <li>把这道白名单从主进程挪到 <code>src/shared/sanitize-rule.ts</code>，这样单元测试能直接调用它，不用起整个程序；</li>
+    <li>配了「同一条规则，预览结果 ≡ 执行结果，逐字节相等」的单测。</li>
+  </ul>
+</div>
+
+<h2>五、第六节之前，先说一件本轮才发现的事</h2>
+<div class="box warn">
+  <h3><span class="tag t-warn">本轮独立复核</span>原有的测试证据文件曾经「不见了」</h3>
+  <p>准备交付时做完整性检查，发现 <code>maodie-renamer/node_modules</code>（依赖）、<code>out</code>（构建产物）、<code>tests/artifacts</code>（测试报告）
+     <b>三个文件夹都不在了</b>。它们属于「不入库」的文件夹，git 里没有备份，救不回来。</p>
+  <p>所以原来那组数字虽然是真的，但<b>当时手上没有可复现的证据</b>。为此我做了两件事：</p>
+  <ul>
+    <li><b>从零重装依赖</b> <code>npm ci</code> —— 装回 656 个包（本地缓存命中，仍是 25 分钟）；</li>
+    <li><b>完整重跑一遍全部验证</b>：类型检查 → 代码规范 → 单测 → 构建 → 真机冒烟（两套数据）。</li>
+  </ul>
+  <p style="margin-bottom:0"><b>结果：全部通过，与本批提交的代码一致。</b>本报告第一节的数字就是这一次重跑的结果。
+     换句话说，这批代码不是「上次跑过所以应该没问题」，而是<b>今天、这个版本、从零开始，实测通过</b>。</p>
+</div>
+
+<h2>六、提交与推送（已核验，不是「看起来成功了」）</h2>
+<div class="sha">
+  <div>提交（分支 fix）：<b>208096a</b>　26 文件　+1889 / −176</div>
+  <div>合并后主线 main：<b>96db714</b>　跟踪文件 197 个</div>
+  <div>远端 main / fix：<b>96db714b82d8ace7af37236e6fd7acfc420b9f60</b></div>
+</div>
+<p>推送这一步在这个环境里有个老毛病：命令会<b>谎报失败</b>（退出码 128、输出空白），但其实远端已经更新了。
+所以判定标准不是「命令有没有报成功」，而是<b>直接去问 GitHub 远端的分支指向哪个版本，再和本地比对，两个哈希一模一样才算数</b>。上面第三个哈希就是这么取回来的。</p>
+
+<h2>七、文档同步（9 份）</h2>
+<table>
+  <tr><th style="width:200px">文档</th><th style="width:80px">版本</th><th>这次改了什么</th></tr>
+  <tr><td>需求清单</td><td>v0.3.5</td><td>补 4 种编号类型、位置第三档、示例行等需求项</td></tr>
+  <tr><td>产品需求文档（PRD）</td><td>v1.1.8</td><td>同步编号系统升级的功能描述</td></tr>
+  <tr><td>交互说明</td><td>v1.8</td><td>编号类型/位置/示例行/换一批的交互与状态</td></tr>
+  <tr><td>设计规范</td><td>v1.7</td><td>新增控件样式与规格</td></tr>
+  <tr><td>技术方案</td><td><b>v1.0.6</b></td><td>目录树登记新文件、纯函数登记、组合公式扩到六种情形、遗留项与版本记录</td></tr>
+  <tr><td>接口文档</td><td><b>v1.0.5</b></td><td>规则结构加 6 个字段、位置第三档、日期格式 5 档、跨天必须重新预览</td></tr>
+  <tr><td>数据库设计</td><td><b>v1.0.3</b></td><td>补记「6 个新字段同样不落盘、零迁移」</td></tr>
+  <tr><td>P2-B 设计确认</td><td>v1.0</td><td>已落地</td></tr>
+  <tr><td>P3-1 设计确认</td><td>v1.1</td><td>已落地</td></tr>
+</table>
+<div class="box info">
+  <h3>为什么数据库一个字没改</h3>
+  <p>因为这套软件的<b>改名规则从来不存盘</b>——存盘的只有历史记录、窗口位置、偏好设置三样。
+     规则用完就丢，所以加多少字段都不影响老数据，<b>不需要写任何数据迁移</b>。这也是这一批能这么干净的原因。</p>
+</div>
+
+<h2>八、没验到的（照实说）</h2>
+<div class="box warn">
+  <p><b>下面这些，这一轮没有（也无法）验证，请当成「还没证明过」看：</b></p>
+  <ul>
+    <li><span class="tag t-warn">沙箱做不到</span><b>打包出来的 exe 双击能跑</b> —— 自动化环境里没法替你双击图标。装包后第一次运行、安装路径、杀毒软件拦截，都得你亲手点一遍。</li>
+    <li><span class="tag t-warn">沙箱做不到</span><b>真实鼠标拖拽选文件夹</b>、多显示器不同缩放比例、Windows 高对比度主题下的显示 —— 这些依赖真人真机。</li>
+    <li><span class="tag t-warn">验不了</span><b>「程序启动第一帧会不会闪一下白」</b> —— 这项没有可靠的自动化判定方式，只能靠肉眼。</li>
+    <li><span class="tag t-warn">没做</span><b>正则表达式「超过 3 秒自动中止」</b>（EX-16）仍未实现 —— 这是更早就挂着的遗留项，本批没有动它。</li>
+  </ul>
+  <p style="margin-bottom:0">以上任何一条如果你希望补上，说一声，我按同样的口径单独排。</p>
+</div>
+
+<h2>九、线头与下一步</h2>
+<div class="box ok">
+  <h3><span class="tag t-ok">已修</span>设计稿 HTML 里的深色示例色值笔误</h3>
+  <p>深色示例那一行的代码底色/文字色被写成了两种几乎相同的深色，字基本看不见。已修好。</p>
+  <p><b>根因挺有意思：</b>写错的那个值 <code>#3a2a20</code>，正是主文字色 <code>--md-ink-1</code> 的<b>浅色</b>取值 —— 也就是把浅色主题的值抄进了深色段落。
+     该色在深色下应当是 <code>#f2e9e0</code>。同一段落里输入框用的就是 <code>#f2e9e0</code>，两边正好互相印证。
+     全文扫描确认<b>只有这一处</b>抄错，已按真实色值修正。</p>
+</div>
+<div class="box">
+  <h3>下一步：还剩 7 批（按文件风险从低到高）</h3>
+  <table>
+    <tr><th style="width:40px">#</th><th>批次</th><th style="width:160px">风险</th></tr>
+    <tr><td>2</td><td>提取文件名</td><td><span class="tag t-ok">低</span>只读文字</td></tr>
+    <tr><td>3</td><td>按属性命名（日期/大小等）</td><td><span class="tag t-ok">低</span>只读文字</td></tr>
+    <tr><td>4</td><td>导入 Excel 做对照改名</td><td><span class="tag t-info">中</span>新增外部数据来源</td></tr>
+    <tr><td>5</td><td>三种改名模式扩到五种 + 改扩展名 + 只留编号</td><td><span class="tag t-info">中</span>改的是文件名本体</td></tr>
+    <tr><td>6</td><td>提取文件夹名</td><td><span class="tag t-info">中</span>读上层的名字</td></tr>
+    <tr><td>7</td><td>文件夹合并</td><td><span class="tag t-warn">高</span><b>会移动/删除文件本身</b></td></tr>
+    <tr><td>8</td><td>从压缩包/多层目录提取文件</td><td><span class="tag t-warn">高</span><b>会复制文件本身</b></td></tr>
+  </table>
+  <p style="margin-bottom:0">第 7、8 批会真正动到你的文件，按约定<b>放到最后做，并且单独走一次不可逆操作评审</b> —— 先讲清楚「万一出错怎么退回」，再动代码。</p>
+</div>
+
+<footer>
+  耄耋改名 · P3-1 交付报告　｜　数字采集时间 2026-09-18 17:17–17:22　｜　
+  单测 118/118 · 冒烟 54/54 × 2 · typecheck 0 · lint 0 · build 0<br>
+  提交 208096a → 合并 96db714（远端 main / fix 均已核验一致）
+</footer>
+
+</div>
+</body>
+</html>

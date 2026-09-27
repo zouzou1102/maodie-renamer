@@ -103,15 +103,14 @@ function readTokens(): { light: Map<string, string>; dark: Map<string, string> }
 /**
  * 两主题**同值**、因而不需要在深色块里重复声明的令牌。
  * 少了这条清单，本测试会逼着人把「不变的品牌橘」也抄一遍 —— 那反而增加漂移面。
+ *
+ * ★ P3-9（DEC-31）把这六条从清单里**移出去**了：品牌橘三色、ok、warn、
+ *   on-brand / on-danger 现在**两主题不同值**，必须各自在深色块里有值。
+ *   不是放宽断言 —— 清单本来只是「哪些令牌不需要写两遍」的声明式数据，
+ *   而且移出去之后**要求更严**（这些令牌现在漏写深色值就会红）。
+ *   前四条的历史值见 P3-9 设计确认 §11「被推翻的两条规矩」。
  */
 const SAME_IN_BOTH = new Set([
-  '--md-orange-primary',
-  '--md-orange-accent',
-  '--md-orange-dark',
-  '--md-ok',
-  '--md-warn',
-  '--md-on-brand',
-  '--md-on-danger',
   '--md-switch-thumb',
   '--md-confetti-1',
   '--md-confetti-2',

@@ -373,6 +373,63 @@ async function dragTo(win, fromSelector, toSelector, { steps = 8 } = {}) {
   return { from, to };
 }
 
+/**
+ * 用 Chromium 的**真实拖放通道**（CDP `Input.dispatchDragEvent`）把真实文件拖到某元素上。
+ *
+ * 为什么不用 sendInputEvent 鼠标事件（dragTo）：HTML5 拖放不是"鼠标按下→移动→松开"
+ * 就够的 —— 它需要 Chromium 的拖放控制器真的建立一个 drag session，才会派发
+ * dragenter / dragover / drop。sendInputEvent 造的鼠标事件**不会**产生这三个事件
+ * （所以 dragTo 只适合滑块这类指针拖动）。
+ *
+ * 这条路与"真人把文件从资源管理器拖进窗口"走的是**同一条**代码路径：
+ * 真实拖放事件 + 真实文件（Chromium 会真的读它，File.size 等属性可用）。
+ */
+async function dropFilesOn(win, selector, files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    throw new Error('dropFiles 需要至少 1 个真实文件路径');
+  }
+  const r = await rectOf(win, selector);
+  if (!r) throw new Error(`拖放目标不存在：${selector}`);
+  const x = Math.round(r.cx);
+  const y = Math.round(r.cy);
+  await cursorMove(win, x, y);
+
+  const dbg = win.webContents.debugger;
+  let attachedHere = false;
+  try {
+    if (!dbg.isAttached()) {
+      dbg.attach('1.3');
+      attachedHere = true;
+    }
+  } catch (err) {
+    throw new Error(`无法附加调试器（真实拖放不可用）：${String((err && err.message) || err)}`);
+  }
+  const data = {
+    items: [
+      {
+        mimeType: 'text/uri-list',
+        data: files.map((f) => 'file:///' + String(f).replace(/\\/g, '/')).join('\r\n'),
+      },
+    ],
+    dragOperationsMask: 1, // 1 = copy
+    files,
+  };
+  try {
+    await dbg.sendCommand('Input.dispatchDragEvent', { type: 'dragEnter', x, y, data });
+    await sleep(tick());
+    await dbg.sendCommand('Input.dispatchDragEvent', { type: 'dragOver', x, y, data });
+    await sleep(tick());
+    await dbg.sendCommand('Input.dispatchDragEvent', { type: 'drop', x, y, data });
+  } finally {
+    if (attachedHere) {
+      try { dbg.detach(); } catch { /* 用完即退，detach 失败不掩盖原来的错误 */ }
+    }
+  }
+  await cursorRipple(win, x, y);
+  await sleep(320);
+  return { x, y, fileCount: files.length };
+}
+
 async function pressKey(win, keyCode, { modifiers = [] } = {}) {
   win.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
   await sleep(16);
@@ -564,6 +621,12 @@ function makeRecorder(ops) {
   rec.dblclick = (sel) => add('dblclick', `双击 ${sel}`, [sel]);
   rec.hover = (sel) => add('hover', `移到 ${sel} 上`, [sel]);
   rec.drag = (a, b) => add('drag', `${a} 拖到 ${b}`, [a, b]);
+  /**
+   * 把**真实文件**拖到 `sel` 上（走 Chromium 真实拖放通道，等价于真人从资源管理器拖进来）。
+   * `files` 必须是真实的文件系统路径数组。
+   */
+  rec.dropFiles = (sel, files, label) =>
+    add('dropFiles', label || `把 ${files.length} 个真实文件拖到 ${sel}`, [sel, files]);
   rec.type = (text) => add('type', `输入「${cut(text, 30)}」`, [text]);
   rec.key = (k) => add('key', `按 ${k}`, [k]);
   /**
@@ -676,6 +739,7 @@ async function runOp(win, op, assert) {
     case 'dblclick': await doubleClickAt(win, a); break;
     case 'hover': await hoverAt(win, a); break;
     case 'drag': await dragTo(win, a, b); break;
+    case 'dropFiles': await dropFilesOn(win, a, b); break;
     case 'type': await typeText(win, a); break;
     case 'key': await pressKey(win, a); break;
     case 'select': await selectOption(win, a, b); break;
@@ -969,6 +1033,7 @@ module.exports = {
   doubleClickAt,
   hoverAt,
   dragTo,
+  dropFilesOn,
   pressKey,
   focusEl,
   typeText,

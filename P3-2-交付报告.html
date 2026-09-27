@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P3-2 交付报告 · 导出文件名清单 · 耄耋改名</title>
+<style>
+  :root{
+    --bg:#F7F2EA; --card:#FFFFFF; --ink:#2A1A10; --ink2:#6B5A4A; --line:#E5DCD0;
+    --orange:#E08B33; --orange-d:#B96A18; --ok:#1E7A46; --warn:#B4453A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans SC","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+       line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 28px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:34px}
+  .kicker{font-size:13px;letter-spacing:.18em;color:var(--orange-d);font-weight:700;margin:0 0 10px}
+  h1{margin:0;font-size:30px;letter-spacing:-.01em}
+  h1 small{display:block;font-size:14px;font-weight:400;color:var(--ink2);letter-spacing:0;margin-top:8px}
+  h2{font-size:19px;margin:44px 0 14px;padding-left:12px;border-left:5px solid var(--orange)}
+  h3{font-size:15px;margin:24px 0 8px;color:var(--ink)}
+  p{margin:8px 0}
+  .verdict{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--ok);
+           border-radius:10px;padding:18px 22px;font-size:16px}
+  .verdict b{color:var(--ok)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin:18px 0 6px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .stat .n{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .stat .l{font-size:12.5px;color:var(--ink2);margin-top:4px}
+  .stat.pass .n{color:var(--ok)}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+        border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px;margin:14px 0}
+  th{background:#F0E8DC;text-align:left;font-weight:700;font-size:12.5px;letter-spacing:.03em}
+  th,td{padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code{background:#F1EAE0;padding:1.5px 6px;border-radius:4px;font-size:12.5px;
+       font-family:"Cascadia Mono",Consolas,monospace}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:5px 0}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:99px;
+       vertical-align:1px;margin-right:6px}
+  .t-ok{background:#DFF0E5;color:var(--ok)}
+  .t-warn{background:#FBE6E2;color:var(--warn)}
+  .t-info{background:#F2E7D8;color:var(--orange-d)}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .box.warn{border-left:6px solid var(--warn)}
+  .box.info{border-left:6px solid var(--orange)}
+  .box.ok{border-left:6px solid var(--ok)}
+  .box h3{margin-top:0}
+  .mono{font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px;word-break:break-all}
+  .sha{background:#2A1A10;color:#F7F2EA;border-radius:8px;padding:12px 16px;margin:12px 0}
+  .sha div{margin:3px 0;font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px}
+  .sha b{color:#E08B33}
+  .stamp{display:inline-block;background:#DFF0E5;color:#1E7A46;border-radius:6px;
+         padding:3px 10px;font-size:12px;font-weight:700;letter-spacing:.02em}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+         font-size:12.5px;color:var(--ink2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">耄耋改名 · MaoDie Renamer · 第 3 阶段第 2 批</p>
+  <h1>P3-2 交付报告：导出文件名清单
+    <small>原名 / 新名对照表 · Excel / 文本 / CSV / Word 四档　｜　2026-09-21</small>
+  </h1>
+  <p style="margin-top:14px"><span class="stamp">数字均为 2026-09-21 当场重跑复现</span></p>
+</header>
+
+<div class="verdict">
+  <b>结论：这一批做完了，已合并进主线并推送到 GitHub。</b><br>
+  单测 159 项全过（本批新增 41 项），真实程序冒烟 58 项全过（两套历史数据各跑一遍），
+  类型检查 / 代码规范 / 构建 0 错。<b>这一批一个字都没动你的文件</b> —— 它只读列表、只写一个新文件。
+</div>
+
+<h2>一、数字（一眼看结论）</h2>
+<div class="grid">
+  <div class="stat pass"><div class="n">159 / 159</div><div class="l">单元测试（本批新增 41 条）</div></div>
+  <div class="stat pass"><div class="n">58 / 58</div><div class="l">真机冒烟 · 两套数据各一遍</div></div>
+  <div class="stat pass"><div class="n">0 错 0 警</div><div class="l">类型检查 + 代码规范 + 构建</div></div>
+  <div class="stat pass"><div class="n">0</div><div class="l">新增第三方依赖（xlsx/docx 自己写）</div></div>
+  <div class="stat pass"><div class="n">0</div><div class="l">改动的文件（只读列表、只写一个新文件）</div></div>
+  <div class="stat pass"><div class="n">4 档</div><div class="l">导出格式</div></div>
+</div>
+
+<h2>二、这一批加了什么</h2>
+<table>
+  <tr><th style="width:130px">能力</th><th>说明</th></tr>
+  <tr>
+    <td><b>入口</b></td>
+    <td>左栏操作区多一个「<b>导出清单</b>」按钮，放在「清空列表」<b>上面</b>。
+        为什么不放底部的动作区：那里主按钮是「开始改名」，是全程序唯一会改文件的动作；
+        把不改文件的导出塞进去，会糊掉「主按钮 = 危险动作」这条视觉约定。</td>
+  </tr>
+  <tr>
+    <td><b>选项气泡</b></td>
+    <td>点开后三个选项：<br>
+      · <b>格式</b>：Excel(.xlsx) / 文本(.txt) / CSV(.csv) / Word(.docx)，默认 Excel<br>
+      · <b>范围</b>：全部 / 仅选中项（没勾任何文件时这一档是灰的）<br>
+      · <b>列</b>：原名 / 新名 / 状态（默认勾上）＋ 所在文件夹（<b>默认不勾</b> ——
+        完整路径里可能有客户名、项目名，与「清空历史」出于隐私做入口是同一个理由）</td>
+  </tr>
+  <tr>
+    <td><b>四档格式</b></td>
+    <td>· <b>xlsx</b>：真表格，能排序筛选，拿去继续用<br>
+      · <b>txt</b>：Tab 分隔，记事本直接看<br>
+      · <b>csv</b>：通用纯文本表格<br>
+      · <b>docx</b>：<b>真表格 + 有边框 + 表头加粗 + 表头每页重复</b>，能直接打印、能当正式附件交出去</td>
+  </tr>
+  <tr>
+    <td><b>零依赖</b></td>
+    <td>xlsx 与 docx <b>自己写</b>（共用一个 ZIP 打包器），<b>没有引入任何第三方库</b>。
+        清单只有几 KB，为它引一个压缩库等于给「零运行时依赖」开个口子。</td>
+  </tr>
+</table>
+
+<h2>三、三条落盘安全底线（本批新立的硬规矩）</h2>
+<div class="box warn">
+  <p>导出要往硬盘上写东西，所以定了三条 —— 这是「绝不覆盖」那条底线往导出场景的延伸：<b>凡是要往硬盘上写东西，决定权必须在用户手里。</b></p>
+  <ul>
+    <li><b>一律走系统「另存为」对话框</b>，由你亲手指定存哪 —— 程序<b>绝不自己猜路径</b>。</li>
+    <li><b>绝不默认写到列表里那些文件所在的目录</b>。你拖进来的多半是素材目录，凭空多一个清单文件就是污染。</li>
+    <li><b>只新建，绝不静默覆盖</b>。在对话框里选了已存在的文件时，<b>由 Windows 自己问「是否替换」</b>；程序不做任何额外的覆盖处理。</li>
+  </ul>
+</div>
+
+<h2>四、三处最容易「看着像好了」的地方（都已经堵上）</h2>
+<div class="box warn">
+  <h3><span class="tag t-warn">1</span>预览还在算的时候就导出 → 拿到的是<b>上一轮</b>的新名</h3>
+  <p>预览有 <b>200 毫秒防抖 + 后台计算</b>。如果你改完规则立刻点导出，导出的会是<b>改动之前</b>的名字 ——
+     而你看着屏幕上显示的新名，完全看不出哪里不对。这是本批最像 P2-A 那个坑的地方（值不对、界面却毫无异常）。</p>
+  <p><b>处理：</b>「导出…」按钮在预览没算完时<b>置灰</b>，并在旁边写明原因（「正在重新计算，稍等一下」），
+     不让你对着一个灰按钮猜。</p>
+</div>
+<div class="box warn">
+  <h3><span class="tag t-warn">2</span>Word 那档：漏写一行声明，Word 会直接说「文件已损坏」</h3>
+  <p><code>.docx</code> 是一个压缩包，里面有一张「内容清单」必须把每个部件都登记上。
+     少登记一个（比如正文），<b>Word 打开时会报「文件已损坏，无法打开」</b> ——
+     而我们自己的检查（只看压缩包结构与格式合法性）<b>会全部通过</b>。</p>
+  <p><b>处理：</b>专门写了一条检查，把「内容清单里登记的东西」与「压缩包里真实存在的东西」
+     <b>双向逐个比对</b> —— 少一个就红。</p>
+</div>
+<div class="box warn">
+  <h3><span class="tag t-warn">3</span>txt / csv 的编码：不带 BOM 会让 Excel 里<b>整张表中文乱码</b></h3>
+  <p>没有开头那 3 个字节的标记，中文 Windows 上的 Excel 会按本地编码去猜，<b>整张表的中文全是乱码</b>。
+     更麻烦的是：<b>这一条只在你那边看得出来</b> —— 我在这台机器上用 VS Code 打开是好好的。</p>
+  <p><b>处理：</b>txt 与 csv 两条路径<b>共用同一处</b>加这个标记，并写了断言钉死开头 3 字节是 <code>EF BB BF</code>。</p>
+</div>
+
+<h2>五、验证证据在哪（可自行打开核对）</h2>
+<table>
+  <tr><th style="width:210px">验的东西</th><th>证据文件</th></tr>
+  <tr><td>单元测试 159 项</td>
+      <td><code>maodie-renamer/tests/artifacts/last-unit.json</code>（passed 159 / failed 0）<br>
+          本批新增用例在 <code>maodie-renamer/tests/p3-2-export.test.ts</code>（已在 <code>test:core</code> 显式登记）</td></tr>
+  <tr><td>真机冒烟 58 项 · 第 1 轮<br>（有进行中任务）</td>
+      <td><code>maodie-renamer/tests/artifacts/2026-09-21T04-45-42/report.html</code><br>
+          slow=600ms/步 · 58/58 · 无 console 报错、无未捕获异常</td></tr>
+  <tr><td>真机冒烟 58 项 · 第 2 轮<br>（任务全部已撤销）</td>
+      <td><code>maodie-renamer/tests/artifacts/2026-09-21T04-48-03/report.html</code><br>
+          58/58 · 同上</td></tr>
+  <tr><td>本批新加的真机用例</td>
+      <td>① 导出按钮在左栏、位于「清空列表」之上 ② 点开后气泡三个默认值都对
+          ③ 取消能关掉 ④ <b>真导出一次 CSV</b>（走完整通道、真的落盘、状态栏提示项数与文件名）</td></tr>
+</table>
+<div class="box info">
+  <h3>关于第 ④ 条：为什么必须真导一次</h3>
+  <p>系统的「另存为」对话框是 Windows 原生窗口，<b>自动化脚本点不到它</b> ——
+     不给个办法的话，「生成 → 写盘」这段真实代码在自动测试里<b>永远走不到</b>，等于本批核心功能没被验过。</p>
+  <p>所以测试脚本会在启动时注入一个落点，<b>跳过对话框</b>，让真实代码完整跑一遍。
+     生产环境没有这个变量，等价于这段分支不存在。<b>这与项目里既有的「数据目录注入」是同一类做法。</b></p>
+</div>
+
+<h2>六、提交与推送</h2>
+<div class="sha">
+  <div>提交（分支 fix）：<b>e4098b2</b>　26 文件　+2055 / −17　（新增 10 个文件）</div>
+  <div>合并后主线 main：<b>35425c0</b>　跟踪文件 197 → <b>207</b></div>
+  <div>远端 main / fix：<b>35425c05b94e6d369a5553b8b56c67376390ce5b</b>（四处 SHA 已逐一比对一致）</div>
+</div>
+
+<h2>七、文档同步（6 份入库 + 2 份未入库）</h2>
+<table>
+  <tr><th style="width:200px">文档</th><th style="width:80px">版本</th><th>这次改了什么</th></tr>
+  <tr><td>需求清单</td><td>—</td><td><b>纠正一处上游笔误</b>：第 2 批原本写成「从文件名里取一段当新名」，那不是这一批 —— 改为「导出文件名清单」，并注明「抠一段」归第 5 批</td></tr>
+  <tr><td>产品需求文档（PRD）</td><td>v1.1.9</td><td>验收表加 TC-50 ~ TC-55；新增 <b>DEC-17</b>（范围 + 三条落盘安全底线）；决策数 16 → 17</td></tr>
+  <tr><td>交互说明</td><td>v1.9</td><td>R-03 操作区登记新按钮；元素表加 EL-126 / EL-127；交互表加 IX-110 / IX-111</td></tr>
+  <tr><td>设计规范</td><td>v1.8</td><td>新增 §4.9「导出清单的新控件」规格</td></tr>
+  <tr><td>技术方案</td><td>v1.0.7</td><td>目录树登记 7 个新文件；§11 补三条取舍（store 不压缩 / docx 最小集 / 落盘三底线）</td></tr>
+  <tr><td>接口文档</td><td>v1.0.6</td><td>通道总数 16 → <b>17</b>；文件系统域 3 → 4；通道清单加 <code>md:fs:exportList</code></td></tr>
+  <tr><td>数据库设计</td><td>v1.0.4</td><td>版本号（本批<b>零持久化字段</b>，无需结构改动）</td></tr>
+  <tr><td>P3-2-8批总规划</td><td>—</td><td>第 2 批标记为「已落地」<br><span style="color:#B4453A">※ 这份和 P3-2 设计确认文档一样，<b>本来就不在 git 仓库里</b>（未跟踪），所以只改了工作区、没有提交</span></td></tr>
+</table>
+
+<h2>八、没验到的（照实说）</h2>
+<div class="box warn">
+  <ul>
+    <li><span class="tag t-warn">最重要</span><b>用真 Excel / WPS 打开导出的 .xlsx，用真 Word / WPS 打开 .docx</b> ——
+        我能证明「文件的字节结构符合规范」，<b>证明不了 Office 软件愿不愿意打开它</b>。
+        尤其 <code>.docx</code> 有「文件已损坏」这类只看我们测不出来的风险。
+        <b>这一条只能你装包后亲手打开一次。</b></li>
+    <li><span class="tag t-warn">沙箱做不到</span>左栏加了一行按钮之后，<b>会不会把左栏挤出一个滚动条</b> —— 需要真机看。</li>
+    <li><span class="tag t-warn">沙箱做不到</span><b>打包出来的 exe 双击能跑</b>。</li>
+    <li><span class="tag t-info">已用等价方式覆盖</span>系统「另存为」对话框的<b>真实鼠标操作</b>（自动化点不到原生窗口）——
+        已用注入落点的方式让真实写盘代码完整跑通，但「用户点对话框」这个动作本身没被自动化验过。</li>
+  </ul>
+</div>
+
+<h2>九、本轮踩到并已记录的两个坑</h2>
+<div class="box ok">
+  <h3><span class="tag t-ok">已解决</span>冒烟两次「跑一半就没了」</h3>
+  <p>现象是进程在跑到一半时消失、没有任何报错。排查后确认：<b>慢速冒烟全程约 2 分 14 秒，而命令执行有 120 秒上限</b>，
+     超时就被截断（用一句「睡 150 秒」的命令单独验证过，同样在 2 分钟被切断）。
+     显式把上限调高之后，两轮都是 58/58 全过 —— <b>与代码无关</b>。</p>
+  <h3 style="margin-top:16px"><span class="tag t-ok">已修</span>编辑器对中文大文件的替换会「静默失效」</h3>
+  <p>本轮的代码编辑有几次报成功、实际没写进去（<code>types.ts</code> 的类型定义整块丢了）。
+     已改为「改完立刻用独立方式回读核对」，并发现过一处自己脚本写坏的行（把注释开头吃掉了）。
+     <b>这类问题不会报错，只能靠改完再读一遍抓。</b></p>
+</div>
+
+<h2>十、下一步：还剩 6 批</h2>
+<table>
+  <tr><th style="width:40px">#</th><th>批次</th><th style="width:150px">风险</th></tr>
+  <tr><td>3</td><td>按文件属性命名（创建 / 修改时间 · 尺寸）</td><td><span class="tag t-ok">低</span>只读文字</td></tr>
+  <tr><td>4</td><td>导入 Excel 做对照改名</td><td><span class="tag t-info">中</span>新增外部数据来源</td></tr>
+  <tr><td>5</td><td>三模式扩到五模式 + 扩展名更改 + 只留编号</td><td><span class="tag t-info">中</span>改文件名本体</td></tr>
+  <tr><td>6</td><td>提取文件夹名</td><td><span class="tag t-info">中</span>读上层名字</td></tr>
+  <tr><td>7</td><td>文件夹合并</td><td><span class="tag t-warn">高</span><b>会移动/删除文件本身</b></td></tr>
+  <tr><td>8</td><td>从压缩包 / 多层目录提取文件</td><td><span class="tag t-warn">高</span><b>会复制文件本身</b></td></tr>
+</table>
+<p>第 7、8 批按约定<b>放到最后做，并单独走一次不可逆操作评审</b>。第 4 批（导入 Excel）与本批刚好是一对：
+本批是「把列表导出去」，第 4 批是「把表格读进来」—— 那时可以复用本批的四档格式知识。</p>
+
+<footer>
+  耄耋改名 · P3-2 交付报告　｜　生成于 2026-09-21　｜　
+  单测 159/159 · 冒烟 58/58 × 2 · typecheck 0 · lint 0 · build 0<br>
+  提交 e4098b2 → 合并 35425c0（远端 main / fix 均已核验一致）
+</footer>
+
+</div>
+</body>
+</html>

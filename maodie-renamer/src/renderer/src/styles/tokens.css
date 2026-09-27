@@ -4,94 +4,117 @@
  * 纪律：**组件里禁止出现硬编码色值 / 圆角 / 阴影**（接口文档 P-10）。
  * 视觉必须单一来源，否则改一次主色要满仓库找 `#F5A623`。
  *
- * ══ 深色主题（P2-A · F-14）══════════════════════════════════════════
+ * ══ P3-9 · 主界面照 C 方案换色（DEC-30 / DEC-31）═══════════════════
  *
- * 有两件事和「只加一个覆盖块」不一样：
+ * 这一版把配色整体换成「C-面板阵列」那套，**令牌名一个没改**（只换值）——
+ * 改名成 `--md-surface-1/2/3` 要动 15 个组件文件，与「轻量化」相冲。
+ * 令牌在两个主题下各扮演什么角色，逐行写在下面，不靠人记。
  *
- * 1. **深色块挂在 `@media (prefers-color-scheme: dark)` 上，不挂 `[data-theme]`。**
- *    主进程在建窗口**之前**就把深浅色信号设好（`nativeTheme.themeSource`），
- *    Chromium 的首帧就已经知道该用深色 —— 所以**从物理上不可能先闪一下浅色**
- *    （验收 TC-30）。若改成「先渲染浅色、再让 JS 挂 data-theme」，
- *    等 JS 跑到那一帧早就画出来了。
- *    `<html data-theme>` 仍然会挂上（'light' / 'dark'），但**只用于冒烟断言与
- *    排查，不参与样式选择** —— 唯一真源是系统/主进程给出的深浅色信号。
+ * ⚠️ **两条被推翻的旧规矩**（都要留痕，见 P3-9 设计确认 §11）：
  *
- * 2. **令牌名保留原样，不改成语义名。** 深色下 `--md-bg-cream` 并不是 cream。
- *    更正确的做法是改叫 `--md-surface-1/2/3`，但那要动 15 个组件文件，
- *    与「轻量化」相冲。所以在这里逐个写清「它在两种主题下各扮演什么角色」，
- *    不靠人记（见下方分组注释里的「深色 →」）。
+ * · **DEC-30 —— 深色底不再是「暖褐」**
+ *   旧规矩：「深色主题暖褐色深底，为什么不用冷灰黑 —— 本产品卖点是奶油白 + 橘猫，
+ *   冷灰会把暖萌感洗掉」。P3-9 起深底改**中性近黑 `#0B0A09`**。
+ *   为什么值得推翻：C 方案的核心是「**单一强橘 + 中性底**」——
+ *   底一旦带色相，橘色就不再是画面里唯一的热源（这是「科技感/高级感」的来源）。
+ *   实测（P3-9 交付报告）：中性底上橘色主按钮的对比度反而**更高**（白字 6.4:1），
+ *   暖萌感改由**猫本身 + 橘色强调区**承担，不靠底色。
+ *
+ * · **DEC-31 —— 品牌橘不再「两主题同值」**
+ *   旧规矩：「品牌橘三色完全不动 —— 猫毛色不该因为换主题就变」。
+ *   P3-9 起浅色强调色改**深赭橘 `#A1420D`**，深色仍是亮橘 `#FF7A1A`。
+ *   为什么要分主题：同一种橘在**白底**上要压得住（否则按钮像荧光贴纸），
+ *   在**近黑底**上又要跳得出来。一个值同时满足两边是不可能的 ——
+ *   旧值 `#F5A623` 在白底上白字只有 2.03:1（一直靠「14px 加粗算大字」勉强解释）。
+ *   ⚠️ 猫的形象 SVG **不参与换色**（`resources/cats/` 原样），
+ *   所以旧规矩「猫毛色不随主题变」这一半**仍然成立** —— 被推翻的只是「强调色必须同值」。
  *
  * 三条规律（看懂就不用背表）：
- *  · **品牌橘三色完全不动** —— 猫毛色不该因为换主题就变。
- *  · **阴影从「暖棕」换「纯黑」** —— 深底上暖棕影比底色还亮，等于没有。
  *  · **层级恒为「卡片最亮、凹陷槽最暗」** —— 浅色下 sunken 比卡片暗，
- *    深色下就必须仍然比卡片暗（`#1A1210` < `#2E2119`）。方向弄反，
+ *    深色下也必须仍然比卡片暗（`#070605` < `#211D1A`）。方向弄反，
  *    页签的选中态就完全看不出来。
+ *  · **文字与底一起换，不许只换一半** —— 中性底的灰阶与暖底的灰阶不是一个色系，
+ *    只换底不换字会出现「暖灰字压中性底」这种脏色。
+ *  · **橘底上的字随主题反色** —— 浅色是**白字**（on 深赭橘 6.4:1），
+ *    深色是**近黑字**（on 亮橘 7.3:1）。所以 on-brand 不再属于「两主题同值」。
+ *
+ * ── 深色主题为什么挂在 `@media (prefers-color-scheme: dark)` 上，不挂 `[data-theme]` ──
+ * 主进程在建窗口**之前**就把深浅色信号设好（`nativeTheme.themeSource`），
+ * Chromium 的首帧就已经知道该用深色 —— 所以**从物理上不可能先闪一下浅色**
+ * （验收 TC-30）。若改成「先渲染浅色、再让 JS 挂 data-theme」，
+ * 等 JS 跑到那一帧早就画出来了。
+ * `<html data-theme>` 仍然会挂上（'light' / 'dark'），但**只用于冒烟断言与
+ * 排查，不参与样式选择** —— 唯一真源是系统/主进程给出的深浅色信号。
  */
 
 :root {
   /* 浅色主题的底色族（深色 → 见文件下方 @media 块）*/
   color-scheme: light;
 
-  /* ── 品牌色（深色 → 三色完全不变）───────────────────────────────── */
-  --md-orange-primary: #f5a623;
-  --md-orange-accent: #ff8a3d;
-  --md-orange-dark: #e08b33;
-  --md-orange-soft: #fff3e2;
+  /* ── 强调橘（★ DEC-31：两主题不同值）────────────────────────────
+   * primary = 实心填充（主按钮 / 勾选框 / 开关 / 进度条）
+   * accent  = 悬停填充与描边（比 primary 更深，白字对比度更高）
+   * dark    = 按下填充 + **浅底上的橘色文字**（页签选中态 / 进阶条启用态 /
+   *           预览新名 / 拖拽蒙层文案）—— 所以它必须能在卡片白底上读得清
+   * soft    = 浅橘底（次按钮悬停底 / 高亮块）*/
+  --md-orange-primary: #a1420d;
+  --md-orange-accent: #8e380a;
+  --md-orange-dark: #7a2f08;
+  --md-orange-soft: #fbf1ea;
 
-  /* ── 背景与描边 ─────────────────────────────────────────────────── */
-  --md-bg-cream: #fffbf5;
+  /* ── 背景与描边（C 的四层：卡片 > 面板 > 窗口底 > 凹陷槽）─────── */
+  --md-bg-cream: #edebe7; /* ← 与 src/shared/theme.ts 的 WINDOW_BG.light 逐字节一致 */
   --md-bg-card: #ffffff;
-  --md-bg-warm: #fff6e9;
-  --md-bg-titlebar: #fff4e4;
-  --md-bg-sunken: #f7efe3;
-  --md-bg-disabled: #e8dcd0;
-  --md-line: #f0e4d4;
-  --md-line-strong: #c8bbae;
+  --md-bg-warm: #faf8f5;
+  --md-bg-titlebar: #f4f2ee;
+  --md-bg-sunken: #e3dfd8;
+  --md-bg-disabled: #dedad3;
+  --md-line: #e2ded6;
+  /* line-strong 兼「控件边界」用（勾选框描边、次按钮描边）→ 必须 ≥3:1 */
+  --md-line-strong: #9c8e7b;
 
-  /* ── 文字 ───────────────────────────────────────────────────────── */
-  --md-ink-1: #3a2a20;
-  --md-ink-2: #6b5b4d;
-  --md-ink-3: #8a8178;
-  --md-ink-4: #b9ac9e;
+  /* ── 文字（中性灰阶，不再偏暖棕）───────────────────────────────── */
+  --md-ink-1: #17150f;
+  --md-ink-2: #5b554e;
+  --md-ink-3: #68635a;
+  --md-ink-4: #6a6257;
 
   /* ── 语义色（只用于状态表达，不参与品牌表达）───────────────────── */
-  --md-ok: #4caf7d;
-  --md-ok-bg: #eaf6f0;
-  --md-bad: #e5544b;
-  --md-bad-bg: #fdebea;
-  --md-bad-bg-soft: #fdf2f1;
-  --md-bad-hover: #d8483f;
-  --md-warn: #f0a020;
-  --md-warn-bg: #fdf0dc;
-  --md-neutral-bg: #eae3d8;
-  --md-highlight-bg: #fff0dc;
+  --md-ok: #19713e;
+  --md-ok-bg: #e9f2ec;
+  --md-bad: #c4322a;
+  --md-bad-bg: #fbecea;
+  --md-bad-bg-soft: #fcf2f1;
+  --md-bad-hover: #a82a23;
+  --md-warn: #8a620d;
+  --md-warn-bg: #faf1de;
+  --md-neutral-bg: #e6e3dc;
+  --md-highlight-bg: #fbf1ea;
 
-  /* ── 橘底上的前景（P2-A 新增；深色 → 同值）───────────────────────
-   * 两个主题统一用深棕，不是「只有深色才反色」。原因是对比度：
-   * 原来的白字 on 橘只有 2.03:1（一直靠「14px 加粗算大字」勉强解释），
-   * 深棕有 8.3:1 —— 这是顺手把浅色自己的问题也修掉了。
-   * 管住三处：主按钮文字 / 危险按钮文字 / 复选框的勾。 */
-  --md-on-brand: #2a1a10;
-  --md-on-danger: #2a1a10;
+  /* ── 橘底上的前景（★ DEC-31：两主题不同值）───────────────────────
+   * 浅色下橘底很深（#A1420D）→ 用白字，6.4:1；
+   * 深色下橘底很亮（#FF7A1A）→ 用近黑字，7.3:1。
+   * 管住三处：主按钮文字 / 危险按钮文字 / 复选框的勾 / 模板 chip 悬停字。 */
+  --md-on-brand: #ffffff;
+  --md-on-danger: #ffffff;
 
-  /* ── 控件内部（P2-A 新增）───────────────────────────────────────
+  /* ── 控件内部 ────────────────────────────────────────────────────
    * switch-track-line：浅色轨道本来就看得见，不需要描边；
    * 深色必须补一圈，否则轨道几乎融进卡片（见深色块与设计规范 §8 取舍）。*/
   --md-switch-thumb: #ffffff;
   --md-switch-track-line: transparent;
 
-  /* ── 半透明层与浮层（P2-A 新增）───────────────────────────────── */
-  --md-scrim: rgba(58, 42, 32, 0.45);
-  --md-brand-tint: rgba(224, 139, 51, 0.12);
-  --md-focus-ring: rgba(245, 166, 35, 0.18);
-  --md-chip-bg: rgba(255, 246, 233, 0.92);
-  --md-bad-bg-float: rgba(253, 242, 241, 0.94);
+  /* ── 半透明层与浮层 ────────────────────────────────────────────── */
+  --md-scrim: rgba(23, 21, 15, 0.42);
+  --md-brand-tint: rgba(161, 66, 13, 0.1);
+  --md-focus-ring: rgba(161, 66, 13, 0.2);
+  --md-chip-bg: rgba(250, 248, 245, 0.94);
+  --md-bad-bg-float: rgba(252, 242, 241, 0.95);
 
-  /* ── 补充底色 / 线（P2-A 新增）────────────────────────────────── */
-  --md-bg-muted: #f7f3ec;
-  --md-line-disabled: #e0d6c8;
-  --md-bad-row-bg: #fff7f6;
+  /* ── 补充底色 / 线 ─────────────────────────────────────────────── */
+  --md-bg-muted: #f6f4f0;
+  --md-line-disabled: #dfdad2;
+  --md-bad-row-bg: #fdf5f4;
 
   /* ── 撒花（深色 → 同值）───────────────────────────────────────── */
   --md-confetti-1: #ffc94d;
@@ -107,8 +130,8 @@
   --md-space-8: 32px;
   --md-space-12: 48px;
 
-  /* ── 圆角（面积越大越圆）───────────────────────────────────────── */
-  --md-radius-card: 16px;
+  /* ── 圆角（面积越大越圆；C 方案把卡片档从 16 收到 14，更「精确」不再「圆润」）*/
+  --md-radius-card: 14px;
   --md-radius-modal: 16px;
   --md-radius-btn: 12px;
   --md-radius-input: 10px;
@@ -117,11 +140,14 @@
   --md-radius-badge: 6px;
   --md-radius-chip: 9px;
 
-  /* ── 阴影（只用两层，不用内阴影/发光/多层堆叠）─────────────────── */
-  --md-shadow-card: 0 4px 16px rgba(180, 120, 60, 0.12);
-  --md-shadow-modal: 0 18px 48px rgba(120, 80, 40, 0.22);
-  --md-shadow-btn-hover: 0 4px 12px rgba(180, 120, 60, 0.28);
-  --md-shadow-tab: 0 2px 6px rgba(180, 120, 60, 0.16);
+  /* ── 阴影（只用两层；P3-9 起第一层固定为「顶部受光」内阴影）────────
+   * 为什么把「物理受光」写进阴影令牌：C 方案的卡片之所以不呆板，
+   * 靠的是**同一块面板有厚度**（上面一道 1px 高光、下面一圈投影），
+   * 而不是靠更重的投影。写进令牌才能两主题统一调。 */
+  --md-shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 16px rgba(23, 21, 15, 0.07);
+  --md-shadow-modal: 0 18px 48px rgba(23, 21, 15, 0.2);
+  --md-shadow-btn-hover: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 12px rgba(23, 21, 15, 0.16);
+  --md-shadow-tab: 0 1px 3px rgba(23, 21, 15, 0.14);
   --md-shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.18);
 
   /* ── 字体 ───────────────────────────────────────────────────────── */
@@ -130,31 +156,34 @@
   --md-font-num: Inter, 'Noto Sans SC', system-ui, sans-serif;
 
   /* ── 尺寸（设计规范 §5.1）─────────────────────────────────────── */
-  --md-titlebar-h: 44px;
+  /* ★ C 方案施工单（2026-09-27）：标题栏 46px、文件行高 46px（旧版写 36 已改）。 */
+  --md-titlebar-h: 46px;
   --md-statusbar-h: 32px;
   --md-leftbar-w: 300px;
   --md-leftbar-w-narrow: 260px;
   --md-list-head-h: 42px;
-  --md-row-h: 36px;
-  --md-actionbar-h: 64px;
+  --md-row-h: 46px;
   --md-ctrl-h: 40px;
   --md-btn-h: 42px;
 
   /* ── 动效（设计规范 §7 / 交互说明 §11.1）───────────────────────── */
   --md-ease-pop: cubic-bezier(0.34, 1.5, 0.64, 1);
   --md-ease-modal: cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* C 方案的面板入场用「大缓出」（起步快、收尾慢）—— 比弹簧更「精确」*/
+  --md-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --md-dur-press: 120ms;
   --md-dur-hover: 180ms;
   --md-dur-modal: 220ms;
   --md-dur-cat: 320ms;
   --md-dur-progress: 180ms;
+  --md-dur-panel: 460ms;
 }
 
 /**
- * 深色主题「暖褐色深底」（设计规范 §1 深色列 / P2-A 设计确认 §4）。
+ * 深色主题「中性近黑」（DEC-30 / P3-9 设计确认 §3）。
  *
- * 为什么不用冷灰黑：本产品的全部卖点是「奶油白 + 橘猫」，冷灰会把暖萌感洗掉。
- * 为什么挂在媒体查询上：见文件头第 1 条（首帧不闪）。
+ * 为什么从暖褐改成中性近黑：见文件头 DEC-30。
+ * 为什么挂在媒体查询上：`nativeTheme` 在建窗口前就定好了（首帧不闪，TC-30）。
  *
  * ⚠️ 下面每一行都对应 :root 里的同名令牌。**新增令牌时必须同时补这里**
  * （两主题同值的除外，那些在下方 SAME 清单里）—— 这条由单测
@@ -164,62 +193,67 @@
   :root {
     color-scheme: dark;
 
-    /* ── 品牌色：三色完全不变（SAME）─────────────────────────────────
-     * 这里刻意不写。浅色块里的 --md-orange-primary / accent / dark
-     * 就是深色块的值。 */
+    /* ── 强调橘：亮橘（与浅色的深赭橘**不同值**，见 DEC-31）────────── */
+    --md-orange-primary: #ff7a1a;
+    --md-orange-accent: #ff8f3d;
+    --md-orange-dark: #e56a0f;
+    --md-orange-soft: #2a1c12;
 
     /* ── 背景与描边：层级顺序与浅色一致（卡片最亮、凹陷槽最暗）──── */
-    --md-orange-soft: #3a2a1c;
-    --md-bg-cream: #251a14;
-    --md-bg-card: #2e2119;
-    --md-bg-warm: #211710;
-    --md-bg-titlebar: #211710;
-    --md-bg-sunken: #1a1210;
-    --md-bg-disabled: #3b2c24;
-    --md-line: #3a2b22;
-    --md-line-strong: #584236;
+    --md-bg-cream: #0b0a09; /* ← 与 src/shared/theme.ts 的 WINDOW_BG.dark 逐字节一致 */
+    --md-bg-card: #211d1a;
+    --md-bg-warm: #171413;
+    --md-bg-titlebar: #0f0e0c;
+    --md-bg-sunken: #070605;
+    --md-bg-disabled: #2e2a26;
+    --md-line: #2a2521;
+    --md-line-strong: #72665b;
 
     /* ── 文字：ink-1 在深色下变成最亮的一档 ───────────────────────── */
-    --md-ink-1: #f2e9e0;
-    --md-ink-2: #cbb9a8;
-    --md-ink-3: #9c8a7b;
-    --md-ink-4: #6e5d50;
+    --md-ink-1: #f5f1eb;
+    --md-ink-2: #a69c90;
+    --md-ink-3: #9a8f82;
+    --md-ink-4: #8e8376;
 
-    /* ── 语义色 ───────────────────────────────────────────────────── */
-    /* ok / warn 保持同值（SAME）；bad 必须提亮，否则对比不足 */
-    --md-ok-bg: #1e3329;
-    --md-bad: #ff6b60;
-    --md-bad-bg: #3a2320;
-    --md-bad-bg-soft: #33201d;
-    --md-bad-hover: #ff857c;
-    --md-warn-bg: #3a2e18;
-    --md-neutral-bg: #362820;
-    --md-highlight-bg: #3d2c18;
+    /* ── 语义色：中性底上三色都要重新配底，不能沿用暖底的深棕底 ──── */
+    --md-ok: #48b368;
+    --md-ok-bg: #152a1e;
+    --md-bad: #f0604d;
+    --md-bad-bg: #31191a;
+    --md-bad-bg-soft: #2a1616;
+    --md-bad-hover: #f5806f;
+    --md-warn: #d9a441;
+    --md-warn-bg: #2e2411;
+    --md-neutral-bg: #2a2521;
+    --md-highlight-bg: #2a1c12;
 
-    /* ── 橘底前景与控件内部 ───────────────────────────────────────── */
-    /* on-brand / on-danger / switch-thumb 同值（SAME），这里不写 */
-    --md-switch-track-line: #5e4a3b;
+    /* ── 橘底上的前景：亮橘上用近黑字（7.3:1），不是白字 ──────────── */
+    --md-on-brand: #1c0d03;
+    --md-on-danger: #1c0d03;
+
+    /* ── 控件内部 ─────────────────────────────────────────────────── */
+    --md-switch-track-line: #5a4a3e;
 
     /* ── 半透明层与浮层 ───────────────────────────────────────────── */
-    --md-scrim: rgba(0, 0, 0, 0.62);
-    --md-brand-tint: rgba(255, 169, 77, 0.16);
-    --md-focus-ring: rgba(255, 177, 61, 0.28);
-    --md-chip-bg: rgba(40, 30, 25, 0.92);
-    --md-bad-bg-float: rgba(58, 35, 32, 0.94);
+    --md-scrim: rgba(0, 0, 0, 0.66);
+    --md-brand-tint: rgba(255, 122, 26, 0.16);
+    --md-focus-ring: rgba(255, 122, 26, 0.28);
+    --md-chip-bg: rgba(23, 20, 19, 0.94);
+    --md-bad-bg-float: rgba(49, 25, 26, 0.95);
 
     /* ── 补充底色 / 线 ────────────────────────────────────────────── */
-    --md-bg-muted: #362820;
-    --md-line-disabled: #4e3d32;
-    --md-bad-row-bg: #33201d;
+    --md-bg-muted: #2e2a26;
+    --md-line-disabled: #3c3733;
+    --md-bad-row-bg: #2a1616;
 
-    /* ── 撒花：同值（SAME），这里不写 ─────────────────────────────── */
-
-    /* ── 阴影：暖棕换纯黑（深底上暖棕影看不见）───────────────────── */
-    --md-shadow-card: 0 4px 16px rgba(0, 0, 0, 0.4);
-    --md-shadow-modal: 0 18px 48px rgba(0, 0, 0, 0.55);
-    --md-shadow-btn-hover: 0 4px 12px rgba(0, 0, 0, 0.5);
-    --md-shadow-tab: 0 2px 6px rgba(0, 0, 0, 0.4);
+    /* ── 阴影：近黑底上只有纯黑才看得出，且顶部高光要更弱 ─────────── */
+    --md-shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 6px 18px rgba(0, 0, 0, 0.45);
+    --md-shadow-modal: 0 18px 48px rgba(0, 0, 0, 0.6);
+    --md-shadow-btn-hover: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 6px 16px rgba(0, 0, 0, 0.55);
+    --md-shadow-tab: 0 1px 3px rgba(0, 0, 0, 0.5);
     --md-shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.45);
+
+    /* 两主题同值的令牌（switch-thumb / confetti-1 / confetti-2）这里刻意不写。 */
   }
 }
 
@@ -227,6 +261,10 @@
  * 「减少动画」无障碍开关（设计规范 §7）。
  * 开启后所有动效时长归零 —— 状态切换只换表情、不做位移。
  * 与主题互不干扰：两者都挂在 <html> 的 data-* 上。
+ *
+ * ⚠️ 用 `0ms` 而不是 `0.01ms`：C 方案新加了「面板入场」这类**一次性**动画，
+ * `animation: … both` 在 0ms 下会停在最后一帧（= 终态），这是我们要的；
+ * 但若写成 `0.01ms` 在某些机器上会闪一下起始帧（opacity 0 的一帧）。
  */
 :root[data-reduce-motion='true'] *,
 :root[data-reduce-motion='true'] *::before,
@@ -234,4 +272,22 @@
   animation-duration: 0ms !important;
   animation-delay: 0ms !important;
   transition-duration: 0ms !important;
+}
+
+/**
+ * 系统级「减少动画」偏好（P3-9 新增）。
+ *
+ * 为什么还要这一条：`data-reduce-motion` 是**软件自己的开关**（设置里那个），
+ * 而用户在 Windows 里关掉动画时，系统会给出 `prefers-reduced-motion: reduce`。
+ * 两者都要认 —— 只认自己那个开关，等于要求用户在两个地方各关一次。
+ * ⚠️ 这条**只关 C 方案新加的那几处**（面板入场 / 猫的呼吸 / 进度环），
+ *   不去动既有的状态动画 —— 既有动画由 `data-reduce-motion` 管，
+ *   换一套开关顺手改掉老行为会打破 `TC-74` 那条既有断言。
+ */
+@media (prefers-reduced-motion: reduce) {
+  .md-grid > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

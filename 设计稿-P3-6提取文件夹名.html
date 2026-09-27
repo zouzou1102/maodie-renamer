@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>设计稿 · P3-6 提取文件夹名（可视规格稿）</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   下面的令牌值**原样抄自** maodie-renamer/src/renderer/src/styles/tokens.css
+   （深色块也照抄，挂在 @media 上 —— 与产品实现完全一致）
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  color-scheme: light;
+  --md-orange-primary:#f5a623; --md-orange-accent:#ff8a3d; --md-orange-dark:#e08b33; --md-orange-soft:#fff3e2;
+  --md-bg-cream:#fffbf5; --md-bg-card:#ffffff; --md-bg-warm:#fff6e9; --md-bg-titlebar:#fff4e4;
+  --md-bg-sunken:#f7efe3; --md-bg-disabled:#e8dcd0; --md-line:#f0e4d4; --md-line-strong:#c8bbae;
+  --md-ink-1:#3a2a20; --md-ink-2:#6b5b4d; --md-ink-3:#8a8178; --md-ink-4:#b9ac9e;
+  --md-ok:#4caf7d; --md-ok-bg:#eaf6f0; --md-bad:#e5544b; --md-bad-bg:#fdebea; --md-warn:#f0a020; --md-warn-bg:#fdf0dc;
+  --md-highlight-bg:#fff0dc; --md-on-brand:#2a1a10;
+  --md-space-1:4px; --md-space-2:8px; --md-space-3:12px; --md-space-4:16px; --md-space-5:20px; --md-space-6:24px;
+  --md-radius-card:16px; --md-radius-input:10px; --md-radius-badge:6px; --md-radius-chip:9px; --md-radius-btn:12px;
+  --md-shadow-card:0 4px 16px rgba(180,120,60,.12);
+  --md-font-ui:'Noto Sans SC','Microsoft YaHei','PingFang SC',system-ui,sans-serif;
+  --md-font-num:Inter,'Noto Sans SC',system-ui,sans-serif;
+  --md-ctrl-h:40px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --md-orange-soft:#3a2a1c; --md-bg-cream:#251a14; --md-bg-card:#2e2119; --md-bg-warm:#211710;
+    --md-bg-titlebar:#211710; --md-bg-sunken:#1a1210; --md-line:#3a2b22; --md-line-strong:#584236;
+    --md-ink-1:#f2e9e0; --md-ink-2:#cbb9a8; --md-ink-3:#9c8a7b; --md-ink-4:#6e5d50;
+    --md-ok-bg:#1e3329; --md-bad:#ff6b60; --md-bad-bg:#3a2320; --md-warn-bg:#3a2e18; --md-highlight-bg:#3d2c18;
+    --md-shadow-card:0 4px 16px rgba(0,0,0,.4);
+  }
+}
+
+/* ── 页面外壳（规格页自己的排版，不属于产品 UI）──────────────────── */
+*{box-sizing:border-box}
+body{margin:0;background:var(--md-bg-cream);color:var(--md-ink-1);font-family:var(--md-font-ui);
+  line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1060px;margin:0 auto;padding:36px 20px 80px}
+h1{font-size:26px;margin:0 0 8px}
+h2{font-size:18px;margin:34px 0 10px;padding-left:10px;border-left:4px solid var(--md-orange-primary)}
+h3{font-size:14px;margin:18px 0 8px;color:var(--md-ink-2)}
+.lead{color:var(--md-ink-3);font-size:13px}
+.banner{background:var(--md-warn-bg);border-left:4px solid var(--md-warn);border-radius:0 8px 8px 0;
+  padding:12px 16px;font-size:13.5px;color:var(--md-ink-2);margin:14px 0 6px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+.tag{background:var(--md-bg-warm);border:1px solid var(--md-line);border-radius:999px;padding:3px 11px;
+  font-size:12px;color:var(--md-ink-2)}
+.muted{color:var(--md-ink-3);font-size:13px}
+.new{outline:2px dashed var(--md-orange-accent);outline-offset:2px;border-radius:var(--md-radius-chip)}
+.newbadge{display:inline-block;background:var(--md-orange-soft);color:var(--md-orange-dark);border-radius:var(--md-radius-badge);
+  padding:1px 6px;font-size:11px;font-weight:700;vertical-align:2px;margin-left:6px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--md-line);vertical-align:top}
+th{background:var(--md-bg-warm);color:var(--md-ink-3);font-size:12.5px;font-weight:600}
+tr:last-child td{border-bottom:none}
+code{font-family:var(--md-font-num);background:var(--md-bg-sunken);border-radius:4px;padding:0 4px;font-size:12.5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+.panel{background:var(--md-bg-card);border:1px solid var(--md-line);border-radius:var(--md-radius-card);
+  padding:16px;box-shadow:var(--md-shadow-card)}
+.panellabel{font-size:12px;color:var(--md-ink-3);margin:0 0 10px}
+
+/* ══ 产品 UI 的类：原样抄自 RulePanel.vue 与 base.css ══════════════ */
+.md-rulepanel__group{display:flex;flex-direction:column;gap:var(--md-space-2);padding:var(--md-space-2);
+  border-radius:var(--md-radius-input);background:var(--md-bg-warm)}
+.md-attr__vars{display:flex;align-items:flex-start;gap:var(--md-space-3)}
+.md-attr__label{flex:none;font-size:12.5px;line-height:var(--md-ctrl-h);color:var(--md-ink-2)}
+.md-attr__list{display:flex;flex-wrap:wrap;gap:var(--md-space-2)}
+.md-attr__var{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid var(--md-line);
+  border-radius:var(--md-radius-badge);background:var(--md-bg-card);font-size:12.5px;color:var(--md-ink-2);
+  cursor:pointer;font-family:inherit}
+.md-attr__var:hover{border-color:var(--md-orange-dark);color:var(--md-orange-dark)}
+.md-attr__token{padding:0 4px;border-radius:var(--md-radius-badge);background:var(--md-bg-sunken);font-family:var(--md-font-num)}
+.md-hint{font-size:11.5px;line-height:16px;color:var(--md-ink-3);margin:0}
+.md-rulepanel__picker{display:flex;align-items:center;gap:var(--md-space-2);font-size:12.5px;color:var(--md-ink-2)}
+.md-select{height:var(--md-ctrl-h);padding:0 10px;border:1px solid var(--md-line);
+  border-radius:var(--md-radius-input);background:var(--md-bg-card);color:var(--md-ink-1);font-family:inherit;font-size:13px}
+.md-rulepanel__varhint{grid-column:1/-1;margin:0}
+.md-input{height:var(--md-ctrl-h);width:100%;padding:0 12px;border:1px solid var(--md-line);
+  border-radius:var(--md-radius-input);background:var(--md-bg-card);color:var(--md-ink-1);font-family:inherit;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>可视规格稿 · P3-6「提取文件夹名」</h1>
+  <div class="lead">新变量 <code>{文件夹}</code> —— 把文件所在文件夹的名字补进新名</div>
+
+  <div class="banner">
+    <b>⚠️ 先说清：这不是画布画板。</b>本次会话里 <b>Ardot 画布不可用</b>，按项目规矩退成「<b>独立 HTML 规格页</b>」：
+    下面的令牌值<b>原样抄自 <code>tokens.css</code></b>，配色跟随你的系统深浅色（与产品实现同一套 <code>@media</code> 写法），
+    可逐像素核对。<b>画布恢复后，这份内容原样搬上去即可。</b>
+  </div>
+
+  <div class="meta">
+    <span class="tag">真实令牌值</span>
+    <span class="tag">零新增色值 · 零新增令牌 · 零新增样式</span>
+    <span class="tag">编号 EL-140 · IX-121 · TC-75~79 · DEC-23</span>
+  </div>
+
+  <h2>01 · 入口与形态 —— 属性组</h2>
+  <div class="muted">本批唯一的新界面元素：属性组里多一个 chip。放在<b>最右边</b>，不动既有三个的位置。</div>
+
+  <div class="grid2" style="margin-top:14px">
+    <div class="panel">
+      <p class="panellabel">改前（第 5 批现状）：3 个 chip</p>
+      <div class="md-rulepanel__group">
+        <div class="md-attr__vars">
+          <span class="md-attr__label">属性</span>
+          <div class="md-attr__list">
+            <button class="md-attr__var"><span>创建日期</span><code class="md-attr__token">{创建}</code></button>
+            <button class="md-attr__var"><span>修改日期</span><code class="md-attr__token">{修改}</code></button>
+            <button class="md-attr__var"><span>文件大小</span><code class="md-attr__token">{大小}</code></button>
+          </div>
+        </div>
+        <p class="md-hint">注：创建 / 修改日期用的是上面「日期格式」那一档 —— 改那里，三处一起变。</p>
+        <label class="md-rulepanel__picker"><span>大小</span>
+          <select class="md-select"><option>自动</option></select>
+        </label>
+        <p class="md-hint">示例（假的文件名 + 假的属性值，不是你列表里的文件）：2026-09-18 · 2026-09-02 · 2.4MB</p>
+        <p class="md-hint">属性是你把文件拖进来那一刻读的，之后不再刷新。</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p class="panellabel">改后（本批）：4 个 chip + 一句防撞名小字 <span class="newbadge">本批新增</span></p>
+      <div class="md-rulepanel__group">
+        <div class="md-attr__vars">
+          <span class="md-attr__label">属性</span>
+          <div class="md-attr__list">
+            <button class="md-attr__var"><span>创建日期</span><code class="md-attr__token">{创建}</code></button>
+            <button class="md-attr__var"><span>修改日期</span><code class="md-attr__token">{修改}</code></button>
+            <button class="md-attr__var"><span>文件大小</span><code class="md-attr__token">{大小}</code></button>
+            <button class="md-attr__var new"><span>文件夹名</span><code class="md-attr__token">{文件夹}</code></button>
+          </div>
+        </div>
+        <p class="md-hint">注：创建 / 修改日期用的是上面「日期格式」那一档 —— 改那里，三处一起变。</p>
+        <label class="md-rulepanel__picker"><span>大小</span>
+          <select class="md-select"><option>自动</option></select>
+        </label>
+        <p class="md-hint">示例（假的文件名 + 假的属性值，不是你列表里的文件）：2026-09-18 · 2026-09-02 · 2.4MB · 素材</p>
+        <p class="md-hint">属性是你把文件拖进来那一刻读的，之后不再刷新。</p>
+        <p class="md-hint new">只填 <code>{文件夹}</code> 的话，同一个文件夹里的同类文件会重名 —— 建议配上 <code>{n}</code> 序号。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="muted" style="margin-top:10px">
+    ★ 虚线框 = 本批新增。<b>零新增样式</b>：新 chip 复用既有 <code>.md-attr__var</code>（<code>bg-card</code> / <code>radius-badge</code> / <code>font-num</code>），
+    小字复用 <code>.md-hint</code>（<code>11.5px / 16px / ink-3</code>）。
+  </div>
+
+  <h2>02 · 前缀提示行（改前 → 改后）</h2>
+  <div class="muted">这是本批最要紧的一处：<b>提示行不改 = 功能等于不存在</b>（第 3 批为它单列过一条坑，本批是第三次）。</div>
+
+  <div class="grid2" style="margin-top:14px">
+    <div class="panel">
+      <p class="panellabel">改前（硬编码手写）</p>
+      <p class="md-hint md-rulepanel__varhint">
+        支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期（<b>需先勾选下方对应开关</b>）、
+        <code>{创建}</code> 创建日期、<code>{修改}</code> 修改日期、<code>{大小}</code> 文件大小（<b>写上就生效，不用开关</b>）
+      </p>
+    </div>
+    <div class="panel">
+      <p class="panellabel">改后（★ 由变量数组生成，多出 <code>{文件夹}</code>）</p>
+      <p class="md-hint md-rulepanel__varhint">
+        支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期（<b>需先勾选下方对应开关</b>）、
+        <code>{创建}</code> 创建日期、<code>{修改}</code> 修改日期、<code>{大小}</code> 文件大小、<span class="new"><code>{文件夹}</code> 文件夹名</span>（<b>写上就生效，不用开关</b>）
+      </p>
+    </div>
+  </div>
+
+  <div class="banner" style="border-left-color:var(--md-orange-primary);background:var(--md-orange-soft)">
+    <b>顺手做个根治：</b>现在 chip 列表已经是<b>数据驱动</b>的，而<b>提示行是硬编码</b>的。
+    本批把「属性变量清单」挪到 <code>shared/attr-vars.ts</code>，让 <b>chip / 提示行 / 规则摘要</b> 三处都由它生成 ——
+    以后再加变量<b>只改一处</b>，这个坑从根上消失。
+  </div>
+
+  <h2>03 · 一图说清（取值与三种边界）</h2>
+  <table>
+    <tr><th style="width:38%">列表里的项</th><th style="width:22%">它的 <code>dirPath</code></th><th>规则写 <code>{文件夹}_</code> 的结果</th></tr>
+    <tr><td><code>D:\素材\2026\照片A.JPG</code></td><td><code>D:\素材\2026</code></td><td><code>2026_照片A.JPG</code></td></tr>
+    <tr><td><code>D:\素材\2026\照片B.JPG</code></td><td><code>D:\素材\2026</code></td><td><code>2026_照片B.JPG</code></td></tr>
+    <tr><td><code>D:\素材\待归档\说明.docx</code></td><td><code>D:\素材\待归档</code></td><td><code>待归档_说明.docx</code></td></tr>
+    <tr><td><b>文件夹</b> <code>D:\素材\2026\客户素材</code></td><td><code>D:\素材\2026</code></td><td><code>2026_客户素材</code>（取<b>父文件夹</b>名）</td></tr>
+    <tr><td>网络路径 <code>\\服务器\共享\素材\报告.pdf</code></td><td><code>\\服务器\共享\素材</code></td><td><code>素材_报告.pdf</code></td></tr>
+    <tr><td>★ <b>盘符根</b> <code>D:\照片C.JPG</code></td><td><code>D:\</code></td><td><code>_照片C.JPG</code>（前缀<b>空掉</b>，不报错）</td></tr>
+  </table>
+  <div class="muted">
+    ★ 盘符根那一行是<b>实测后更正过</b>的：<code>baseName("D:\")</code> 天然得到<b>空串</b>（不是 <code>D:</code>，原稿写错了）；
+    真正要挡的是 <code>dirPath</code> 恰好是裸盘符 <code>D:</code> 那种形态 —— 一行判据 <code>/^[A-Za-z]:$/.test(name) ? '' : name</code>。
+  </div>
+
+  <h2>04 · 规格表</h2>
+  <table>
+    <tr><th style="width:26%">项</th><th>值</th></tr>
+    <tr><td>新 chip</td><td>复用 <code>.md-attr__var</code>：<code>padding:4px 8px</code> / <code>border:1px solid var(--md-line)</code> / <code>radius-badge 6px</code> / <code>font-size:12.5px</code> / 文字 <code>ink-2</code></td></tr>
+    <tr><td>chip 里的 token</td><td>复用 <code>.md-attr__token</code>：<code>padding:0 4px</code> / <code>bg-sunken</code> / <code>font-num</code></td></tr>
+    <tr><td>chip 位置</td><td>属性组「属性」那一行的<b>最右边</b>（不动既有三个）</td></tr>
+    <tr><td>悬停</td><td>复用 <code>.md-attr__var:hover</code>：<code>border-color / color → orange-dark</code></td></tr>
+    <tr><td>防撞名小字</td><td>复用 <code>.md-hint</code>：<code>font-size:11.5px</code> / <code>line-height:16px</code> / <code>ink-3</code></td></tr>
+    <tr><td>新增色值 / 令牌 / 样式</td><td><b>0 / 0 / 0</b></td></tr>
+  </table>
+
+  <h2>05 · 必须一起改到的（漏一处就出静默 bug）</h2>
+  <table>
+    <tr><th style="width:30%">位置</th><th>不改会发生什么</th></tr>
+    <tr><td>★★ <code>RulePanel.vue</code> 的提示行</td><td>功能完全正常、测试全绿、界面无异常 —— <b>就是没有任何用户知道有 <code>{文件夹}</code></b>（第三次踩）</td></tr>
+    <tr><td>★★ <code>expand()</code> 里的替换</td><td>不认得的占位符原样保留 → 用户得到一批叫 <code>{文件夹}_照片A.JPG</code> 的文件</td></tr>
+    <tr><td>★ <code>RuleContext.dirName</code></td><td>不加 → 引擎拿不到值 → 展开成空串（前缀静默消失）。<b>做成必填</b>就变编译期错误</td></tr>
+    <tr><td>★ 示例行的假值</td><td>示例里 <code>{文件夹}</code> 显示成空或原样 → 用户以为「没生效」然后就不用它了</td></tr>
+    <tr><td><code>rule-summary.ts</code></td><td>摘要说不清「用了文件夹名」；摘要写进 <code>history.json</code> → 说不清就没有撤销凭据</td></tr>
+    <tr><td><code>path-utils</code> 的裸盘符分支</td><td>漏了 → 算出 <code>D:_照片.jpg</code> → 撞校验标红 → 用户不知道为什么</td></tr>
+    <tr><td><code>package.json</code> 的 <code>test:core</code></td><td>新单测写了却永远不会跑</td></tr>
+    <tr><td><b>下游一律不要动</b></td><td><code>sanitize-rule</code> / <code>cli-args</code> / <code>PreviewItemInput</code> / <code>ExecuteItem</code> / <code>table-map</code> —— <b>本批零新字段、四个形状已带 <code>dirPath</code></b>。谁去动它们，就是在制造风险</td></tr>
+  </table>
+
+  <h2>06 · 范围 · 编号 · 验收 · 待确认</h2>
+  <table>
+    <tr><th style="width:26%">项</th><th>内容</th></tr>
+    <tr><td>范围</td><td>「自定义」模式里加<b>第 4 个属性变量</b> <code>{文件夹}</code>（取直接上级文件夹名）</td></tr>
+    <tr><td>编号</td><td><code>EL-140</code> · <code>IX-121</code> · <code>TC-75~79</code> · <code>DEC-23</code>；<b>零新增 EX / SCR / IPC</b></td></tr>
+    <tr><td>验收要点</td><td>TC-75 基本取值 / <b>TC-76 盘符根</b> / TC-77 UNC / TC-78 文件夹本身 / <b>TC-79 预览 ≡ 执行</b></td></tr>
+    <tr><td>零新增</td><td>IPC 通道 <b>0</b> · 持久化字段 <b>0</b> · 颜色令牌 <b>0</b> · 界面 SCR <b>0</b> · 错误码 <b>0</b> · <code>RuleConfig</code> 新字段 <b>0</b></td></tr>
+    <tr><td>待你确认（4 条）</td><td>① 盘符根给空串（推荐）② 只做直接上级、不做「上 N 级」（推荐）③ 要不要做那个「三处由同一数组生成」的重构（推荐做）④ 标签叫「文件夹名」（不叫「所在文件夹」）</td></tr>
+  </table>
+
+  <div class="banner" style="border-left-color:var(--md-ok);background:var(--md-ok-bg)">
+    <b>这是设计稿，还没有写一行实现代码。</b>等你评审通过后再进开发；有要改的地方，说出来我改文档、改规格稿，不动结构。
+  </div>
+
+</div>
+</body>
+</html>

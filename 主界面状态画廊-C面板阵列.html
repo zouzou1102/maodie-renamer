@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>主界面状态画廊 · C 面板阵列 — 耄耋改名</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════
+   一、窗口的设计令牌 —— **照抄 C 方案原型 `C-面板阵列.html` 的 :root**，
+       一个值都没有改。改这里的颜色就等于改设计稿，别做。
+   ══════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#0B0A09;
+  --raise:#211D1A;   /* 猫块 · 规则块 · 执行块 */
+  --panel:#171413;   /* 文件表 · 控件区 */
+  --sink:#070605;    /* 三张指标卡 */
+  --hov:#26211D;
+  --line:#2A2521; --line2:#3A342E;
+  --ink:#F5F1EB; --ink2:#A69C90; --ink3:#9A8F82; --ink4:#8E8376;
+  --ctl:#72665B;
+  --acc:#FF7A1A; --acc-ink:#1C0D03; --sel:rgba(255,122,26,.13);
+  --ok:#48B368; --warn:#D9A441; --bad:#F0604D;
+  --cat:#F9C077; --cat-line:#B4712A;
+  --hi:inset 0 1px 0 rgba(255,255,255,.065);
+  --lo:inset 0 1px 3px rgba(0,0,0,.45);
+  --sh1:0 1px 2px rgba(0,0,0,.45);
+  --sh2:0 2px 4px rgba(0,0,0,.5),0 10px 24px rgba(0,0,0,.35);
+  --ui:"Segoe UI Variable Text","Segoe UI","Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  --disp:"Bahnschrift","Segoe UI Variable Display","Segoe UI",var(--ui);
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --r:18px; --r-md:12px; --r-sm:8px;
+}
+html[data-theme="light"]{
+  /* ★ 注意：这里**故意没有** --cat / --cat-line。
+     猫身的橘色在两个主题下是同一套（与 C 原型一致）—— 不是漏写。 */
+  --bg:#EDEBE7;
+  --raise:#FFFFFF;
+  --panel:#FAF8F5;
+  --sink:#E3DFD8;
+  --hov:#F2EEE9;
+  --line:#E2DED6; --line2:#CBC4BA;
+  --ink:#17150F; --ink2:#5B554E; --ink3:#68635A; --ink4:#6A6257; --ctl:#9C8E7B;
+  --acc:#A1420D; --acc-ink:#FFFFFF; --sel:rgba(161,66,13,.10);
+  --ok:#19713E; --warn:#A87A12; --bad:#C4322A;
+  --hi:inset 0 1px 0 rgba(255,255,255,.95);
+  --lo:inset 0 1px 3px rgba(24,20,16,.07);
+  --sh1:0 1px 2px rgba(24,20,16,.08);
+  --sh2:0 2px 4px rgba(24,20,16,.10),0 10px 24px rgba(24,20,16,.06);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   二、画廊自己的外壳（深色，与 C 原型的画板一致）
+   ══════════════════════════════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050505;font-family:var(--ui);-webkit-font-smoothing:antialiased;color:#e8e6e3}
+.galbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 26px;background:rgba(8,8,8,.96);border-bottom:1px solid #232323;backdrop-filter:blur(8px)}
+.galbar__t{font-family:var(--disp);font-size:14px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#fff}
+.galbar__c{font-size:11.5px;color:#8a8a8a;font-family:var(--mono)}
+.galbar__sp{margin-left:auto}
+.seg{display:flex;align-items:center;gap:6px}
+.seg__l{font-size:11px;color:#8a8a8a}
+.seg button{font-family:var(--ui);font-size:12px;color:#cfcfcf;background:#1E1E1E;border:1px solid #363636;
+  border-radius:7px;padding:5px 12px;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+.seg button:hover{border-color:#5a5a5a;color:#fff}
+.seg button.on{background:#fff;color:#111;border-color:#fff}
+
+.gal{padding:26px 26px 90px;display:flex;flex-direction:column;gap:30px;align-items:flex-start}
+.intro{border:1px solid #2e2e2e;border-left:3px solid #FF7A1A;border-radius:10px;background:#141210;
+  padding:16px 20px;font-size:13px;line-height:1.85;color:#c9c5c0;max-width:110ch}
+.intro b{color:#ffc38a;font-weight:600}
+.grp{font-family:var(--disp);font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:#9a9a9a;
+  border-left:2px solid var(--acc);padding-left:10px;margin-top:14px}
+
+/* 一块板 = 图 + 说明 */
+.bd{display:flex;flex-direction:column;gap:10px}
+.bd__hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.bd__no{font-family:var(--mono);font-size:11px;font-weight:600;color:#111;background:#ffb066;
+  border-radius:99px;padding:2px 9px;letter-spacing:.5px}
+.bd__ti{font-size:14.5px;font-weight:600;color:#fff}
+.bd__h{font-family:var(--mono);font-size:11px;color:#8a8a8a}
+.bd__note{font-size:12.5px;color:#a8a8a8;line-height:1.7;max-width:118ch}
+.bd__note b{color:#ffc38a;font-weight:600}
+.bd__note code{font-family:var(--mono);font-size:11.5px;background:#1a1a1a;border:1px solid #2e2e2e;
+  border-radius:4px;padding:1px 5px;color:#d8d2cc}
+.bd__frame{position:relative;overflow:hidden}
+.bd__inner{transform-origin:top left;position:relative}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   三、窗口本体 —— 同样照抄 C 原型的 `.win/.tbar/.grid/.p` 一整套
+   ★ 2026-09-26 变更：窗口回到**固定 900px**（设计稿那种固定画布）。
+     内容超出不再把窗口撑高，而是由 **G 格自己内部滚** 兜住 —— 这样每一屏
+     都是一页装下，「开始改名」永远在右下角不动。
+     （唯一例外：标着「本屏放开」的那一屏是故意把窗口摊开、只为看全 G 格。）
+     代价：全窗口仍有两条滚动条（G 格 + 文件表），滚轮滚哪条取决于指针位置。
+   ══════════════════════════════════════════════════════════════════════ */
+.win{width:1440px;height:900px;background:var(--bg);color:var(--ink);border-radius:16px;overflow:hidden;
+  display:flex;flex-direction:column;border:1px solid var(--line);box-shadow:0 40px 120px rgba(0,0,0,.78)}
+.tbar{height:46px;flex:0 0 46px;display:flex;align-items:center;gap:12px;padding:0 18px}
+.brand{display:flex;align-items:center;gap:9px}
+.brand__mark{width:24px;height:24px;display:block}
+.brand__name{font-family:var(--disp);font-size:13.5px;font-weight:600;letter-spacing:2px;text-transform:uppercase}
+.tbar__l{display:flex;align-items:center;gap:6px;margin-left:14px}
+.tbar__c{margin-right:10px;font-size:11px;color:var(--ink3);font-family:var(--mono)}
+.tbar__r{margin-left:auto;display:flex;align-items:center;gap:6px}
+.tbtn{height:30px;padding:0 13px;border:1px solid var(--line);background:var(--panel);border-radius:99px;
+  color:var(--ink3);font-family:var(--ui);font-size:11.5px;cursor:pointer}
+.wkey{width:32px;height:30px;border:none;background:none;color:var(--ink3);font-size:12px;border-radius:var(--r-sm)}
+.wkey--x:hover{background:var(--bad);color:#fff}
+
+.grid{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(12,1fr);
+  /* ★ 2026-09-26 变更：窗口改回**固定 900px**（设计稿的固定画布）。
+     行 3/4 用 minmax(0,1fr) 吸收剩余空间并**受约束** —— 这样 G 格才会被压住、
+     由它自己内部滚，而不是把窗口撑高。中间那两行就是干这个用的。 */
+  grid-template-rows:auto auto minmax(0,1fr) minmax(0,1fr) auto;gap:12px;padding:0 14px 14px}
+.p{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;
+  display:flex;flex-direction:column;min-width:0;min-height:0}
+.p--raise{background:var(--raise);border-color:var(--line2);box-shadow:var(--hi),var(--sh1)}
+.p--sink{background:var(--sink);box-shadow:var(--lo)}
+.pa{grid-column:1/5;grid-row:1/3;padding:20px 20px 18px;flex-direction:row;align-items:center;gap:20px}
+.pb{grid-column:5/8;grid-row:1}
+.pc{grid-column:8/11;grid-row:1}
+.pd{grid-column:11/13;grid-row:1}
+.pe{grid-column:5/13;grid-row:2;gap:12px}
+.pf{grid-column:1/9;grid-row:3/6;padding:0;overflow:hidden}
+.pg{grid-column:9/13;grid-row:3/5;gap:14px;min-height:0;overflow-y:auto;padding-right:14px}
+/* 仅用于「G 格内容全览」那一屏：放开高度约束，把 G 格一次摊开看清楚 */
+.win--full{height:auto;min-height:900px}
+.win--full .pg{overflow:visible}
+.ph{grid-column:9/13;grid-row:5;justify-content:center;gap:12px;
+  border-color:color-mix(in srgb,var(--acc) 30%,var(--line2));box-shadow:var(--hi),var(--sh2)}
+.lbl{font-family:var(--disp);font-size:9.5px;letter-spacing:1.7px;text-transform:uppercase;font-weight:600;color:var(--ink4)}
+.bigno{font-family:var(--disp);font-size:60px;line-height:1;font-weight:600;font-variant-numeric:tabular-nums;
+  letter-spacing:-1.5px;margin-top:auto}
+/* ── A 猫块（照设计稿）—— 跨行 1-2、猫 224px、环 100px ──
+   ★ 2026-09-26：原先这一列被拆成「行1 猫 / 行2 往里加东西」，猫被压到 112px、和设计稿差一半；
+   那组按钮已整块搬进标题栏，猫块恢复设计稿尺寸。 */
+.pa__hero{flex:0 0 240px;padding:8px;display:grid;place-items:center}
+.pa__breathe .cat{width:224px;height:209px;display:block}
+.pa__side{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:14px}
+.ring{position:relative;width:100px;height:100px}
+.ring svg{width:100px;height:100px;display:block;transform:rotate(-90deg)}
+/* ★ 2026-09-26 修：原来用 display:grid + place-items:center 居中「数字+说明」两行，
+   但没给行高 → 两个隐式行被拉伸成各占半圆，数字被顶到上半圆（实测盒中心比圆心高 22.2px）。
+   改成两个都绝对定位：数字钉在圆心，说明钉在圆心正下方 24px（该高度圆内还有 56px 净宽）。 */
+.ring__tx{position:absolute;inset:0;text-align:center;pointer-events:none}
+.ring__tx b{position:absolute;left:50%;top:50%;translate:-50% -50%;white-space:nowrap;
+  font-family:var(--disp);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.ring__tx span{position:absolute;left:50%;top:calc(50% + 24px);translate:-50% -50%;white-space:nowrap;
+  font-size:9.5px;color:var(--ink3);letter-spacing:1px;
+  /* letter-spacing 会在最后一个字后面多出 1px，让字看起来偏左 0.5px → 补回来 */
+  padding-left:1px}
+.pa__st{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.pa__st i{width:7px;height:7px;border-radius:50%;background:var(--ok);display:block}
+.pa__s{font-size:11.5px;color:var(--ink3);margin-top:-6px;font-variant-numeric:tabular-nums;text-align:center}
+/* ── B/C/D 分段条 ── */
+.fbar{display:flex;gap:4px;margin-top:13px}
+.fbar i{flex:1;height:7px;border-radius:3px;background:var(--line2);display:block}
+.fbar i.on{background:var(--acc)}
+.fbar i.hollow{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ctl)}
+.fbar i.mut{background:var(--ink4);opacity:.32}
+.fbar i.pick{background:var(--acc);box-shadow:0 0 0 2px var(--sink),0 0 0 3.5px var(--acc)}
+.fbar i.bad{background:var(--bad)}
+.fbarcap{margin-top:9px;font-size:11px;color:var(--ink2)}
+
+/* ── E 规则块里的行 ── */
+.pe__r{display:flex;align-items:center;gap:10px}
+.tabs{display:flex;gap:4px;margin-left:auto}
+.tab{position:relative;height:32px;padding:0 14px;border:1px solid var(--line);background:transparent;border-radius:99px;
+  color:var(--ink3);font-family:var(--ui);font-size:12px;cursor:pointer}
+.tab.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
+.sentence{font-size:25px;font-weight:600;letter-spacing:-.2px;line-height:1.5;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sentence__lbl{font-family:var(--disp);font-size:9.5px;letter-spacing:1.7px;text-transform:uppercase;font-weight:600;
+  color:var(--ink4);flex:0 0 auto}
+.wd{padding:0 12px 2px;border-radius:var(--r-sm);background:var(--sel);color:var(--acc);
+  border:1px solid color-mix(in srgb,var(--acc) 40%,transparent)}
+
+/* 常用规则模板条（设计稿没画，按规格书 §3.3 补：chip 高 26px） */
+.tpl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tpl__t{font-size:12px;font-weight:500;color:var(--ink3);flex:0 0 auto}
+.tpl__row{display:flex;gap:6px;flex-wrap:wrap}
+.tpl__chip{height:26px;padding:0 11px;border:1px solid var(--line);background:var(--panel);border-radius:9px;
+  color:var(--ink2);font-family:var(--ui);font-size:11.5px;cursor:pointer}
+/* 导入来源提示条 */
+.srcbar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--r-sm);
+  background:var(--sel);border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);font-size:12px;color:var(--ink2)}
+.srcbar__b{margin-left:auto;font-size:11.5px;color:var(--acc);background:none;border:1px solid var(--acc);
+  border-radius:99px;padding:3px 10px;cursor:pointer}
+/* 参数区：标签在左、控件在右（规格书 §4.2 铁律②） */
+.form{display:flex;flex-direction:column;gap:8px}
+.flabel{font-size:11.5px;color:var(--ink3)}
+.finput{height:34px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--ink);font-family:var(--ui);font-size:12.5px;padding:0 10px;display:flex;align-items:center}
+.finput--num{flex:0 0 56px;justify-content:center;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.finput--at{flex:0 0 64px;justify-content:center;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.finput--err{border-color:var(--bad);box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 18%,transparent)}
+.finput--mono{font-family:var(--mono)}
+.fselect{height:34px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--ink2);font-family:var(--ui);font-size:12.5px;padding:0 10px;display:flex;align-items:center;gap:8px;flex:1 1 auto}
+.fselect--off{color:var(--ink3);opacity:.55}
+.inline{display:flex;align-items:center;gap:8px}
+.hint{font-size:11.5px;color:var(--ink3);line-height:1.65}
+.hint--err{color:var(--bad)}
+.hint code{font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--line);
+  border-radius:4px;padding:0 4px;color:var(--ink2)}
+/* 勾选框 / 开关（照抄原型尺寸） */
+.ckline{display:flex;align-items:center;gap:9px}
+.ck{width:15px;height:15px;border:1.5px solid var(--ctl);border-radius:4px;display:inline-block;flex:0 0 auto;position:relative}
+.ck.on{background:var(--acc);border-color:var(--acc)}
+.ck.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border-right:2px solid var(--acc-ink);border-bottom:2px solid var(--acc-ink);transform:rotate(40deg)}
+.ck__l{font-size:12.5px;color:var(--ink2)}
+.sw{width:40px;height:23px;flex:0 0 auto;background:var(--ctl);border-radius:99px;position:relative;display:inline-block}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff}
+.sw.on{background:var(--acc)}
+.sw.on::after{transform:translateX(17px)}
+/* 分组：标题 + 一条发丝线（规格书 §4.2 铁律④） */
+.gsec{display:flex;align-items:center;gap:8px}
+.gsec::after{content:"";flex:1;height:1px;background:var(--line)}
+/* 规则块底栏 */
+.rfoot{display:flex;align-items:center;gap:14px;margin-top:auto;padding-top:10px;border-top:1px solid var(--line)}
+.rfoot__n{font-size:11.5px;color:var(--ink3)}
+.rfoot__btn{margin-left:auto;background:none;border:none;color:var(--ink3);font-family:var(--mono);
+  font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.rfoot__badge{font-family:var(--ui);font-size:10.5px;color:var(--acc);border:1px solid var(--acc);
+  border-radius:99px;padding:1px 7px}
+
+/* ── F 文件表（照抄原型） ── */
+.pf__h{height:46px;flex:0 0 46px;display:flex;align-items:center;gap:10px;padding:0 20px;border-bottom:1px solid var(--line)}
+.pf__h b{font-size:13px;font-weight:600}
+.pf__h span{font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.pf__h .r{margin-left:auto;display:flex;gap:6px}
+.ht{height:30px;flex:0 0 30px;display:grid;grid-template-columns:34px 42px minmax(0,1fr) minmax(0,1fr) 72px;align-items:center;
+  padding:0 20px;font-family:var(--disp);font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;
+  font-weight:600;color:var(--ink4);border-bottom:1px solid var(--line)}
+.pf__body{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
+.tr{flex:0 0 46px;min-height:46px;display:grid;grid-template-columns:34px 42px minmax(0,1fr) minmax(0,1fr) 72px;
+  align-items:center;padding:0 20px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink2)}
+.tr.is-sel{background:var(--sel)}
+.tr>*{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .no{font-family:var(--mono);font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.ckcell{display:grid;place-items:center;overflow:visible}
+.del{color:var(--ink3);text-decoration:line-through;text-decoration-thickness:2px}
+.add{color:var(--acc);background:var(--sel);border-radius:4px;padding:1px 4px;font-weight:600}
+.dim{color:var(--ink3)}
+.st{font-family:var(--disp);font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600;
+  overflow:visible;text-overflow:clip}
+.st--go{color:var(--acc)}.st--hold{color:var(--ink3)}.st--bad{color:var(--bad)}
+.pf__ft{margin-top:auto;flex:0 0 54px;display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--bg)}
+.stack{flex:1;min-width:80px;display:flex;gap:3px;height:8px}
+.stack i{display:block;border-radius:2px;background:var(--line2)}
+.stack i.on{background:var(--acc)}.stack i.bad{background:var(--bad)}
+.pf__lg{font-size:11px;color:var(--ink3);white-space:nowrap}
+.pf__lg b{font-family:var(--mono);font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.pf__more{flex:0 0 34px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink3);
+  background:var(--bg);border-top:1px solid var(--line)}
+
+/* ── G 序号 / 属性块 ── */
+.row{display:flex;align-items:center;gap:8px}
+.row__l{flex:0 0 38px;font-size:11.5px;color:var(--ink3)}
+.inp{flex:1;min-width:0;height:34px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--ink);font-family:var(--ui);font-size:12.5px;padding:0 10px;display:flex;align-items:center}
+.inp--n{flex:0 0 56px;justify-content:center;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.sel{flex:1;min-width:0;height:34px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--ink2);font-family:var(--ui);font-size:12.5px;padding:0 8px;display:flex;align-items:center}
+.off{opacity:.45}
+.vars{display:flex;gap:6px;flex-wrap:wrap}
+.var{font-family:var(--mono);font-size:11.5px;color:var(--ink2);background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:6px 10px;cursor:pointer}
+.numadv__bar{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;background:none;border:1px solid var(--line);
+  border-radius:var(--r-sm);color:var(--ink3);font-size:11.5px;cursor:pointer;width:100%;text-align:left}
+.numadv__bar::after{content:"";margin-left:auto;width:6px;height:6px;border-right:1.5px solid currentColor;
+  border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px)}
+.numadv__bar--open::after{transform:rotate(-135deg) translateY(-2px)}
+.demo{padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm)}
+.demo__t{font-size:11.5px;color:var(--ink3)}
+.demo__l{margin-top:6px;font-size:12.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.demo__l code{font-family:var(--mono);font-size:12px;color:var(--acc);background:var(--sel);border-radius:4px;padding:1px 5px}
+
+/* ── H 执行 ── */
+.go{height:52px;width:100%;border:none;border-radius:var(--r-md);background:var(--acc);color:var(--acc-ink);
+  font-family:var(--ui);font-size:15px;font-weight:700;letter-spacing:.8px;
+  display:flex;align-items:center;justify-content:center;gap:10px}
+.go.done{background:var(--ok);color:#04170B}
+.goico{position:relative;width:18px;height:18px;flex:0 0 18px}
+.goico svg{position:absolute;inset:0;width:18px;height:18px}
+.go.done .ico--go{display:none}
+.ph__k{display:flex;gap:14px;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--ink3)}
+.ph.done .ph__k{color:var(--ok)}
+
+/* ── 进阶设置弹窗（P3-10 起：不再是就地折叠） ── */
+.mask{position:absolute;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:20}
+.modal{width:560px;background:var(--raise);border:1px solid var(--line2);border-radius:var(--r-md);
+  box-shadow:0 24px 60px rgba(0,0,0,.45);padding:20px;display:flex;flex-direction:column;gap:14px}
+.modal__h{display:flex;align-items:center;gap:10px}
+.modal__t{font-size:14px;font-weight:600}
+.modal__x{margin-left:auto;width:26px;height:26px;border-radius:var(--r-sm);border:none;background:none;
+  color:var(--ink3);font-size:13px}
+.modal__b{display:flex;flex-direction:column;gap:12px}
+.switchrow{display:flex;align-items:center;gap:10px}
+.helpbtn{margin-left:auto;font-size:11px;color:var(--acc);background:none;border:1px solid var(--acc);
+  border-radius:99px;padding:3px 10px;cursor:pointer}
+</style>
+</head>
+<body>
+
+<header class="galbar">
+  <span class="galbar__t">主界面状态画廊 · C 面板阵列</span>
+  <span class="galbar__c" id="cnt">—</span>
+  <span class="galbar__sp"></span>
+  <span class="seg"><span class="seg__l">主题</span>
+    <button data-theme-btn="light" class="on">浅色</button>
+    <button data-theme-btn="dark">深色</button></span>
+  <span class="seg"><span class="seg__l">缩放</span>
+    <button data-zoom-btn="0.75" class="on">75%</button>
+    <button data-zoom-btn="1">100%</button></span>
+</header>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<g id="catfig">
+  <path d="M26 46 L34 12 L54 34 Z" fill="var(--cat)"/>
+  <path d="M94 46 L86 12 L66 34 Z" fill="var(--cat)"/>
+  <circle cx="60" cy="62" r="36" fill="var(--cat)"/>
+  <path d="M33 41 L37 20 L49 33 Z" fill="#E9A96A" opacity=".65"/>
+  <path d="M87 41 L83 20 L71 33 Z" fill="#E9A96A" opacity=".65"/>
+  <path d="M60 68 l-4.6 -4.2 h9.2 z" fill="#D97B2A"/>
+  <path d="M60 69 q-4.5 6.5 -9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M60 69 q4.5 6.5 9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="34" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <ellipse cx="86" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <path d="M28 62 h-14 M28 70 h-12 M92 62 h14 M92 70 h12" stroke="var(--cat-line)" stroke-width="1.8"
+    stroke-linecap="round" opacity=".75"/>
+  <path d="M60 27 q4 -7 10 -3" stroke="var(--cat-line)" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".55"/>
+</g>
+<g id="eyesfig">
+  <ellipse cx="46" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <ellipse cx="74" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <circle cx="48.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+  <circle cx="76.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+</g>
+</defs>
+</svg>
+
+<main class="gal" id="gallery"></main>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   四、真实文案 —— 全部取自源码，不是编的
+   templates.ts / labels.ts / RulePanel.vue
+   ══════════════════════════════════════════════════════════════════════ */
+const TABS = [['delete','删除'],['replace','替换'],['rule','自定义'],['insert','插入'],['import','导入']];
+const TPL = ['加日期前缀','补零编号','日期+编号','去掉括号','空格换下划线','全部小写','只用编号'];
+const KINDS = [['number','数字'],['letter','字母'],['random','随机字符'],['time','时间']];
+const POSITIONS = [['suffix','排在最后'],['prefix','排在最前'],['at','插在第 n 个字符后']];
+const DATES = ['2026-09-11','20260911','2026年09月11日','09月11日','260911'];
+const ATTRS = ['{文件名}','{序号}','{日期}','{文件夹名}'];
+const CASES = ['保持原样','全部小写','全部大写','首字母大写'];
+const EXTS = ['改成指定扩展名','删掉扩展名','在后面再加一个'];
+
+const SENT = {
+  delete:'把名字里所有的「广告」删掉',
+  replace:'把名字里所有的「广告」都换成「推广」',
+  rule:'最前面加上「{d}-」，最后加上 001 这样的编号',
+  insert:'在第 2 个字符后插入「2026」',
+  import:'名字由表格决定，规则引擎不参与',
+};
+
+/* 文件表六行（原型的样例数据） */
+const ROWS_OK = [
+  {no:'01', a:[['广告',1],['素材-01.png',0]],      b:[['推广',2],['素材-01.png',0]],      st:['go','将变化'], sel:1},
+  {no:'02', a:[['夏季新品',0],['广告',1],['主图.jpg',0]], b:[['夏季新品',0],['推广',2],['主图.jpg',0]], st:['go','将变化']},
+  {no:'03', a:[['广告',1],['-详情页-03.webp',0]],  b:[['推广',2],['-详情页-03.webp',0]],  st:['go','将变化']},
+  {no:'04', a:[['主图-04-备用.jpg',0]],            b:[['—',3]],                            st:['hold','无变化']},
+  {no:'05', a:[['banner',0],['广告',1],['位-05.png',0]], b:[['banner',0],['推广',2],['位-05.png',0]], st:['go','将变化']},
+  {no:'06', a:[['广告',1],['素材-06.gif',0]],      b:[['推广',2],['素材-06.gif',0]],      st:['go','将变化']},
+];
+/* 撞名态：第 4 行变成「重名」，其余照旧 */
+const ROWS_CLASH = ROWS_OK.map(function (r, i) {
+  if (i !== 3) return r;
+  return {no:'04', a:[['主图-04-备用.jpg',0]], b:[['推广素材-01.png',2]], st:['bad','重名']};
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   五、21+1 条状态 —— 每条只描述「和默认有什么不同」
+   ══════════════════════════════════════════════════════════════════════ */
+const STATES = [
+  {g:'一 · 五种模式（页签切换后长什么样）'},
+  {no:'01', t:'删除', mode:'delete',
+   n:'规则块只剩下「页签 + 一句话」，<b>一个输入框都没有了</b>。这一屏要填的东西全在右下角 G 格（开咬改名上面）：待删字符串 → 改扩展名 → 区分大小写。删除模式用不到序号，所以 G 格里<b>没有「序号」那一段</b>。<br>'
+   + '<b>★ 标题栏现在有两组按钮</b>：<b>左边</b>是「往里加东西」——添加文件 / 添加文件夹 / 导入表格；'
+   + '<b>右边</b>是导出清单 · 清空列表 · 文件夹合并 · 文件提取 · 撤销 / 历史。'
+   + '（2026-09-26：这组按钮原来占着网格里独立的一格，设计稿里没有它，而且它把猫块挤到只剩一行；'
+   + '现在整块搬进标题栏，猫块恢复设计稿的样子 —— <b>跨行 1-2、猫 224px</b>。）'},
+  {no:'02', t:'替换', mode:'replace',
+   n:'G 格里两个输入框：查找 / 替换为，下面接着改扩展名 + 区分大小写。<b>这一屏的规则块和 C 设计稿几乎一样高</b> —— 设计稿的规则块就是「页签 + 一句话」，现在真的是这样了。'},
+  {no:'03', t:'自定义', mode:'rule', seqOn:1,
+   n:'<b>唯一会用到「序号」和「属性」的模式，所以 G 格最长</b>：前缀 / 后缀 + 变量提示 → 改扩展名 → ──序号── 整组 → 示例·日期 → ──属性── 变量 chip。<b>「区分大小写」在这里不出现</b>（它只服务查找类规则）。<br>★ <b>这一屏的 G 格内容最多</b>（序号 + 示例·日期 + 属性都在这里），超出可见高度的部分<b>由 G 格自己内部滚</b> —— 窗口仍是固定的 900px，「开始改名」不会被顶走。'},
+  {no:'04', t:'插入', mode:'insert',
+   n:'G 格顶部一行两件套：「在第 [2] 个字符后插入」+ 插入内容框，下面两行说明（越界怎么办、不认识变量）。<b>没有区分大小写，也没有「序号」那一段。</b>'},
+  {no:'05', t:'导入 · 还没选表', mode:'import',
+   n:'这个模式<b>本身没有输入框</b>，它是一个「入口 + 状态」，整块落在 G 格里：一句说明 + 一个按钮 + 一句「还没选表格 —— 这一步每一项都不会改名」。规则块里仍然只有页签 + 一句话。'},
+  {no:'06', t:'导入 · 表已选好', mode:'import', imported:1, rowsOverride:'imported',
+   n:'多了两样：<b>规则块顶部的来源提示条</b>（「本批有 4 个名字来自「对照表.csv」，规则不影响它们」+ 清除导入），以及 <b>G 格里</b>按钮下方两行状态（已导入 N 个 / 另外 N 个保持原名）。这一条不写清楚，用户会以为「怎么有几个文件没变」。'},
+  {no:'07', t:'删除 · 勾上「改扩展名」', mode:'delete', extOn:1,
+   n:'「改扩展名」是个<b>常显的勾</b>，位置在 <b>G 格里、参数下面</b>（不在任何折叠里 —— 藏起来就等于没有）。勾上后就地长出一行：一个下拉（改成指定 / 删掉 / 在后面再加一个）+ 一个输入框。'},
+
+  {g:'二 · 折叠与弹窗'},
+  {no:'08', t:'删除 · 进阶设置（弹窗）', mode:'delete', advOpen:1,
+   n:'<b>⚠️ 这里和设计稿的静态图看着不一样：进阶设置现在是一个弹窗</b>，不是就地展开的折叠条。入口在规则块右下角那行小字「进阶设置 · 正则 / 大小写 ›」。弹窗 560px，压在窗口上层。'},
+  {no:'09', t:'删除 · 弹窗里勾上「用正则匹配」', mode:'delete', advOpen:1, regex:1,
+   n:'勾上正则后，弹窗里多两段：一段「为什么用正则」的对比解释，和一段「当场看看」的实时演示。同时规则区那个输入框的写法会变成等宽字体。'},
+  {no:'10', t:'自定义 · 两条折叠展开（G 格只露出顶部）', mode:'rule', seqOn:1, numAdv:1, attrAdv:1,
+   n:'G 格里两条折叠条同时展开的样子：「示例 · 日期」（示例行 / 日期组 / 跨天提示）与「属性 · 变量」（4 个变量 chip + 大小）。'
+   + '<b>两条平时都是折起的</b> —— 折起来只剩一行标题，这样 G 格的常显内容才不会把「开始改名」顶出屏幕。'
+   + '★ 这一屏是 G 格滚得最远的一屏：把鼠标放进 G 格里滚一下，才看得到最底下的「大小」。'},
+  {no:'11', t:'G 格内容全览（这一屏故意不滚）', mode:'rule', seqOn:1, numAdv:1, attrAdv:1, gFull:1,
+   n:'★ <b>G 格在真机里是滚的，所以前面每一屏都只看得到它的上半截。</b>这一屏故意把窗口放开（不固定 900），把 G 格的全部内容<b>一次摊开</b>，方便对着做。从上到下：前缀 / 后缀 / 变量提示 → 改扩展名 → 区分大小写（自定义模式没有）→ ──序号── 启用 / 位置 / 类型 / 参数 → 「示例 · 日期」折叠（展开态）→ 「属性 · 变量」折叠（展开态）。<br><b>⚠️ 真机不要照这一屏做窗口高度</b> —— 它只是「摊开看一眼」用的。'},
+
+  {g:'三 · 序号：一个开关能变出六张脸'},
+  {no:'12', t:'序号 · 没启用', mode:'rule',
+   n:'起始态。<b>整组置灰</b>：位置、类型两个下拉禁用，「位数」框不显示，<b>示例行整块不在</b>（不是藏起来留个空壳）。'},
+  {no:'13', t:'序号 · 类型 = 数字', mode:'rule', seqOn:1, kind:'number',
+   n:'默认档。三个参数框：起始 / 增量 / 位数。位数 = 3 时示例出来是 001、002、003。'},
+  {no:'14', t:'序号 · 类型 = 字母', mode:'rule', seqOn:1, kind:'letter',
+   n:'<b>「位数」框消失</b>（不是置灰）—— 字母不补零，摆一个填了也没用的框只会让人怀疑自己填错了。参数只剩起始 / 增量。'},
+  {no:'15', t:'序号 · 类型 = 随机字符', mode:'rule', seqOn:1, kind:'random',
+   n:'参数换成「长度」+<b>一个「换一批」按钮</b>（随机字符要多一个重掷的入口）。位数框同样不在。'},
+  {no:'16', t:'序号 · 类型 = 时间', mode:'rule', seqOn:1, kind:'time',
+   n:'参数换成「起点（自动填今天）」+ 与日期共用的一张 5 档格式表；下面多一句跨天提示。'},
+  {no:'17', t:'序号 · 位置 = 第 n 个字符后', mode:'rule', seqOn:1, pos:'at',
+   n:'选第三档时，<b>「位置」下拉右边就地长出一个 64px 的数字框</b>，不另开一行；选回前两档它又消失。下面多一句越界说明。'},
+
+  {g:'四 · 列表与执行'},
+  {no:'18', t:'空列表（一个文件都没加）', mode:'rule', seqOn:1, empty:1,
+   n:'三张统计卡全归零、文件表换成空态引导、<b>「开始改名」和「清空列表」都置灰</b>。'},
+  {no:'19', t:'有撞名', mode:'rule', seqOn:1, rows:'clash',
+   n:'状态列出现<b>红色的「重名」</b>，统计卡「撞名」从 0 变 1、分段条多一格红；表底摘要条也跟着变。'},
+  {no:'20', t:'文件表 · 只看将变化', mode:'rule', seqOn:1, onlyChanged:1,
+   n:'表头那个胶囊按下后的样子：<b>「无变化」的行被过滤掉</b>，计数从「6 项」变成「5 项」。'},
+  {no:'21', t:'删除 · 正则写错', mode:'delete', regexErr:1,
+   n:'G 格那个输入框红描边 + 下面一行红字说清错在哪，<b>同时「开始改名」置灰、下面三个快捷键提示换成「先修好正则写法」</b> —— 三种反馈一起给，不能只灰按钮不说原因。'},
+  {no:'22', t:'列表滚动到底', mode:'rule', seqOn:1, more:1,
+   n:'文件表<b>内部自己滚</b>（虚拟滚动必需，不跟着主区滚）—— 行高恒为 46px、不随窗口拉伸；滚到底时表底多出一行「还有 N 项」。'},
+  {no:'23', t:'开始改名 · 完成态', mode:'rule', seqOn:1, done:1,
+   n:'改名跑完：按钮变绿、图标从箭头交叉淡入成勾、文案变「已改名 N 个」，下面三个快捷键提示也跟着变绿。'},
+  {no:'24', t:'数字很大时（环自动改成百分比）', mode:'rule', seqOn:1, big:{total:5000, changed:1234},
+   n:'★ <b>环里那条规则</b>：分数 ≤ 5 个字符显示分数，≥ 6 个字符自动改显示百分比（取整）。'
+   + '本屏 1234/5000 有 9 个字符，塞不进 74px 的圆心，所以显示 <b>25%</b>。<br>'
+   + '<b>精确数字不用挤进圆圈</b> —— 三张统计卡（1234 / 3766 / 0）和文件表底部的摘要条里都有；环只负责「一眼看出比例」。'
+   + '<br>⚠️ <b>有一个没定死的问题</b>：统计卡那条 6 格分段条，数字一大就只能给个大致印象（本屏亮 1 格 ≈ 17%，实际 25%）。'
+   + '落地时要是觉得别扭，考虑把它改成按真实比例分段的条 —— 那是新决定，得另起一条记。'},
+];
+
+/* ══════════════════════════════════════════════════════════════════════
+   六、渲染
+   ══════════════════════════════════════════════════════════════════════ */
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* —— 标题栏 —— */
+/* 标题栏两组按钮 —— ★ 2026-09-26：原先「往里加东西」是网格里独立的一块
+   （设计稿里没有它，而且它把猫块挤到只剩一行），现整块搬进标题栏。
+   左组 = 往里加东西（添加文件 / 添加文件夹 / 导入表格）；右组 = 其余五件 + 窗口键。 */
+function tbarHTML(s) {
+  return '<div class="tbar">'
+    + '<div class="brand"><svg class="brand__mark" viewBox="0 0 120 112"><use href="#catfig"/><use href="#eyesfig"/></svg>'
+    + '<span class="brand__name">Maodie</span></div>'
+    + '<div class="tbar__l">'
+    + '<button class="tbtn">添加文件</button><button class="tbtn">添加文件夹</button>'
+    + '<button class="tbtn">导入表格</button>'
+    + '</div>'
+    + '<div class="tbar__r">'
+    + '<span class="tbar__c">改名工作台 · ' + (s && s.big ? s.big.total : 6) + ' 项已就位</span>'
+    + '<button class="tbtn">导出清单</button><button class="tbtn">清空列表</button>'
+    + '<button class="tbtn">文件夹合并</button><button class="tbtn">文件提取</button>'
+    + '<button class="tbtn">撤销 / 历史</button>'
+    + '<button class="wkey">—</button><button class="wkey">□</button><button class="wkey wkey--x">✕</button>'
+    + '</div></div>';
+}
+
+/* —— A 猫块 —— */
+function catHTML(s) {
+  const big = s.big || null;
+  const total = big ? big.total : (s.empty ? 0 : 6);
+  const willChange = big ? big.changed : (s.empty ? 0 : (s.rows === 'clash' ? 4 : (s.onlyChanged ? 5 : 5)));
+  const pct = total ? willChange / total : 0;
+  const C = 2 * Math.PI * 40;              // 设计稿：viewBox 0 0 100 100、r=40 → 周长 251.3
+  const dash = (C * pct).toFixed(1);
+  // ★ 规则（2026-09-26 定死）：分数 ≤5 个字符 → 显示分数；≥6 个字符 → 自动改显示百分比（取整）。
+  //   依据（实测）：环内圈净宽 74px，23px 字号下 5 字符=69px 塞得下、6 字符=82px 塞不下。
+  //   精确数字不必挤进圆圈 —— 三张统计卡和文件表底部的摘要条里都有；环只负责「一眼看出比例」。
+  const frac = willChange + '/' + total;
+  const ringNum = frac.length > 5 ? Math.round(pct * 100) + '%' : frac;
+  const sub = big ? (big.total + ' 个文件 · 无重名')
+    : (s.empty ? '还没有文件 · 拖进来就行' : (s.rows === 'clash' ? '6 个文件 · 1 处撞名' : '6 个文件 · 无重名'));
+  const st  = s.empty ? '耄耋待命' : (s.rows === 'clash' ? '有名字撞上了' : '耄耋待命');
+  return '<section class="p p--raise pa">'
+    + '<div class="pa__hero"><div class="pa__breathe">'
+    + '<svg class="cat" viewBox="0 0 120 112" aria-label="耄耋"><use href="#catfig"/><use href="#eyesfig"/></svg>'
+    + '</div></div>'
+    + '<div class="pa__side">'
+    + '<div class="ring"><svg viewBox="0 0 100 100" aria-label="将变化 ' + frac + '，占 ' + Math.round(pct * 100) + '%">'
+    + '<circle cx="50" cy="50" r="40" fill="none" stroke="var(--line)" stroke-width="6"/>'
+    + '<circle cx="50" cy="50" r="40" fill="none" stroke="var(--acc)" stroke-width="6" stroke-linecap="round"'
+    + ' stroke-dasharray="' + dash + ' ' + (C - dash).toFixed(1) + '"/></svg>'
+    + '<div class="ring__tx"><b>' + ringNum + '</b><span>将变化</span></div></div>'
+    + '<div class="pa__st"><i></i>' + st + '</div>'
+    + '<div class="pa__s">' + sub + '</div>'
+    + '</div></section>';
+}
+
+/* —— B/C/D 三张统计卡 —— */
+function statsHTML(s) {
+  const empty = !!s.empty, clash = s.rows === 'clash', big = s.big || null;
+  const n = big ? {changed: big.changed, keep: big.total - big.changed, bad: 0}
+    : {changed: empty ? 0 : (clash ? 4 : 5), keep: empty ? 0 : 1, bad: empty ? 0 : (clash ? 1 : 0)};
+  // 分段条只有 6 格 —— 数字一大它就只能示意，精确比例看环里的百分比与卡上的数字
+  const litB = big ? Math.round((n.changed / big.total) * 6) : n.changed;
+  function card(cls, lbl, val, cap, bar) {
+    return '<section class="p p--sink ' + cls + '"><div class="lbl">' + lbl + '</div>'
+      + '<div class="bigno" data-count="' + val + '">' + (val < 10 ? '0' + val : val) + '</div>'
+      + '<div class="fbar">' + bar + '</div>'
+      + (cap ? '<div class="fbarcap">' + cap + '</div>' : '') + '</section>';
+  }
+  // B：将变化的 6 格
+  let barB = '';
+  for (let i = 0; i < 6; i++) barB += '<i class="' + (i < litB ? 'on' : 'hollow') + '"></i>';
+  // C：无变化 —— 第 4 格圈住（大数字时「圈住一个」的说法不成立，全部画成灰格）
+  let barC = '';
+  for (let i = 0; i < 6; i++) barC += '<i class="' + (!big && i === 3 ? 'pick' : 'mut') + '"></i>';
+  // D：撞名
+  let barD = '';
+  for (let i = 0; i < 6; i++) barD += '<i class="' + (i < n.bad ? 'bad' : '') + '"></i>';
+
+  let h = '';
+  h += card('pb', 'Will change / 将变化', n.changed, '', barB);
+  h += card('pc', 'Keep / 无变化', n.keep, (!big && !empty) ? '被圈住的就是那一个 · 主图-04-备用.jpg' : '', barC);
+  h += card('pd', 'Clash', n.bad,
+    big ? '六格全通 · 没有一个撞名' : (clash ? '有 1 个名字和别人撞上了' : '六格全通 · 没有一个撞名'), barD);
+  return h;
+}
+
+/* —— E 规则块 —— */
+function ruleHTML(s) {
+  const mode = s.mode || 'rule';
+  let h = '<section class="p p--raise pe">';
+
+  // ① 常用规则模板条（常显）
+  h += '<div class="tpl"><span class="tpl__t">常用规则</span><div class="tpl__row">';
+  TPL.forEach(function (t) { h += '<button class="tpl__chip">' + t + '</button>'; });
+  h += '</div></div>';
+
+  // ② 导入来源提示条（仅导入模式且确有导入项）
+  if (mode === 'import' && s.imported) {
+    h += '<div class="srcbar"><span>本批有 4 个名字来自「对照表.csv」，规则不影响它们</span>'
+      + '<button class="srcbar__b">清除导入</button></div>';
+  }
+
+  // ③ 页签行（标签在左、五个页签在右）
+  h += '<div class="pe__r"><span class="lbl">Rule / 规则</span><div class="tabs">';
+  TABS.forEach(function (t) {
+    h += '<button class="tab' + (t[0] === mode ? ' on' : '') + '">' + t[1] + '</button>';
+  });
+  h += '</div></div>';
+
+  // ④ 一句话摘要
+  h += '<p class="sentence"><span class="sentence__lbl">规则</span>';
+  if (mode === 'replace') {
+    h += '<span>把名字里所有的<span class="wd">广告</span>都换成<span class="wd">推广</span></span>';
+  } else {
+    h += '<span>' + esc(SENT[mode]) + '</span>';
+  }
+  h += '</p>';
+
+  // ★ 参数区 / 改扩展名 / 区分大小写**不在这里**了 ——
+  //   按要求挪到右下角 G 格（开咬改名上面），见 gcellHTML()。
+  //   规则块从此只回答「改成什么」，不回答「怎么填」。
+
+  // ⑧ 底栏：自动处理重名冲突 + 说明（管的是整条规则，不属于某个模式，留在这里）
+  h += '<div class="rfoot">'
+    + '<div class="ckline"><span class="sw"></span><span class="ck__l">自动处理重名冲突</span></div>'
+    + '<span class="rfoot__n">关闭时冲突项会被跳过。无论开关如何，都「不会覆盖」任何已有文件。</span>'
+    + '<button class="rfoot__btn">改动唯一真源就是这一句 · 改一个字下面那张表立刻重算</button>'
+    + '</div>';
+
+  // ⑨ 进阶设置入口（只在删除 / 替换 / 自定义出现）
+  if (mode === 'delete' || mode === 'replace' || mode === 'rule') {
+    h += '<div class="rfoot" style="margin-top:0;border-top:0;padding-top:0">'
+      + '<button class="rfoot__btn">' + (s.regex ? '<span class="rfoot__badge">已启用 1 项</span>' : '')
+      + '进阶设置 · 正则 / 大小写<span aria-hidden="true">›</span></button></div>';
+  }
+
+  h += '</section>';
+  return h;
+}
+
+/* 各模式的参数区 */
+function formHTML(s, mode) {
+  if (mode === 'delete') {
+    let h = '<span class="flabel">待删字符串</span>'
+      + '<span class="finput' + (s.regexErr ? ' finput--err' : (s.regex ? ' finput--mono' : '')) + '">'
+      + (s.regex ? '[0-9]+' : '广告') + '</span>';
+    if (s.regexErr) h += '<span class="hint hint--err">正则写法有问题：Unmatched　「)」</span>';
+    return h;
+  }
+  if (mode === 'replace') {
+    return '<span class="flabel">查找</span><span class="finput">广告</span>'
+      + '<span class="flabel">替换为</span><span class="finput">推广</span>';
+  }
+  if (mode === 'insert') {
+    return '<div class="inline"><span class="flabel" style="flex:0 0 auto">在第</span>'
+      + '<span class="finput finput--at">2</span>'
+      + '<span class="flabel" style="flex:0 0 auto">个字符后插入</span>'
+      + '<span class="finput">2026</span></div>'
+      + '<p class="hint">数字超出名字长度时会自动放到末尾；填 0 等于加在最前面。插入的文字里<b>不认识变量</b>（<code>{n}</code>、<code>{d}</code> 会原样插进去）。</p>'
+      + '<p class="hint">示例（拿「素材-01」这个名字试的，不是你列表里的文件）：素材-01 → 素材2026-01</p>';
+  }
+  if (mode === 'import') {
+    let h = '<p class="hint">名字由表格决定，规则引擎不参与。</p>'
+      + '<div><span class="tpl__chip" style="display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:99px;font-size:12.5px">'
+      + (s.imported ? '重新选表格' : '选表格并导入…') + '</span></div>';
+    if (s.imported) {
+      h += '<p class="hint">已导入「对照表.csv」：4 个文件有名字</p>'
+        + '<p class="hint">另外 2 个文件表里没有 —— 它们保持原名不动</p>';
+    } else {
+      h += '<p class="hint">导入模式：还没选表格 —— 这一步每一项都不会改名。</p>';
+    }
+    return h;
+  }
+  // 自定义
+  return '<span class="flabel">前缀</span><span class="finput">{d}-</span>'
+    + '<span class="flabel">后缀</span><span class="finput" style="color:var(--ink3)">加在扩展名之前</span>'
+    + '<p class="hint">支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期（<b>需先勾选下方对应开关</b>）、'
+    + ATTRS.map(function (v) { return '<code>' + v + '</code>'; }).join('、')
+    + '（<b>写上就生效，不用开关</b>）</p>';
+}
+
+/* —— F 文件表 —— */
+function listHTML(s) {
+  if (s.empty) {
+    return '<section class="p pf"><div class="pf__h"><b>文件</b><span>共 0 项</span>'
+      + '<div class="r"><button class="tab">只看将变化</button><button class="tab">全选</button></div></div>'
+      + '<div class="ht"><span></span><span>No.</span><span>原本的名字</span><span>改完的名字</span><span>状态</span></div>'
+      + '<div class="pf__body" style="align-items:center;justify-content:center;gap:10px">'
+      + '<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="1.4">'
+      + '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'
+      + '<div style="font-size:13px;font-weight:600">把文件拖进来，或者点左上角的「添加文件」</div>'
+      + '<div style="font-size:11.5px;color:var(--ink3)">支持一次拖很多个，也支持整个文件夹</div>'
+      + '</div>'
+      + '<div class="pf__ft"><span class="lbl">改动摘要</span><div class="stack"><i></i><i></i></div>'
+      + '<span class="pf__lg"><b>0</b> 将变化</span><span class="pf__lg"><b>0</b> 无变化</span>'
+      + '<span class="pf__lg"><b>0</b> 撞名</span></div></section>';
+  }
+
+  const all = s.rows === 'clash' ? ROWS_CLASH : ROWS_OK;
+  const shown = (s.onlyChanged ? all.filter(function (r) { return r.st[0] !== 'hold'; }) : all);
+  const cnt = s.big ? s.big.total : (s.onlyChanged ? 5 : 6);
+
+  let h = '<section class="p pf"><div class="pf__h"><b>文件</b><span>' + cnt + ' 项</span><div class="r">'
+    + '<button class="tab' + (s.onlyChanged ? ' on' : '') + '">只看将变化</button>'
+    + '<button class="tab">全选</button></div></div>'
+    + '<div class="ht"><span></span><span>No.</span><span>原本的名字</span><span>改完的名字</span><span>状态</span></div>'
+    + '<div class="pf__body">';
+
+  shown.forEach(function (r, i) {
+    h += '<div class="tr' + (r.sel && !s.onlyChanged ? ' is-sel' : '') + '">'
+      + '<span class="ckcell"><span class="ck on"></span></span>'
+      + '<span class="no">' + r.no + '</span>'
+      + '<span>' + segHTML(r.a) + '</span>'
+      + '<span>' + segHTML(r.b) + '</span>'
+      + '<span class="st st--' + r.st[0] + '">' + r.st[1] + '</span></div>';
+  });
+
+  if (s.more) {
+    const left = s.big ? (s.big.total - 6) : 494;
+    const tot  = s.big ? s.big.total : 500;
+    h += '<div class="pf__more">还有 ' + left + ' 项没显示（表里共 ' + tot + ' 项）</div>';
+  }
+  h += '</div>'      /* / .pf__body —— 文件行固定高、由这一层自己滚 */
+    + '<div class="pf__ft"><span class="lbl">改动摘要</span>'
+    + '<div class="stack"><i class="on" style="flex:' + (s.rows === 'clash' ? 4 : 5) + '"></i>'
+    + '<i style="flex:1"></i>' + (s.rows === 'clash' ? '<i class="bad" style="flex:1"></i>' : '') + '</div>'
+    + '<span class="pf__lg"><b>' + (s.rows === 'clash' ? 4 : 5) + '</b> 将变化</span>'
+    + '<span class="pf__lg"><b>1</b> 无变化</span>'
+    + '<span class="pf__lg"><b>' + (s.rows === 'clash' ? 1 : 0) + '</b> 撞名</span></div></section>';
+  return h;
+}
+function segHTML(segs) {
+  return segs.map(function (p) {
+    if (p[1] === 1) return '<span class="del">' + esc(p[0]) + '</span>';
+    if (p[1] === 2) return '<span class="add">' + esc(p[0]) + '</span>';
+    if (p[1] === 3) return '<span class="dim">' + esc(p[0]) + '</span>';
+    return esc(p[0]);
+  }).join('');
+}
+
+/* —— G 格（开咬改名上面）：先「怎么操作」，再「序号 / 属性」 —— */
+function gcellHTML(s) {
+  const mode = s.mode || 'rule';
+  const cond = !!s.seqOn;
+  const kind = s.kind || 'number';
+  const pos = s.pos || 'suffix';
+  const off = cond ? '' : ' off';
+
+  let h = '<section class="p pg">';
+
+  // ① 当前模式的参数（从规则块挪来的）—— 五个模式都在这
+  h += '<div class="form">' + formHTML(s, mode) + '</div>';
+
+  // ② 改扩展名（五个模式都有；常显的勾，不进折叠）
+  h += '<div class="form">'
+    + '<div class="ckline"><span class="ck' + (s.extOn ? ' on' : '') + '"></span>'
+    + '<span class="ck__l">改扩展名</span></div>';
+  if (s.extOn) {
+    h += '<div class="inline"><span class="fselect">' + EXTS[0] + '</span>'
+      + '<span class="finput" style="flex:0 0 120px">pdf</span></div>';
+  }
+  h += '<p class="hint">与「全部小写」互不影响：扩展名按你写的样子来（写 <code>PDF</code> 就是 <code>.PDF</code>）。</p>'
+    + '</div>';
+
+  // ③ 区分大小写（仅删除 / 替换）
+  if (mode === 'delete' || mode === 'replace') {
+    h += '<div class="ckline"><span class="ck"></span><span class="ck__l">区分大小写</span></div>';
+  }
+
+  // ④ 序号 / 属性：只有「自定义」模式才有这两组
+  if (mode === 'rule') {
+  h += '<div class="gsec"><span class="lbl">序号</span></div>';
+  h += '<div class="ckline"><span class="ck' + (cond ? ' on' : '') + '"></span>'
+    + '<span class="ck__l">启用序号</span></div>';
+
+  // 位置（第三档时就地长出 64px 数字框）
+  h += '<div class="row"><span class="row__l">位置</span>'
+    + '<span class="sel' + off + '">' + POSITIONS.filter(function (p) { return p[0] === pos; })[0][1] + '</span>'
+    + (pos === 'at' ? '<span class="inp inp--n" style="flex:0 0 64px">3</span>' : '') + '</div>';
+  if (pos === 'at' && cond) {
+    h += '<p class="hint">数字超出名字长度时，会自动放到末尾。</p>';
+  }
+
+  // 类型
+  h += '<div class="row"><span class="row__l">类型</span>'
+    + '<span class="sel' + off + '">' + KINDS.filter(function (k) { return k[0] === kind; })[0][1] + '</span></div>';
+
+  // 参数（随类型）
+  let prm = '';
+  if (kind === 'number' || kind === 'letter') {
+    prm += '<span class="row__l">起始</span><span class="inp inp--n' + off + '">1</span>'
+      + '<span class="row__l" style="flex:0 0 32px">增量</span><span class="inp inp--n' + off + '">1</span>';
+    if (kind === 'number') prm += '<span class="row__l" style="flex:0 0 32px">位数</span><span class="inp inp--n' + off + '">3</span>';
+  } else if (kind === 'random') {
+    prm += '<span class="row__l">长度</span><span class="inp inp--n' + off + '">6</span>'
+      + '<span class="tpl__chip" style="display:inline-flex;align-items:center;height:34px;padding:0 12px;border-radius:8px">换一批</span>';
+  } else {
+    prm += '<span class="row__l">起点</span><span class="inp' + off + '" style="flex:1">2026-09-26</span>';
+  }
+  h += '<div class="row">' + prm + '</div>';
+  if (kind === 'time' && cond) {
+    h += '<div class="row"><span class="row__l">格式</span><span class="sel' + off + '">' + DATES[2] + '</span></div>';
+  }
+
+  // 「示例 · 日期」折叠条
+  h += '<button class="numadv__bar' + (s.numAdv ? ' numadv__bar--open' : '') + '">示例 · 日期</button>';
+  if (s.numAdv) {
+    if (cond) {
+      const names = kind === 'time' ? ['2026年09月26日']
+        : (kind === 'letter' ? ['A', 'B', 'C'] : (kind === 'random' ? ['a7Fk2P', 'q9Wm4Z', 'L3xT8b'] : ['001', '002', '003']));
+      h += '<div class="demo"><p class="demo__t">示例（拿「素材」这个名字试的，不是你列表里的文件）</p>'
+        + '<p class="demo__l">' + names.map(function (x) { return '<code>' + x + '</code>'; }).join(' · ') + '</p></div>';
+    }
+    h += '<div class="gsec" style="margin-top:2px"><span class="lbl">日期</span></div>'
+      + '<div class="ckline"><span class="ck"></span><span class="ck__l">启用日期（取执行当天）</span></div>'
+      + '<div class="row"><span class="row__l">日期格式</span><span class="sel off">' + DATES[0] + '</span></div>'
+      + '<p class="hint">日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。</p>';
+  }
+
+  // 属性组 —— ★ 2026-09-26：改成一条折叠（和「示例·日期」同款），
+  //   目的是压掉 G 格里一半的常显高度，让这个格子不必滚那么远。
+  h += '<button class="numadv__bar' + (s.attrAdv ? ' numadv__bar--open' : '') + '">属性 · 变量</button>';
+  if (s.attrAdv) {
+    h += '<div class="vars">' + ATTRS.map(function (v) { return '<span class="var">' + v + '</span>'; }).join('') + '</div>'
+      + '<p class="hint">注：创建 / 修改日期用的是上面「日期格式」那一档 —— 改那里，三处一起变。</p>'
+      + '<div class="row"><span class="row__l">大小</span><span class="sel">自动</span></div>';
+  }
+
+  }   // end if (mode === 'rule')
+  h += '</section>';
+  return h;
+}
+
+/* —— H 执行块 —— */
+function goHTML(s) {
+  const n = s.empty ? 0 : (s.rows === 'clash' ? 4 : 5);
+  const disabled = s.empty || s.regexErr;
+  const label = s.done ? ('已改名 ' + n + ' 个') : ('开咬改名 · ' + n + ' 个');
+  const keys = s.regexErr
+    ? '<span>Ctrl O 添加</span><span>Ctrl Z 撤销</span><span>先修好正则写法</span>'
+    : '<span>Ctrl O 添加</span><span>Ctrl Z 撤销</span><span>Enter 开咬</span>';
+  return '<section class="p p--raise ph' + (s.done ? ' done' : '') + '">'
+    + '<button class="go' + (s.done ? ' done' : '') + '"'
+    + (disabled ? ' style="opacity:.45"' : '') + '>'
+    + '<span class="goico">'
+    + '<svg class="ico--go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"'
+    + ' stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M12.5 6 18.5 12l-6 6"/></svg>'
+    + '<svg class="ico--chk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"'
+    + ' stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.6 4.5L19 7"/></svg>'
+    + '</span><span>' + label + '</span></button>'
+    + '<div class="ph__k">' + keys + '</div></section>';
+}
+
+/* —— 进阶设置弹窗 —— */
+function modalHTML(s) {
+  if (!s.advOpen) return '';
+  let b = '<div class="switchrow"><span class="ck' + (s.regex ? ' on' : '') + '"></span>'
+    + '<span class="ck__l">用正则匹配</span><button class="helpbtn">? 看不懂？</button></div>';
+  if (s.regex) {
+    b += '<p class="hint">用正则：你说「长什么样」，数字换了也认得出 —— 填 <code>\\d+</code>，一串数字不管几位都能找到。</p>'
+      + '<div class="demo"><p class="demo__t">当场看看（拿这条示例名字试的，不是你列表里的文件）</p>'
+      + '<p class="demo__l"><code>2026-08-01-报告.docx</code><span aria-hidden="true">→</span>'
+      + '<code>2026-08-01-报告.docx</code></p></div>';
+  } else {
+    b += '<p class="hint">不用正则：你填什么就找一模一样的字 —— 填 <code>2026-08-01</code>，换个日期就找不着了。</p>';
+  }
+  b += '<div class="row"><span class="row__l">大小写</span><span class="sel">保持原样</span></div>';
+  return '<div class="mask"><div class="modal">'
+    + '<div class="modal__h"><span class="modal__t">进阶设置</span><button class="modal__x">✕</button></div>'
+    + '<div class="modal__b">' + b + '</div></div></div>';
+}
+
+/* —— 整窗 —— */
+function winHTML(s) {
+  return '<div class="win' + (s.gFull ? ' win--full' : '') + '" data-mode="' + (s.mode || 'rule') + '">'
+    + tbarHTML(s)
+    + '<div class="grid">'
+    + catHTML(s) + statsHTML(s) + ruleHTML(s) + listHTML(s) + gcellHTML(s) + goHTML(s)
+    + '</div>'
+    + modalHTML(s)
+    + '</div>';
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   七、装配
+   ══════════════════════════════════════════════════════════════════════ */
+const K = {zoom: 0.75};
+let boards = [];
+
+function build() {
+  const gal = document.getElementById('gallery');
+  let html = '<div class="intro">'
+    + '<b>这一版的分工（2026-09-26 改）</b>：<b>RULE / 规则块</b>只回答「改成什么」—— '
+    + '常用规则 + 五个模式页签 + 一句话摘要 + 进阶设置入口，不再放任何输入框；<br>'
+    + '<b>右下角 G 格（开咬改名上面那格）</b>只回答「怎么操作」—— 从上到下是：'
+    + '当前模式的参数 → 改扩展名 → 区分大小写 → 序号 → 示例·日期 → 属性（后三组只有「自定义」模式有）。<br>'
+    + '参数从规则块挪走之后，规则块高度回到设计稿的量级（实测 233px）。'
+    + '<b>窗口固定 900px，全部一页装下</b>，「开始改名」永远在右下角不动；'
+    + 'G 格内容超出时<b>由它自己内部滚</b>（不撑高窗口），所以全窗口仍是两条滚动条：<b>G 格 + 文件表</b>。'
+    + '「示例 · 日期」和「属性 · 变量」两条折叠平时都折起，就是为了让 G 格不必滚太远。'
+    + '</div>';
+  let n = 0;
+  STATES.forEach(function (s) {
+    if (s.g) { html += '<div class="grp">' + s.g + '</div>'; return; }
+    n++;
+    html += '<div class="bd"><div class="bd__hd">'
+      + '<span class="bd__no">' + s.no + '</span>'
+      + '<span class="bd__ti">' + s.t + '</span>'
+      + '<span class="bd__h" data-h="' + n + '">…</span>'
+      + '</div>'
+      + '<div class="bd__note">' + s.n + '</div>'
+      + '<div class="bd__frame"><div class="bd__inner">' + winHTML(s) + '</div></div>'
+      + '</div>';
+  });
+  gal.innerHTML = html;
+  document.getElementById('cnt').textContent = n + ' 屏 · 窗口 1440 × 900（内容高的会变高）';
+  measure();
+}
+function measure() {
+  const inners = document.querySelectorAll('.bd__inner');
+  const frames = document.querySelectorAll('.bd__frame');
+  const hs = document.querySelectorAll('[data-h]');
+  inners.forEach(function (inner, i) {
+    const win = inner.firstElementChild;
+    const h = win.offsetHeight;
+    frames[i].style.height = (h * K.zoom) + 'px';
+    // 窗口固定 900；只有「G 格全览」那一屏故意放开，要单独标出来
+    if (hs[i]) hs[i].textContent = h === 900
+      ? '窗口高 900px（固定）'
+      : '窗口高 ' + h + 'px（本屏放开，只为看全 G 格）';
+  });
+}
+function setZoom(z) {
+  K.zoom = z;
+  document.querySelectorAll('.bd__inner').forEach(function (el) {
+    el.style.transform = 'scale(' + z + ')';
+  });
+  measure();
+}
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+}
+document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
+  b.onclick = function () {
+    document.querySelectorAll('[data-theme-btn]').forEach(function (x) { x.classList.remove('on'); });
+    b.classList.add('on');
+    setTheme(b.dataset.themeBtn);
+  };
+});
+document.querySelectorAll('[data-zoom-btn]').forEach(function (b) {
+  b.onclick = function () {
+    document.querySelectorAll('[data-zoom-btn]').forEach(function (x) { x.classList.remove('on'); });
+    b.classList.add('on');
+    setZoom(parseFloat(b.dataset.zoomBtn));
+  };
+});
+build();
+setZoom(0.75);
+</script>
+</body>
+</html>

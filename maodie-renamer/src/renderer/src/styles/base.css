@@ -634,3 +634,43 @@ textarea {
 .md-scroll:hover::-webkit-scrollbar-thumb {
   background: var(--md-line-strong);
 }
+
+/* ══ 规则「一句话」（P3-9 · EL-156）═══════════════════════════════
+ *
+ * 放在 base.css 而不是 RulePanel 的 scoped 块里：与 `.md-titlebar` / `.md-filelist__row`
+ * 同一个理由 —— 这一层放的是「跨组件共享的组件样式」，一条规则只在一处描述。
+ *
+ * 视觉：一行、左边一个小标签、右边一句话，**做成凹陷槽**（比面板暗一档），
+ * 让它读起来是「这句话是从当前设置里算出来的」，而不是又一块可点的控件。 */
+
+.md-sentence {
+  display: flex;
+  align-items: baseline;
+  gap: var(--md-space-2);
+  margin: 0 0 var(--md-space-3);
+  padding: 8px 12px;
+  border-radius: var(--md-radius-input);
+  background: var(--md-bg-sunken);
+}
+
+.md-sentence__label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--md-ink-3);
+}
+
+.md-sentence__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--md-ink-1);
+  /* 规则描述可能很长（属性变量全开时），最多两行，超出打点 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

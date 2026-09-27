@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>主界面排版规格书 · C 面板阵列 — 耄耋改名</title>
+<style>
+:root{
+  --paper:#EDEBE7; --card:#FFFFFF; --sunken:#E3DFD8; --warm:#FAF8F5;
+  --line:#E2DED6; --line2:#CBC4BA;
+  --ink:#17150F; --ink2:#5B554E; --ink3:#68635A;
+  --acc:#A1420D; --acc-soft:#FBF1EA;
+  --ok:#19713E; --ok-soft:#E9F2EC; --warn:#8A620D; --warn-soft:#FAF1DE; --bad:#C4322A;
+  --code:#F4F2EE;
+  --shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 4px 16px rgba(23,21,15,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#0B0A09; --card:#211D1A; --sunken:#070605; --warm:#171413;
+    --line:#2A2521; --line2:#4A423A;
+    --ink:#F5F1EB; --ink2:#A69C90; --ink3:#9A8F82;
+    --acc:#FF7A1A; --acc-soft:#2A1C12;
+    --ok:#48B368; --ok-soft:#16241B; --warn:#D9A441; --warn-soft:#2E2411; --bad:#F0604D;
+    --code:#171413;
+    --shadow:inset 0 1px 0 rgba(255,255,255,.055), 0 6px 18px rgba(0,0,0,.45);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Microsoft YaHei UI","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  font-size:14px; line-height:1.72;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.num{font-family:"Cascadia Mono",Consolas,ui-monospace,monospace;font-variant-numeric:tabular-nums}
+code,.mono{font-family:"Cascadia Mono",Consolas,ui-monospace,monospace;font-size:.88em;
+  background:var(--code);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+b,strong{font-weight:600}
+
+.doc{max-width:1020px;margin:0 auto;padding:56px 30px 120px}
+
+/* ── 页头 ── */
+.head{border-bottom:1px solid var(--line);padding-bottom:26px;margin-bottom:38px}
+.head__kicker{font-family:"Cascadia Mono",Consolas,monospace;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink3)}
+.head h1{font-size:33px;line-height:1.28;font-weight:500;letter-spacing:-.5px;margin:12px 0 0}
+.head h1 b{color:var(--acc);font-weight:600}
+.head__sub{margin-top:12px;color:var(--ink2);font-size:13.5px;max-width:74ch}
+.meta{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px}
+.meta span{font-size:11.5px;color:var(--ink3);border:1px solid var(--line);border-radius:99px;
+  padding:3px 11px;background:var(--card)}
+
+/* ── 章节 ── */
+h2{font-size:21px;font-weight:600;letter-spacing:-.2px;margin:52px 0 6px;
+  padding-top:22px;border-top:1px solid var(--line)}
+h2 .no{font-family:"Cascadia Mono",Consolas,monospace;font-size:13px;color:var(--acc);
+  font-weight:500;margin-right:10px;letter-spacing:0}
+h3{font-size:15.5px;font-weight:600;margin:30px 0 8px;color:var(--ink)}
+h4{font-size:13.5px;font-weight:600;margin:20px 0 6px;color:var(--ink2)}
+p{margin:10px 0;max-width:82ch}
+ul,ol{margin:10px 0 10px 22px;max-width:82ch}
+li{margin:5px 0}
+li>ul,li>ol{margin:5px 0 5px 20px}
+
+/* ── 提示块 ── */
+.note{border-left:3px solid var(--acc);background:var(--acc-soft);padding:14px 18px;
+  border-radius:0 8px 8px 0;margin:18px 0}
+.note--ok{border-left-color:var(--ok);background:var(--ok-soft)}
+.note--warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note--bad{border-left-color:var(--bad);background:var(--card)}
+.note__t{font-weight:600;font-size:13px;display:block;margin-bottom:4px}
+.note p:last-child{margin-bottom:0}
+.note p:first-child{margin-top:0}
+
+/* ── 表格 ── */
+.tw{overflow-x:auto;margin:16px 0}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px}
+caption{caption-side:top;text-align:left;font-size:12px;color:var(--ink3);padding-bottom:7px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--sunken);font-weight:600;font-size:12px;white-space:nowrap}
+tbody tr:nth-child(even) td{background:var(--warm)}
+td.c,th.c{text-align:center}
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink3)}
+.nowrap{white-space:nowrap}
+
+/* ── 图 ── */
+.fig{margin:22px 0;background:var(--card);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);padding:20px}
+.fig svg{display:block;width:100%;height:auto}
+.fig figcaption{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--ink3)}
+.fig figcaption b{color:var(--ink2)}
+
+/* ── 结构示意（CSS 盒子） ── */
+.stack{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:16px 0;background:var(--card)}
+.stack__hd{padding:7px 14px;background:var(--sunken);font-size:11.5px;color:var(--ink2);
+  display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row__k{flex:0 0 148px;font-size:12.5px;font-weight:600}
+.row__d{flex:1;min-width:0;font-size:12px;color:var(--ink2)}
+.pill{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:99px;
+  border:1px solid var(--line2);color:var(--ink3);background:var(--warm);white-space:nowrap}
+.pill--acc{border-color:var(--acc);color:var(--acc);background:var(--acc-soft)}
+.pill--rk{border-color:var(--ok);color:var(--ok);background:var(--ok-soft)}
+.scrollbar{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:4px;
+  background:var(--sunken);color:var(--acc);font-weight:600}
+
+/* ── 两栏对照 ── */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+@media (max-width:760px){.duo{grid-template-columns:1fr}}
+.duo>div{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--card)}
+.duo h4{margin-top:0}
+.duo p{font-size:12.5px;margin:6px 0}
+
+/* ── 大数字条 ── */
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0}
+.kpi>div{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:14px 16px;box-shadow:var(--shadow)}
+.kpi b{display:block;font-family:"Cascadia Mono",Consolas,monospace;font-size:26px;
+  font-weight:500;letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi span{display:block;font-size:11.5px;color:var(--ink3);margin-top:5px}
+.kpi em{display:block;font-style:normal;font-size:11px;color:var(--ink3);margin-top:7px;
+  padding-top:7px;border-top:1px solid var(--line);font-family:"Cascadia Mono",Consolas,monospace}
+
+hr{border:0;border-top:1px solid var(--line);margin:34px 0}
+.foot{margin-top:60px;padding-top:22px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--ink3)}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="head">
+  <p class="head__kicker">MAODIE RENAMER · UI SPEC</p>
+  <h1>主界面排版规格书 —— <b>C · 面板阵列</b></h1>
+  <p class="head__sub">
+    这份文档把「设计稿 C 的排版」写成可以直接照着敲的规格：<b>每个块在哪一格、那一格多大、格子里的内容多了怎么办</b>。
+    凡是设计稿没画、但落地必须定下来的，本文给出唯一定论并标明「本文定死」。
+  </p>
+  <div class="meta">
+    <span>适用：主界面 SCR-01（不含 8 个弹窗与历史页）</span>
+    <span>基准画布 1440 × 900</span>
+    <span>2026-09-26</span>
+    <span>对应设计稿：<span class="mono">界面方案-2-科技感/C-面板阵列.html</span></span>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">00</span>先看这三句，就不会再卡</h2>
+
+<div class="note">
+  <span class="note__t">① 那 5 个模式是「页签」，不是「折叠」。</span>
+  <p>删除 / 替换 / 自定义 / 插入 / 导入 —— 五个始终并排显示、永远都在，切换只是换掉下面的参数。
+  <b>设计稿里也一样是页签</b>（<span class="mono">.tabs &gt; .tab</span>），不是把规则收起来。</p>
+</div>
+
+<div class="note">
+  <span class="note__t">② 序号不在规则区里，它是一块独立的板。</span>
+  <p>规则区只管「名字按什么规则改」。<b>序号 / 日期 / 属性</b>在设计稿里是右下角另一块（<span class="mono">.pg</span>）。
+  「把规则和编号参数拆成两块板」正是设计稿能在 900px 里放下的原因。</p>
+</div>
+
+<div class="note note--warn">
+  <span class="note__t">③ 900px 是「窗口尺寸」；装不下由 G 格自己滚。</span>
+  <p>设计稿里窗口固定 900 高、<b>行高按比例分配</b>（<span class="mono">1.18fr 1fr .97fr .85fr 1fr</span>）——
+  所以任何一格内容变多都会被裁掉，<b>永远不会「超高」</b>。
+  真实程序<b>保留「窗口固定 900」</b>，但把中间两行写成 <span class="mono">minmax(0,1fr)</span>：
+  <b>装不下的那一格自己内部滚，窗口不长高、「开始改名」永不移位</b>（见 §3.5）。</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">01</span>为什么「怎么排都超高」——设计稿是省略版</h2>
+
+<p>
+卡住的原因不在排版能力，而在一个<b>默认前提错了</b>：以为「设计稿的那个高度 = 所有功能都要塞进去」。
+设计稿是一张<b>静态视觉图</b>，它靠「只画一部分内容」来达成 900px 刚好。对照如下：
+</p>
+
+<div class="tw">
+<table>
+<caption>设计稿的规则区（<span class="mono">.pe</span>）里到底画了什么</caption>
+<thead><tr><th style="width:34%">真实程序里规则区包含的东西</th><th class="c" style="width:16%">设计稿画了吗</th><th>设计稿把它放哪了</th></tr></thead>
+<tbody>
+<tr><td>5 个模式页签</td><td class="c yes">画了</td><td>规则区里，一行 5 个胶囊</td></tr>
+<tr><td>「这句话在干什么」的一句话摘要</td><td class="c yes">画了</td><td>规则区中间，25px 大字</td></tr>
+<tr><td>7 个常用规则模板（一键套用）</td><td class="c no">没画</td><td>——</td></tr>
+<tr><td>各模式的参数框（查找 / 替换 / 前缀 / 插入内容…）</td><td class="c no">没画</td><td>——</td></tr>
+<tr><td>进阶设置（正则 / 大小写转换 / 小抄 / 当场演示）</td><td class="c no">只画了入口</td><td>右下角一行 <span class="mono">进阶设置 · 正则 / 大小写 ›</span>（是个<b>跳转入口</b>，不是折叠）</td></tr>
+<tr><td>改扩展名</td><td class="c no">没画</td><td>——</td></tr>
+<tr><td><b>序号</b>（启用 / 位置 / 类型 / 起始·增量·位数）</td><td class="c no">没画在规则区</td><td><b>进了右下角独立那块 <span class="mono">.pg</span></b></td></tr>
+<tr><td>日期 / 属性变量（4 个 chip）</td><td class="c no">没画在规则区</td><td>同上，也在 <span class="mono">.pg</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note note--bad">
+  <span class="note__t">结论</span>
+  <p>设计稿的规则区<b>只是一个「模式选择 + 一句话」的摘要条</b>，高度只有 <b>158.4px</b>（见 §2 算法）。
+  真实规则区的内容远超它。<b>正确做法不是把内容压扁，而是：摘要条按设计稿做，<span class="yes">参数搬到 G 格</span>给足空间，装不下的部分由 <b>G 格自己滚</b></b>（见 §3.4 / §3.5）。</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">02</span>精确几何：设计稿的 12 列 × 5 行</h2>
+
+<p>
+设计稿的窗口是 <b>1440 × 900 固定</b>，标题栏 <b>46px</b>，下面是 <b>12 列 × 5 行</b>网格，
+格子间距 <b>12px</b>，左右各留 <b>14px</b>、底部留 <b>14px</b>。八个块各自占一格（或跨几格）。
+</p>
+
+<figure class="fig">
+<svg viewBox="0 0 960 392" role="img" aria-label="设计稿 12 列 5 行网格与八个块的位置">
+  <title>C 面板阵列 · 网格落位图</title>
+  <desc>窗口 1440×900，标题栏 46px，下方 12 列 × 5 行网格；A 猫占 1-4 列 1-2 行，B/C/D 三张统计卡占第 1 行，E 规则占 5-12 列第 2 行，F 文件表占 1-8 列第 3-5 行，G 序号占 9-12 列第 3-4 行，H 开始改名占 9-12 列第 5 行。</desc>
+
+  <rect x="8" y="8" width="944" height="374" rx="10" fill="var(--card)" stroke="var(--line)"/>
+  <rect x="8" y="8" width="944" height="34" rx="10" fill="var(--sunken)"/>
+  <rect x="8" y="30" width="944" height="12" fill="var(--sunken)"/>
+  <text x="22" y="30" font-size="11" font-weight="500" fill="var(--ink2)">标题栏 · 46px（设计稿）</text>
+  <text x="940" y="30" font-size="11" text-anchor="end" fill="var(--ink3)">窗口 1440 × 900 固定</text>
+
+  <text x="44" y="54" font-size="11" text-anchor="end" fill="var(--ink3)">列</text>
+  <text x="58" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">1</text>
+  <text x="130" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">2</text>
+  <text x="203" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">3</text>
+  <text x="275" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">4</text>
+  <text x="347" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">5</text>
+  <text x="420" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">6</text>
+  <text x="492" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">7</text>
+  <text x="564" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">8</text>
+  <text x="637" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">9</text>
+  <text x="709" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">10</text>
+  <text x="781" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">11</text>
+  <text x="854" y="54" font-size="11" text-anchor="middle" fill="var(--ink3)">12</text>
+
+  <text x="44" y="97" font-size="11" text-anchor="end" fill="var(--ink3)">行1</text>
+  <text x="44" y="165" font-size="11" text-anchor="end" fill="var(--ink3)">行2</text>
+  <text x="44" y="226" font-size="11" text-anchor="end" fill="var(--ink3)">行3</text>
+  <text x="44" y="284" font-size="11" text-anchor="end" fill="var(--ink3)">行4</text>
+  <text x="44" y="342" font-size="11" text-anchor="end" fill="var(--ink3)">行5</text>
+
+  <!-- A 猫（占满 1-4 列 × 1-2 行，整块；2026-09-26 起不再被切开） -->
+  <rect x="58" y="60" width="283" height="129" rx="8" fill="var(--sunken)" stroke="var(--line2)"/>
+  <text x="72" y="86" font-size="13" font-weight="600" fill="var(--ink)">A · 猫 / 状态</text>
+  <text x="72" y="104" font-size="11" fill="var(--ink3)">1-4 列 × 1-2 行 · 462.7 × 357.4</text>
+  <text x="72" y="152" font-size="11" fill="var(--ink3)">猫 · 进度环 · 状态 · 副行 全在这一块里</text>
+  <text x="72" y="170" font-size="11" fill="var(--ink3)">「往里加东西」那组按钮 → 已搬进标题栏</text>
+
+  <!-- B C D -->
+  <rect x="347" y="60" width="211" height="67" rx="8" fill="var(--sunken)" stroke="var(--line)"/>
+  <text x="359" y="86" font-size="12" font-weight="600" fill="var(--ink)">B · 将变化</text>
+  <text x="359" y="104" font-size="11" fill="var(--ink3)">5-7 列 × 行1</text>
+
+  <rect x="564" y="60" width="211" height="67" rx="8" fill="var(--sunken)" stroke="var(--line)"/>
+  <text x="576" y="86" font-size="12" font-weight="600" fill="var(--ink)">C · 无变化</text>
+  <text x="576" y="104" font-size="11" fill="var(--ink3)">8-10 列 × 行1</text>
+
+  <rect x="781" y="60" width="139" height="67" rx="8" fill="var(--sunken)" stroke="var(--line)"/>
+  <text x="793" y="86" font-size="12" font-weight="600" fill="var(--ink)">D · 撞名</text>
+  <text x="793" y="104" font-size="11" fill="var(--ink3)">11-12 列</text>
+
+  <!-- E 规则 -->
+  <rect x="347" y="133" width="573" height="56" rx="8" fill="var(--card)" stroke="var(--acc)" stroke-dasharray="5 3"/>
+  <text x="361" y="157" font-size="13" font-weight="600" fill="var(--acc)">E · 规则（页签 + 一句话）</text>
+  <text x="361" y="176" font-size="11" fill="var(--ink2)">5-12 列 × 行2 · 设计稿只给 158.4px，真实内容远超</text>
+
+  <!-- F 文件表 -->
+  <rect x="58" y="195" width="573" height="171" rx="8" fill="var(--card)" stroke="var(--line)"/>
+  <text x="72" y="224" font-size="13" font-weight="600" fill="var(--ink)">F · 文件列表</text>
+  <text x="72" y="243" font-size="11" fill="var(--ink3)">1-8 列 × 3-5 行</text>
+  <text x="72" y="261" font-size="11" fill="var(--ink3)">表头固定 · 行固定 · 中间滚</text>
+  <text x="72" y="288" font-size="11" fill="var(--ink3)">设计稿：行会拉伸填满（48.8px/行）</text>
+  <text x="72" y="306" font-size="11" fill="var(--ink3)">真实程序：行 36px 固定，装多少算多少</text>
+  <text x="72" y="334" font-size="11" fill="var(--acc)">这一块是唯一允许「内部自己滚」的地方</text>
+  <text x="72" y="352" font-size="11" fill="var(--ink3)">（虚拟滚动必需，见 §3.2）</text>
+
+  <!-- G 序号 -->
+  <rect x="637" y="195" width="283" height="109" rx="8" fill="var(--card)" stroke="var(--acc)" stroke-dasharray="5 3"/>
+  <text x="651" y="224" font-size="13" font-weight="600" fill="var(--acc)">G · 操作格（参数 + 序号）</text>
+  <text x="651" y="243" font-size="11" fill="var(--ink2)">9-12 列 × 3-4 行</text>
+  <text x="651" y="261" font-size="11" fill="var(--ink3)">参数 / 扩展名 / 大小写在最上面</text>
+  <text x="651" y="284" font-size="11" fill="var(--ink3)">序号 / 属性 在其下（仅自定义模式）</text>
+
+  <!-- H 执行 -->
+  <rect x="637" y="310" width="283" height="56" rx="8" fill="var(--card)" stroke="var(--line2)"/>
+  <text x="651" y="334" font-size="13" font-weight="600" fill="var(--ink)">H · 开始改名</text>
+  <text x="651" y="353" font-size="11" fill="var(--ink3)">9-12 列 × 行5 · 贴底（align-self:end）</text>
+</svg>
+<figcaption>
+  <b>怎么读这张图：</b>细实线是设计稿里的块位；<b>橙色虚线</b>标出两块最容易搞错的地方 ——
+  E（规则摘要条，只放「改成什么」）和 G（操作格，只放「怎么操作」）。
+</figcaption>
+</figure>
+
+<div class="note note--warn">
+  <span class="note__t">设计稿没画的那组按钮，安置在标题栏（2026-09-26 定）</span>
+  <p>
+  设计稿的猫块（<span class="mono">.pa</span>）<b>占满第 1-2 行</b>（462.7 × 357.4px），猫、进度环、状态文字全在里面 ——
+  本文件<b>按设计稿原样收下</b>，这一列<b>不再被切</b>。
+  </p>
+  <p>
+  但设计稿<b>没有画</b>「添加文件 / 添加文件夹 / 导入表格 / 导出清单 / 清空列表」这一组按钮，而它们是必须有（没有就没法把文件加进来）。
+  落地时先试过「把它们塞进猫块下半部分」，结果是<b>猫被挤到只剩一行、尺寸掉了一半</b>（224 → 112）。
+  </p>
+  <p>
+  现在改成：<b>这组按钮整块搬进标题栏</b> —— <b>左边</b>放「往里加东西」三件（添加文件 / 添加文件夹 / 导入表格），
+  <b>右边</b>放其余五件 + 状态副题 + 窗口键。
+  于是八个格子的落位<b>与设计稿完全一致</b>，一格都没被切开。
+  </p>
+</div>
+
+<h3>2.1 每一格的精确尺寸（算出来的，不是估的）</h3>
+
+<p>
+设计稿用的是比例分配（<span class="mono">fr</span>），所以尺寸要算。算法写在下面，谁都能复算：
+</p>
+
+<div class="kpi">
+  <div><b>1412</b><span>网格总宽（= 1440 − 14×2）</span><em>(1440-28)</em></div>
+  <div><b>106.67</b><span>单列宽（扣除 11 条 12px 间距）</span><em>(1412-132)/12</em></div>
+  <div><b>840</b><span>网格总高（= 900 − 46 标题栏 − 14 底距）</span><em>(900-46-14)</em></div>
+  <div><b>158.4</b><span>1fr 的值（扣除 4 条 12px 行距）</span><em>(840-48)/5</em></div>
+</div>
+
+<div class="tw">
+<table>
+<caption>五个行高（设计稿 <span class="mono">grid-template-rows: 1.18fr 1fr .97fr .85fr 1fr</span>，1fr = 158.4px）</caption>
+<thead><tr><th>行</th><th>比例</th><th class="c">高度</th><th>这一行放什么</th></tr></thead>
+<tbody>
+<tr><td>行 1</td><td class="mono">1.18fr</td><td class="c mono">187.0px</td><td>三张统计卡（B / C / D）+ 猫块的上半</td></tr>
+<tr><td>行 2</td><td class="mono">1fr</td><td class="c mono">158.4px</td><td><b>规则摘要条 E</b> ← 设计稿只给了这么多</td></tr>
+<tr><td>行 3</td><td class="mono">.97fr</td><td class="c mono">153.6px</td><td>文件表 F 的第 1 行 + 序号块 G 的上半</td></tr>
+<tr><td>行 4</td><td class="mono">.85fr</td><td class="c mono">134.6px</td><td>文件表 F 的第 2 行 + 序号块 G 的下半</td></tr>
+<tr><td>行 5</td><td class="mono">1fr</td><td class="c mono">158.4px</td><td>文件表 F 的第 3 行 + 执行块 H</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="tw">
+<table>
+<caption>八个块的实际占格（宽 × 高，已按上面的算法算出）</caption>
+<thead><tr><th>块</th><th>设计稿类名</th><th>grid 落位</th><th class="c">宽 × 高</th><th>表面层级</th></tr></thead>
+<tbody>
+<tr><td><b>A</b> 猫 / 状态</td><td class="mono">.pa</td><td class="mono">1-4 列 × 1-2 行</td><td class="c mono">462.7 × 357.4</td><td>抬起（最亮 + 顶部内高光）</td></tr>
+<tr><td><b>B</b> 将变化</td><td class="mono">.pb</td><td class="mono">5-7 列 × 行1</td><td class="c mono">344.0 × 187.0</td><td>下沉（数字沉在凹槽里）</td></tr>
+<tr><td><b>C</b> 无变化</td><td class="mono">.pc</td><td class="mono">8-10 列 × 行1</td><td class="c mono">344.0 × 187.0</td><td>下沉</td></tr>
+<tr><td><b>D</b> 撞名</td><td class="mono">.pd</td><td class="mono">11-12 列 × 行1</td><td class="c mono">225.3 × 187.0</td><td>下沉</td></tr>
+<tr><td><b>E</b> 规则摘要条</td><td class="mono">.pe</td><td class="mono">5-12 列 × 行2</td><td class="c mono">937.3 × 158.4</td><td>抬起</td></tr>
+<tr><td><b>F</b> 文件列表</td><td class="mono">.pf</td><td class="mono">1-8 列 × 3-5 行</td><td class="c mono">937.3 × 470.6</td><td>基础（面板色）</td></tr>
+<tr><td><b>G</b> 序号 / 日期 / 属性</td><td class="mono">.pg</td><td class="mono">9-12 列 × 3-4 行</td><td class="c mono">462.7 × 300.2</td><td>基础</td></tr>
+<tr><td><b>H</b> 开始改名</td><td class="mono">.ph</td><td class="mono">9-12 列 × 行5</td><td class="c mono">462.7 × 158.4</td><td>抬起 + 加重阴影（全屏最有分量）</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="note">
+  <span class="note__t">两个数字可以直接用</span>
+  <p>
+  <b>规则摘要条按 158.4px 做</b>（页签 32~34px + 一句话一行 + 一行脚注 + 内边距 20px×2）；<br>
+  <b>序号那块按 300.2px 做</b>。这两个数是设计稿给的，也是下面所有收纳取舍的依据。
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">03</span>收纳规则 —— 设计稿没画的部分，这里定死</h2>
+
+<p>
+下面是程序员真正缺的那一半。<b>每条都标了来源</b>：写「设计稿」的是画板上就这么排的；
+写「<b>本文定死</b>」的是设计稿没规定、由这份文档给出唯一答案。
+</p>
+
+<h3>3.1 总原则：只允许两处滚动</h3>
+
+<div class="note note--ok">
+  <span class="note__t">定死：窗口固定 900；全局只有两条滚动条</span>
+  <ol>
+    <li><b>G 格内部滚</b>（右下角那一格，开咬改名上面）。它装的「操作控件」最多，
+        超出可见高度的部分<b>由它自己滚</b>，窗口不长高。<br>
+        <span class="yes">★ 2026-09-26 改的</span>：原先这里是「主区整体滚」，现换成 G 格自己滚（理由见 §3.5）。</li>
+    <li><b>文件列表内部滚</b>。这一条<b>必须保留</b>，因为列表用的是虚拟滚动 —— 只渲染可视区的行，
+        没有内部滚动区就没有「可视区」可言，几千个文件会一次性塞进 DOM。</li>
+  </ol>
+  <p><b>除这两处，任何面板都不许自己再长出第三条滚动条。</b>这两条是<b>有意选出来的</b>：
+  一条给必然很长的「操作控件」、一条给虚拟滚动必需的文件列表。
+  <b>不是「每块都滚」，是「只让该滚的那两块滚」。</b></p>
+</div>
+
+<h4>实现方式（关键的两行）</h4>
+<p>
+① <b>窗口高度写死 <span class="mono">900px</span></b>；
+② 网格中间那两行（G 格所在的第 3、4 行）写成 <b><span class="mono">minmax(0, 1fr)</span></b> ——
+这两行吸收剩余空间<b>并且受约束</b>，所以 G 格会被压住、由它自己滚，而不会把窗口顶高。
+其余三行照旧写 <span class="mono">auto</span>。
+</p>
+<p>
+然后，参与网格的每一块都要声明「我按自己的内容长多高、不参与抢高度」。规则块要写成
+<b>不收缩</b>（<span class="mono">flex: 0 0 auto</span>），文件列表要写成<b>不收缩 + 固定高度档位</b>（见 §3.2）。
+</p>
+
+<h3>3.2 文件显示区怎么收纳（F 格）</h3>
+
+<p>设计稿的文件表是这样排的：</p>
+<ul>
+  <li>小标题栏 <b>46px</b>（「文件 / 6 项 / 只看将变化 / 全选」）</li>
+  <li>列标题行 <b>30px</b>（<span class="mono">No. / 原本的名字 / 改完的名字 / 状态</span>）</li>
+  <li>数据行：<b>行高不固定</b> —— 设计稿写的是 <span class="mono">flex: 1 1 46px</span>，
+      意思是<b>行会拉伸填满剩余空间</b>（最少 46px）。设计稿画 6 行，正好铺满 470.6px。</li>
+  <li>底部摘要条 <b>54px</b>（改动摘要 + 分段条 + 5 将改 / 1 无变化 / 0 撞名）</li>
+</ul>
+
+<div class="note note--bad">
+  <span class="note__t">设计稿的一个隐患，必须改掉</span>
+  <p>
+  设计稿的表格容器写了 <span class="mono">overflow: hidden</span>，行又是「拉伸填满」——
+  这意味着<b>文件一多，超出的行会被直接裁掉、而且没有滚动条</b>。6 个文件刚好，60 个文件就丢了。
+  </p>
+</div>
+
+<div class="note note--ok">
+  <span class="note__t">本文定死：文件区的三段式</span>
+  <p>
+  <b>头部固定 → 中间滚 → 底部固定</b>。行高改成<b>固定 36px</b>（不再拉伸），装多少算多少，装不下的靠内部滚。
+  容器高度给一个<b>档位</b>：最小 180px、常态约窗口高的 38%、最大 320px ——
+  这样窗口拉大时列表跟着长，但不会把下面的规则区挤没。
+  </p>
+</div>
+
+<div class="stack">
+  <div class="stack__hd"><span>F · 文件列表（三段式）</span><span class="mono">1-8 列 × 3-5 行</span></div>
+  <div class="row"><div class="row__k">① 头部 <span class="pill">固定 42px</span></div>
+    <div class="row__d">全选 · 共 N 项 · 预览耗时。不随内容滚走。</div></div>
+  <div class="row"><div class="row__k">② 行区 <span class="scrollbar">内部滚</span></div>
+    <div class="row__d">
+      行高 <b>36px 固定</b>；超 500 行启用虚拟滚动（只渲染可视区 ±5 行缓冲）。<br>
+      <b>空列表时</b>这里显示空态引导，块高不塌（仍保住 180px 下限）。
+    </div></div>
+  <div class="row"><div class="row__k">③ 高度档位</div>
+    <div class="row__d">
+      <span class="mono">height: clamp(180px, 38vh, 320px)</span> 且 <span class="mono">flex-shrink: 0</span>：<br>
+      <b>规则区再长也挤不掉它</b>；富余时它吸收空档（<span class="mono">flex-grow: 1</span>），不留一条空带子。
+    </div></div>
+</div>
+
+<h3>3.3 规则区怎么收纳（E 格）—— 页签不是折叠</h3>
+
+<p>规则块从上到下就 6 层，<b>顺序固定、全部常显、一层都不折叠</b>。<b>注意：它只回答「改成什么」，一个输入框都不放</b>（「怎么填」在 §3.4 的 G 格）。</p>
+
+<div class="stack">
+  <div class="stack__hd"><span>E · 规则块（自上而下）</span><span class="mono">5-12 列 × 行2</span></div>
+  <div class="row"><div class="row__k">① 常用规则 <span class="pill pill--acc">常显</span></div>
+    <div class="row__d">7 个模板 chip（高 26px），一键套用。<b>长在页签上面</b> —— 它是给「不知道怎么配规则」的人的一键入口，不能藏。</div></div>
+  <div class="row"><div class="row__k">② 名字来源提示条 <span class="pill">条件常显</span></div>
+    <div class="row__d">只在<b>导入模式</b>且确有导入项时出现：「本批有 N 个名字来自表格，规则不影响它们」+ 清除导入。</div></div>
+  <div class="row"><div class="row__k">③ 五个模式页签 <span class="pill pill--acc">常显</span></div>
+    <div class="row__d">
+      <b>这就是「规则区的收纳」的答案：它不折叠。</b>五片等宽、永远全部可见、互斥选一。<br>
+      <span class="mono">删除 · 替换 · 自定义 · 插入 · 导入</span>
+    </div></div>
+  <div class="row"><div class="row__k">④ 一句话摘要 <span class="pill pill--acc">常显</span></div>
+    <div class="row__d">把「这条规则到底在干什么」写成一句人话，摆在参数上面。<b>只显示，不折叠任何东西</b>。</div></div>
+  <div class="row"><div class="row__k">⑤ 右下角底栏 <span class="pill pill--acc">常显</span></div>
+    <div class="row__d">「自动处理重名冲突」开关 + 一句「关闭时冲突项会被跳过，无论开关如何都<b>不会覆盖</b>任何已有文件」。<b>它管的是整条规则、不属于任何单个模式</b>，所以留在规则块里。</div></div>
+  <div class="row"><div class="row__k">⑥ 进阶设置入口 <span class="pill">跳转入口，不是折叠条</span></div>
+    <div class="row__d"><b>⚠️ 它是一条「入口」，点开是弹窗，不是就地展开。</b>摆在规则块右下角那行小字 <span class="mono">进阶设置 · 正则 / 大小写 ›</span>，点开是一个 <b>560px 的弹窗</b>（用正则匹配 / 正则小抄 / 当场演示 / 大小写转换）。<b>只在删除 · 替换 · 自定义三个模式出现</b>；启用了几项就在入口上挂「已启用 N 项」。</div></div>
+</div>
+
+<div class="note note--bad">
+  <span class="note__t">★ 2026-09-26 变更：参数区不在规则块里了</span>
+  <p>原先藏在规则块里的那一层「参数区」（待删字符串 / 查找·替换为 / 插入两件套 / 导入入口 / 前缀·后缀）<b>已经整块挪到右下角 G 格</b>，「改扩展名」与「区分大小写」也跟着挪。</p>
+  <p>从此：<b>规则块只回答「改成什么」</b>（页签 + 一句话），<b>G 格只回答「怎么操作」</b>。好处是规则块高度回落到设计稿量级（实测 <b>233px</b>）；<b>代价</b>是自定义模式下 G 格要塞的东西最多，那一屏窗口会明显变高（实测 <b>1271px</b>），其余四屏正好 900px。</p>
+</div>
+
+<div class="note">
+  <span class="note__t">折叠的取舍原则（以后加功能也照这个判）</span>
+  <p>
+  <b>高频常显、低频折叠。</b>判定标准是「用户每次改名前都要看一眼吗」：
+  </p>
+  <ul>
+    <li><b>常显</b>：模式页签、参数框、扩展名开关、区分大小写 —— 每次用都在动（页签在规则块，后三样已在 G 格）。</li>
+    <li><b>折叠</b>：正则、大小写转换、正则小抄、当场演示 —— 会用了才碰。</li>
+  </ul>
+  <p>
+  <b>还有一条优先级更高的手段：拆格子 &gt; 折叠。</b>当一块内容多到折叠也放不下时，
+  优先考虑「挪到另一个格子」（就像设计稿把序号挪到 G 格），而不是继续往 Fold 里塞。
+  折叠会让默认状态下看不见，而<b>看不见的功能等于不存在</b> —— 这个项目已经踩过两次。
+  </p>
+</div>
+
+<h3>3.4 序号在哪里、怎么收纳（G 格）</h3>
+
+<p>
+<b>G 格 = 操作格，装两段。</b><b>上半段是「当前模式的参数」</b>（2026-09-26 从规则块整块挪来的，含改扩展名、区分大小写，<b>五个模式都有</b>）；
+<b>下半段才是「序号 / 示例·日期 / 属性」</b>（只有「自定义」模式有）。顺序就是干活的顺序：先看改什么 → 填参数 →（可选）加序号 → 开咬。
+</p>
+<p>
+这就是设计稿能在 900px 里放下的关键：<b>「规则」和「编号参数」被拆成了两块板</b>；现在更进一步 —— <b>连「怎么填」也一起搬过来了，规则块只留「改成什么」</b>。
+</p>
+
+<div class="stack">
+  <div class="stack__hd"><span>G · 操作格（自上而下）</span><span class="mono">9-12 列 × 3-4 行</span></div>
+  <div class="row"><div class="row__k">① 当前模式的参数 <span class="pill pill--acc">常显</span></div>
+    <div class="row__d">从规则块挪来的那一段，按页签换内容；后面固定跟「改扩展名」勾与「区分大小写」勾。</div></div>
+  <div class="row"><div class="row__k">② 序号组 <span class="pill">仅自定义模式</span></div>
+    <div class="row__d">
+      <b>启用序号</b>（勾选框，同时是这一组的开关）→ <b>位置</b>（加在最前面 / 最后面 / 第 n 个字符后）→
+      <b>类型</b>（数字 / 字母 / 随机字符 / 时间）→ <b>参数</b>（起始 / 增量 / 位数）。<br>
+      顺序固定；未启用时整组置灰，「位置」选第三档时就地长出一个数字框（不另开一行）。
+    </div></div>
+  <div class="row"><div class="row__k">示例 · 日期 <span class="pill pill--rk">默认折起</span></div>
+    <div class="row__d">
+      <b>这一条折叠条就是「序号怎么收纳」的答案。</b>示例行 / 日期组 / 跨天提示三块低频内容收进去。<br>
+      理由：参数搬进来之后 G 格本来就不矮，这三块再全展开约 <b>700px</b>，这个格子就要滚很远才看得到下面的属性。
+      三块都是低频（示例只是瞟一眼、日期很少用、跨天是罕见情况），折起来不损失可达性；
+      <b>高频的「启用 / 位置 / 类型 / 参数」仍然常显</b>。
+    </div></div>
+  <div class="row"><div class="row__k">日期组</div>
+    <div class="row__d">「启用日期（取执行当天）」勾选 + 格式。默认折在上一行的折叠条里。</div></div>
+  <div class="row"><div class="row__k">「属性 · 变量」折叠条 <span class="pill pill--rk">默认折起</span></div>
+    <div class="row__d">
+      和「示例 · 日期」同款的一条折叠。<b>2026-09-26 起默认折起</b> —— 理由是它把 G 格的常显高度砍掉一截，
+      让这个格子不必滚太远；折起来仍留一行「属性 · 变量」标题，不会等于不存在。<br>
+      展开后是 4 个变量 chip：<span class="mono">{文件名}</span> <span class="mono">{序号}</span>
+      <span class="mono">{日期}</span> <span class="mono">{文件夹名}</span>，点一下就把变量插进前缀框。<br>
+      <b>属性没有「启用」开关</b> —— 写了才生效。加一个勾只会让人以为「勾上就会自动加进名字」。
+    </div></div>
+</div>
+
+<div class="note note--bad">
+  <span class="note__t">⚠️ 一个必须知道的空档：序号块只在一个模式下出现</span>
+  <p>
+  这块板<b>只在「自定义（rule）」模式渲染</b>。切到删除 / 替换 / 插入 / 导入时它会消失 ——
+  此时 G 格变空、行 3 与行 4 塌成 0 高，「开始改名」会<b>往上挪到规则区正下方</b>。
+  这是<b>预期行为</b>（那三个模式里序号本来就不参与改名），但要保证：<b>空掉的格子不能留下难看的空洞或错位</b>。
+  </p>
+</div>
+
+<h4>五个模式各自渲染哪些块（状态矩阵）</h4>
+
+<div class="tw">
+<table>
+<caption>★ 这张表是排版最容易搞错的地方：切换页签会改变「哪块占着格子」</caption>
+<thead><tr><th>页签</th><th class="c">参数区</th><th class="c">改扩展名</th><th class="c">区分大小写</th><th class="c">进阶设置</th><th class="c">序号块（G 格）</th></tr></thead>
+<tbody>
+<tr><td><b>删除</b></td><td class="c">待删字符串</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓ 折起</td><td class="c no">✗ 不出现</td></tr>
+<tr><td><b>替换</b></td><td class="c">查找 + 替换</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓ 折起</td><td class="c no">✗ 不出现</td></tr>
+<tr><td><b>自定义</b></td><td class="c">前缀 / 后缀 + 变量提示</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓ 折起</td><td class="c yes">✓ 出现</td></tr>
+<tr><td><b>插入</b></td><td class="c">位置 + 插入内容</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">✗</td><td class="c no">✗ 不出现</td></tr>
+<tr><td><b>导入</b></td><td class="c">选表格 + 状态</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">✗</td><td class="c no">✗ 不出现</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>3.5 内容装不下 900px 时会发生什么（唯一答案）</h3>
+
+<div class="note note--ok">
+  <span class="note__t">本文定死（2026-09-26 改版）</span>
+  <p>
+  窗口固定 1440×900（允许用户拉大，最小 1180×760）。内容装不下时：<br>
+  <b>「操作控件」由 G 格自己内部滚 → 「开始改名」永远钉在右下角不动。</b><br>
+  窗口本身<b>不长高</b>、主区<b>不出现滚动条</b>。
+  </p>
+</div>
+
+<div class="note note--bad">
+  <span class="note__t">⚠️ 这一条推翻过一版（留个痕，别再来回改）</span>
+  <p>
+  2026-09-26 之前定的是「<b>行高由内容决定、整个主区滚</b>」。那样做「开始改名」会被顶到首屏之外 ——
+  自定义模式下窗口实测涨到 <b>1271px</b>，要滚一整屏才看得到执行按钮。<br>
+  现在换成「<b>窗口固定 900 + G 格自己滚</b>」。代价是全窗口仍有两条滚动条（<b>G 格 + 文件列表</b>），
+  <b>滚轮滚哪一条取决于鼠标指针在哪</b>。这是取舍：换来「一页装下、执行按钮永不移位」。
+  </p>
+  <p>
+  配套改动：<b>「属性」也做成一条折叠</b>（原先常显）—— 否则 G 格的常显内容太多、要滚的太多。
+  </p>
+</div>
+
+<p><b>为什么不做「每块自己滚」：</b>那样窗口里会出现 3~4 条滚动条、面板互相抢高度。
+现在的两条是<b>有意选出来的</b>，不是「每块都滚」。</p>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">04</span>功能控件全量清单 —— 照着摆，界面就一样</h2>
+
+<p>
+前三节定的是「哪一块在哪一格、格子里的内容多了怎么办」。这一节回答落地的人真正会卡住的另一半：
+<b>每一块<em>里面</em>有哪些控件、按什么顺序排、各自多大、分几个视觉量级</b>。
+把它当施工图用 —— 一个格子一个格子照着摆，出来的就是设计稿那张图的样子。
+</p>
+
+<h3>4.1 全界面只有 4 个视觉量级（先把尺寸记死）</h3>
+
+<p>
+可点的东西再多，也只分成 4 级。把下面这几个高度记死，以后往任何位置加控件都往里套，界面就不会花：
+</p>
+
+<figure class="fig">
+<svg viewBox="0 0 960 330" role="img" aria-label="四类控件按真实尺寸等比放大后的高度对照">
+  <title>四类控件的真实尺寸对照</title>
+  <desc>按 1.4 倍等比放大绘制：主行动按钮 52 像素高、占满所属格子的宽；页签胶囊 32 像素高、五个一排；标题栏胶囊 30 像素高、三个一排；开关 40 × 23 像素；勾选框 15 × 15 像素。长宽比与真实控件一致，可直接当尺子比大小。</desc>
+
+  <text x="190" y="63" font-size="11.5" font-weight="600" text-anchor="end" fill="var(--ink)">主行动按钮</text>
+  <text x="190" y="78" font-size="11" text-anchor="end" fill="var(--ink3)">52px 高 · 独占一行</text>
+  <rect x="200" y="30" width="700" height="73" rx="12" fill="var(--acc)"/>
+
+  <text x="190" y="136" font-size="11.5" font-weight="600" text-anchor="end" fill="var(--ink)">页签胶囊</text>
+  <text x="190" y="151" font-size="11" text-anchor="end" fill="var(--ink3)">32px 高 · 五个一排</text>
+  <rect x="200" y="117" width="73" height="45" rx="22.5" fill="var(--acc)"/>
+  <rect x="279" y="117" width="73" height="45" rx="22.5" fill="none" stroke="var(--line2)" stroke-width="1.4"/>
+  <rect x="358" y="117" width="73" height="45" rx="22.5" fill="none" stroke="var(--line2)" stroke-width="1.4"/>
+  <rect x="437" y="117" width="73" height="45" rx="22.5" fill="none" stroke="var(--line2)" stroke-width="1.4"/>
+  <rect x="516" y="117" width="73" height="45" rx="22.5" fill="none" stroke="var(--line2)" stroke-width="1.4"/>
+
+  <text x="190" y="194" font-size="11.5" font-weight="600" text-anchor="end" fill="var(--ink)">标题栏胶囊</text>
+  <text x="190" y="209" font-size="11" text-anchor="end" fill="var(--ink3)">30px 高 · 三个一排</text>
+  <rect x="200" y="176" width="115" height="42" rx="21" fill="var(--card)" stroke="var(--line2)" stroke-width="1.4"/>
+  <rect x="321" y="176" width="115" height="42" rx="21" fill="var(--card)" stroke="var(--line2)" stroke-width="1.4"/>
+  <rect x="442" y="176" width="115" height="42" rx="21" fill="var(--card)" stroke="var(--line2)" stroke-width="1.4"/>
+
+  <text x="190" y="245" font-size="11.5" font-weight="600" text-anchor="end" fill="var(--ink)">开关</text>
+  <text x="190" y="260" font-size="11" text-anchor="end" fill="var(--ink3)">40 × 23 · 点区 46 × 41</text>
+  <rect x="200" y="232" width="56" height="32" rx="16" fill="var(--acc)"/>
+  <circle cx="216" cy="248" r="12" fill="var(--card)"/>
+
+  <text x="190" y="285" font-size="11.5" font-weight="600" text-anchor="end" fill="var(--ink)">勾选框</text>
+  <text x="190" y="300" font-size="11" text-anchor="end" fill="var(--ink3)">15 × 15 · 点区 35 × 35</text>
+  <rect x="200" y="278" width="21" height="21" rx="5.6" fill="var(--acc)"/>
+  <path d="M206.5 288.5 l4.5 4.5 l8 -9.5" fill="none" stroke="var(--card)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+<figcaption>
+按 <b>真实尺寸 × 1.4 等比放大</b>画的，长宽比没动 —— 可以直接拿它比大小。
+<b>高度是硬指标</b>：52 / 32 / 30 / 23 / 15，少一档就会露出「这个按钮怎么比旁边矮一点」的别扭。
+</figcaption>
+</figure>
+
+<h3>4.2 五条排布铁律</h3>
+
+<div class="stack">
+  <div class="stack__hd"><span>控件怎么排 —— 加新功能也照这五条</span><span class="mono">顺序即优先级</span></div>
+  <div class="row"><div class="row__k">① 全窗口只有一个主行动</div>
+    <div class="row__d">唯一的主按钮是「开始改名」，<b>52px 高、占满它那一格的宽</b>，摆在右下角。
+    其余全是胶囊 / 开关 / chip 级 —— 一屏里出现两个同样分量的按钮，用户就不知道该点哪个。</div></div>
+  <div class="row"><div class="row__k">② 标签在左，控件在右</div>
+    <div class="row__d">控件块里每一行都是「<b>固定 38px 的标签列 + 占满剩余宽的控件</b>」。
+    标签列宽度<b>写死</b>，不许按内容自适应 —— 否则两个下拉框的左边缘会对不齐。</div></div>
+  <div class="row"><div class="row__k">③ 页签永远横排、永远齐出</div>
+    <div class="row__d">5 个模式页签是<b>一个整体</b>：等宽、同排、gap 4px、右对齐（<span class="mono">margin-left:auto</span>）。
+    <b>不许换行、不许做成「更多」折叠、不许只显示当前那个。</b>少显示一个，就等于那个功能不存在。</div></div>
+  <div class="row"><div class="row__k">④ 分组用发丝线，不用空白块</div>
+    <div class="row__d">组与组之间是一条 <b>1px 的线</b>，不是一块留白。
+    做法：组标题后面接一根 <span class="mono">flex:1</span>、高 1px 的线（序号块里的「序号」「属性」就是这个）。</div></div>
+  <div class="row"><div class="row__k">⑤ 放不下就换行，不缩字</div>
+    <div class="row__d">一行塞不下的 chip（变量、状态）<b>换行继续排</b>，<b>不许把字号调小</b>。
+    字号一乱，视觉层级就塌了 —— 见 4.1 那四个量级。</div></div>
+</div>
+
+<h3>4.3 逐格控件清单（一个格子一张表）</h3>
+
+<p>
+下表按格子从上往下、从左往右走。<b>「怎么排」那一列写的是容器与对齐方式</b>，
+不是大概描述 —— 落地时照着写 flex / grid 属性即可。
+</p>
+
+<div class="tw">
+<table>
+<caption>★ 这张表是「照着摆」的施工图：控件名 / 排布 / 尺寸，逐条对齐设计稿</caption>
+<thead><tr><th style="width:11%">格子</th><th style="width:23%">控件</th><th style="width:38%">怎么排</th><th>尺寸 / 字号</th></tr></thead>
+<tbody>
+
+<tr><td rowspan="6"><b>标题栏</b><br><span class="mono">46px 全宽</span><br><b class="yes">★ 两组按钮</b></td>
+  <td>品牌猫头标</td><td>横排最左；与右侧品牌字间距 9px</td><td>24 × 24</td></tr>
+<tr><td>品牌字「Maodie」</td><td>跟着猫头标</td><td>13.5px / 600 / 字距 2px / 全大写</td></tr>
+<tr><td>左组胶囊 ×3<br>「往里加东西」</td><td>紧接品牌字、左对齐（左边距 14px、gap 6px）：<b>添加文件 · 添加文件夹 · 导入表格</b></td><td>高 30px / 圆角 99px / 内边距 0 13px / 11.5px</td></tr>
+<tr><td>右组 · 状态副题</td><td>右组最左（<span class="mono">margin-right:10px</span>）</td><td>等宽 11px / <span class="mono">--ink3</span>（「改名工作台 · N 项已就位」）<br>⚠️ 窗口收到 1180 长时这一条要收起来，否则挤不下</td></tr>
+<tr><td>右组胶囊 ×5</td><td>右侧一整组（<span class="mono">margin-left:auto</span>、gap 6px）：<b>导出清单 · 清空列表 · 文件夹合并 · 文件提取 · 撤销 / 历史</b></td><td>同上（与左组同款）</td></tr>
+<tr><td>窗口键 ×3（— □ ✕）</td><td>紧接在最右，与胶囊之间留 6px</td><td>32 × 30 / 无边框 / 12px；✕ 悬停变红底白字</td></tr>
+
+<tr><td rowspan="7"><b>A</b> 猫块<br><span class="mono">1-4 列 × 1-2 行</span></td>
+  <td>猫插画</td><td>整块横排：左边固定 240px 的槽（内边距 8px、居中），右边装信息</td><td>画到 224 × 209；<b>槽要比猫大</b>（呼吸动画会撑大包围盒）</td></tr>
+<tr><td>进度环</td><td>右半边竖排居中，第一件</td><td>SVG 100 × 100 / 半径 40 / 线宽 6 / 起点旋转 −90°；<b>内圈净宽 74px</b> —— 这决定了环心里能放多大的字（见 §7 那条规则）</td></tr>
+<tr><td>环心数字「5/6」</td><td><b>绝对定位钉在圆心</b>（<span class="mono">left:50%; top:50%; translate:-50% -50%</span>）。<b class="yes">★ 别用 grid + place-items:center 居中「数字+说明」两行</b> —— 隐式行会被拉伸成各占半圆，数字被顶到上半圆（实测盒中心比圆心高 <b>22.2px</b>）</td><td>23px / 600 / 等宽数字 / 行高 1</td></tr>
+<tr><td>环心说明「将变化」</td><td><b>绝对定位在圆心正下方 24px</b>（该高度圆内还有 56px 净宽，放得下）</td><td>9.5px / 字距 1px / <span class="mono">--ink3</span>；<b class="yes">★ 要补 <span class="mono">padding-left:1px</span></b> —— 字距会在最后一个字后面多出 1px，让字偏左 0.5px</td></tr>
+<tr><td>状态灯</td><td>状态行最左，与文案间距 8px</td><td>7px 圆点 / 绿色 / 呼吸动画</td></tr>
+<tr><td>状态文案「耄耋待命」</td><td>状态行里</td><td>13px / 600</td></tr>
+<tr><td>副行「6 个文件 · 无重名」</td><td>竖排最后一行，居中</td><td>11.5px / <span class="mono">--ink3</span> / 等宽数字</td></tr>
+
+<tr><td rowspan="4"><b>B / C / D</b><br>三张统计卡<br><span class="mono">各占 3 列 × 行1</span></td>
+  <td>区块标签</td><td>竖排第一行</td><td>9.5px / 全大写 / 字距 1.7px / <span class="mono">--ink4</span></td></tr>
+<tr><td>大数字</td><td>竖排，<b>贴卡底</b>（<span class="mono">margin-top:auto</span>）</td><td>60px / 600 / 等宽数字 / 字距 −1.5px</td></tr>
+<tr><td>分段条</td><td>数字下面，间距 13px；每格 <span class="mono">flex:1</span>、格间 4px</td><td>高 7px / 圆角 3px</td></tr>
+<tr><td>分段条说明（C / D 有）</td><td>分段条下面，间距 9px</td><td>11px / <span class="mono">--ink2</span>（<b>不是</b> <span class="mono">--ink3</span>：下沉面上对比度不够）</td></tr>
+
+<tr><td rowspan="6"><b>E</b> 规则块<br><span class="mono">5-12 列 × 行2</span><br><b class="yes">★ 只放「改成什么」<br>参数已挪去 G 格</b></td>
+  <td>区块标签「Rule / 规则」</td><td>第 1 行最左</td><td>9.5px / 全大写 / 字距 1.7px</td></tr>
+<tr><td>五个模式页签</td><td>第 1 行，<b>右对齐</b>（<span class="mono">margin-left:auto</span>）、横排 gap 4px</td><td>高 32px / 圆角 99px / 内边距 0 14px / 12px；选中＝橘底深字 600</td></tr>
+<tr><td>一句话摘要</td><td>第 2 行，<b>25px 大字</b>，允许换行</td><td>25px / 600 / 行高 1.5</td></tr>
+<tr><td>摘要里的高亮词</td><td>嵌在摘要句子里（如「<span class="mono">广告</span>」）</td><td>内边距 0 12px 2px / 圆角 6px / 淡橘底 + 橘字 + 橘 40% 边框</td></tr>
+<tr><td>底部说明行</td><td><b>贴块底</b>（<span class="mono">margin-top:auto</span>）</td><td>11.5px / <span class="mono">--ink3</span></td></tr>
+<tr><td>「进阶设置」入口</td><td>底部说明行的<b>最右端</b>（<span class="mono">margin-left:auto</span>）</td><td>等宽 11px / <span class="mono">--ink3</span></td></tr>
+
+<tr><td rowspan="7"><b>F</b> 文件表<br><span class="mono">1-8 列 × 3-5 行</span></td>
+  <td>表头标题「文件」+ 计数</td><td>表头行最左，标题与计数间距 10px；两个小胶囊右对齐</td><td>标题 13px / 600；计数 11px / <span class="mono">--ink3</span></td></tr>
+<tr><td>小胶囊 · 只看将变化 / 全选</td><td>表头行右端，横排 gap 6px</td><td><b>复用页签胶囊那套</b>（高 32px / 圆角 99px）</td></tr>
+<tr><td>列头行</td><td>5 列网格：勾选 34px / 序号 42px / 原名 1fr / 新名 1fr / 状态 72px</td><td>高 30px / 9.5px 全大写 / 字距 1.4px / <span class="mono">--ink4</span></td></tr>
+<tr><td>勾选框</td><td>第 1 列居中（<span class="mono">place-items:center</span>）</td><td>15 × 15 / 圆角 4px / 1.5px 边框；选中＝橘底白勾</td></tr>
+<tr><td>行号 / 原名 / 新名 / 状态</td><td>后面 4 列，逐列左对齐；超长一律省略号（<span class="mono">text-overflow:ellipsis</span>）</td><td>行号等宽 11px / <span class="mono">--ink3</span>；名字 13px；状态 10px 全大写 600</td></tr>
+<tr><td>行</td><td>整行可点；行与行之间 1px 发丝线；选中行铺淡橘底</td><td>高 46px / 内边距 0 20px</td></tr>
+<tr><td>表底摘要条</td><td><b>贴表底</b>：标签 + 分段条（占满剩余宽）+ 三个图例</td><td>高 54px / 分段条高 8px 间距 3px / 图例 11px</td></tr>
+
+<tr><td rowspan="12"><b>G</b> 控件块<br><span class="mono">9-12 列 × 3-4 行</span><br><b class="yes">★ 只放「怎么操作」</b></td>
+  <td>当前模式的参数</td><td><b>块内第一段</b>：标签一行、控件一行；按页签换内容（删除＝待删字符串 / 替换＝查找·替换为 / 插入＝一行两件套 / 导入＝说明+按钮+状态 / 自定义＝前缀+后缀+变量提示）</td><td>标签 11.5px / <span class="mono">--ink3</span>；输入框高 34px / 圆角 6px</td></tr>
+<tr><td>改扩展名</td><td>参数下面；常显的勾（<b>不进任何折叠</b>），勾上后<b>就地长出</b>一行（下拉 + 输入框）</td><td>勾 15 × 15；下拉 / 输入框高 34px</td></tr>
+<tr><td>区分大小写</td><td>紧接其后；<b>仅删除 / 替换模式出现</b></td><td>勾 15 × 15 + 12.5px 文案</td></tr>
+<tr><td>组标题「序号」</td><td>组标题后面接一根 <span class="mono">flex:1</span> 的线，把整行填满</td><td>标签 9.5px 全大写；线高 1px</td></tr>
+<tr><td>行标签「启用 / 类型」</td><td>每行最左，<b>固定 38px</b></td><td>11.5px / <span class="mono">--ink3</span></td></tr>
+<tr><td>开关「启用」</td><td>紧跟标签，开关后面接一个占满剩余宽的下拉</td><td>40 × 23 / 圆角 99px / 滑块 17px 白点</td></tr>
+<tr><td>下拉 · 位置 / 类型</td><td>行内占满剩余宽度</td><td>高 34px / 圆角 6px / 12.5px / 描边 + 页面底</td></tr>
+<tr><td>数字框 ×3</td><td>同一行并排（起始 / 增量 / 位数），行尾跟小字说明</td><td><b>固定 56px 宽</b> / 高 34px / 文字居中 / 等宽</td></tr>
+<tr><td>行尾小字</td><td>贴在本行最后</td><td>11px / <span class="mono">--ink3</span></td></tr>
+<tr><td>「属性 · 变量」折叠条</td><td>和「示例 · 日期」同款；<b>默认折起</b>，折起只剩一行标题</td><td>高 30px / 圆角 6px / 描边</td></tr>
+<tr><td>变量 chip ×4 + 大小</td><td><b>折在上一行里面</b>，展开才露出；横排、gap 6px、放不下换行</td><td>等宽 11.5px / 内边距 6px 10px / 圆角 6px / 描边</td></tr>
+<tr><td>chip 悬停</td><td>——</td><td>边框与文字转橘 + 上移 1px</td></tr>
+
+<tr><td rowspan="3"><b>H</b> 执行块<br><span class="mono">9-12 列 × 行5</span></td>
+  <td>主按钮「开咬改名 · N 个」</td><td>整块竖排居中；按钮<b>占满格宽</b>，图标与文字间距 10px</td><td>高 52px / 圆角 10px / 橘底深字 / 15px 700 / 字距 0.8px</td></tr>
+<tr><td>按钮图标</td><td>叠放两个 18px 图标（箭头 / 勾），完成后交叉淡入</td><td>18 × 18</td></tr>
+<tr><td>快捷键提示 ×3</td><td>按钮下方，横排居中、gap 14px</td><td>等宽 10px / <span class="mono">--ink3</span></td></tr>
+
+</tbody>
+</table>
+</div>
+
+<h3>4.4 画板自带、千万别做进软件的东西</h3>
+
+<div class="note note--bad">
+  <span class="note__t">⚠️ 截图里有两样东西不是软件的一部分</span>
+  <p>
+  <b>① 画板顶部的深色工具条。</b>那是画板的页面装饰（标题 + 深/浅色切换按钮），它在窗口盒子<b>外面</b>，
+  颜色是写死的深灰 <span class="mono">#1E1E1E</span> / <span class="mono">#8A8A8A</span>，<b>不属于软件的颜色令牌</b>。
+  软件的主题切换在<b>设置弹窗</b>里，标题栏内外都没有这个开关。
+  </p>
+  <p>
+  <b>② 窗口四周那圈外投影。</b>画板为了让窗口「浮在灰底上」加了 16px 圆角 + 一层大投影
+  （<span class="mono">0 40px 120px rgba(0,0,0,.78)</span>）。<b>真窗口没有这层外投影</b>，别做进去。
+  </p>
+</div>
+
+<h3>4.5 设计稿没画、但必须有控件的落位</h3>
+
+<p>
+设计稿是静态图，「往里加东西」那一组按钮（<b>已安置在标题栏</b>）、7 个常用规则模板、各模式的参数框、改扩展名、汇总统计等
+<b>都没画</b>。它们该落在哪，见 <b>§8 定死清单</b> 与 <b>§3 收纳规则</b> ——
+两份加起来，设计稿 + 没画的部分才等于完整界面。
+</p>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">05</span>设计稿 ↔ 当前实现 对照表</h2>
+
+<p>
+上一节是「该怎么做」，这一节是「现在代码里落在哪」，方便直接对着改或复核。
+路径相对 <span class="mono">maodie-renamer/</span>。
+</p>
+
+<div class="tw">
+<table>
+<thead><tr><th>块</th><th>真实组件</th><th>根元素 / 落位</th><th>容器关键尺寸</th></tr></thead>
+<tbody>
+<tr><td><b>A</b> 猫 / 状态</td><td class="mono">CatStage.vue</td><td class="mono">.md-catstage → <b>cat</b></td><td>内边距 12/14；猫 112×112；进度环 62×62；底色 = 下沉面（比旁边暗一档）<br><b class="yes">★ 当前代码：1-4 列 × 仅行1</b>（因为「往里加东西」占了行 2）—— <b>按本文要求应改回 1-2 行，猫 224 × 209、环 100</b></td></tr>
+<tr><td><b>B / C / D</b> 三张统计卡</td><td class="mono">StatsPanel.vue</td><td>三张卡各自一个根 → <b>s1 / s2 / s3</b><br><span class="pill">注意：一个组件出 3 个根节点</span></td><td>内边距 14/16/16；大数字 <span class="mono">clamp(38px, 3.4vw, 60px)</span>、tabular-nums、贴在卡片底部；分段条 4px 高<br>落位：5-7 / 8-10 / 11-12 列 × 行1</td></tr>
+<tr><td><b>标题栏</b><br><span class="pill">不在网格里</span></td><td class="mono">TitleBar.vue</td><td>窗口最上方 46px 全宽</td><td><b>左</b>：品牌 + <b>添加文件 / 添加文件夹 / 导入表格</b>；<br><b>右</b>：状态副题 + <b>导出清单 / 清空列表 / 文件夹合并 / 文件提取 / 撤销·历史</b> + 三个窗口键<br><b class="yes">★ 2026-09-26：原先独立成块的「往里加东西」（<span class="mono">ActionPanel.vue</span>）搬到这里</b></td></tr>
+<tr><td><b>E</b> 规则块</td><td class="mono">RulePanel.vue</td><td class="mono">.md-rulepanel → <b>rule</b></td><td>内边距 12；纵向 flex、间距 12；<b>自己不滚</b>（<span class="mono">flex: 0 0 auto</span>）</td></tr>
+<tr><td><b>G</b> 序号 / 日期 / 属性</td><td class="mono">RulePanel.vue</td><td class="mono">.md-numbering → <b>num</b><br><span class="pill">同一个组件的第 2 个根节点</span></td><td>内边距 12；纵向 flex、间距 12；仅在自定义模式渲染</td></tr>
+<tr><td><b>F</b> 文件列表</td><td class="mono">FileList.vue</td><td class="mono">.md-filelist → <b>list</b></td><td>头部 <span class="mono">--md-list-head-h</span> = 42px；行高 <span class="mono">--md-row-h</span> = 36px；容器 <span class="mono">clamp(180px, 38vh, 320px)</span> + <span class="mono">flex: 1 0 auto</span></td></tr>
+<tr><td><b>H</b> 开始改名</td><td class="mono">ActionBar.vue</td><td class="mono">.md-actionbar → <b>go</b></td><td>高 <span class="mono">--md-actionbar-h</span> = 64px；右对齐；<span class="mono">align-self: end</span></td></tr>
+<tr><td><b>网格容器</b></td><td class="mono">MainView.vue</td><td class="mono">.md-grid</td><td class="mono">repeat(12, minmax(0,1fr))</td></tr>
+</tbody>
+</table>
+</div>
+
+<h4>网格落位是写在真源码里的（可直接复制）</h4>
+<p>
+落位用 <span class="mono">grid-template-areas</span> 写成一整块，一眼能看出每块所在的行列 ——
+这是最能防「排错格子」的写法：
+</p>
+<div class="stack">
+  <div class="stack__hd"><span class="mono">MainView.vue · .md-grid</span><span>grid-template-areas</span></div>
+  <div class="row"><div class="row__d"><pre class="mono" style="font-size:12px;line-height:1.65;white-space:pre;overflow-x:auto">'cat  cat  cat  cat  s1 s1 s1 s2 s2 s2 s3 s3'
+'add  add  add  add  rule rule rule rule rule rule rule rule'
+'list list list list list list list list num num num num'
+'list list list list list list list list num num num num'
+'list list list list list list list list go  go  go  go'</pre></div></div>
+</div>
+<p>
+<b>注意最后三行：</b><span class="mono">list</span> 占左边 8 列、跨越行 3-5；
+<span class="mono">num</span> 占右边 4 列、行 3-4；<span class="mono">go</span> 占右边 4 列、行 5。
+这正是设计稿 F / G / H 三块的关系。
+</p>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">06</span>四个必须避开的坑</h2>
+
+<div class="duo">
+  <div>
+    <h4>坑 1 · 同一行的矮块会被拉成空柱子</h4>
+    <p>
+    网格的默认行为是「同一行取最高的那个，其余块<b>纵向拉伸去对齐</b>」。
+    2026-09-26 之前，「往里加东西」只占 1-4 列、却和占 5-12 列的<b>规则块同在第 2 行</b>，
+    被拉成一根一千像素的空柱子 —— <b>那组按钮现已搬进标题栏，这个坑随之消失</b>。
+    </p>
+    <p><b>但规律留着：</b>以后往某一行加矮块，先想清楚它会不会被旁边的长块拉长；会，就给它加
+    <span class="mono">align-self: start</span>。</p>
+    <p>
+    另一头，右下角 <span class="mono">go</span>（开始改名）那一格用 <span class="mono">align-self: end</span>
+    贴住行底 —— 这是设计稿的要求（执行块是全屏最有分量的一块，要压住底边）。
+    </p>
+  </div>
+  <div>
+    <h4>坑 2 · 空掉的格子会塌陷，把下面的块顶上来</h4>
+    <p>
+    行高用 <span class="mono">auto</span> 时，一个格子里的内容消失（比如切到「插入」模式，
+    序号块不渲染了），那一格就塌成 0 高，后面的块整体上移。
+    </p>
+    <p>
+    <b>这本身是对的</b>（不该留空洞），但必须确认它不会造成错位或闪现。
+    要么接受上移，要么给该格一个最小高度 —— <b>两种都可以，但不能是「没想过」的默认行为</b>。
+    </p>
+  </div>
+  <div>
+    <h4>坑 3 · 修饰类名不许用 <span class="mono">sel</span> / <span class="mono">on</span> / <span class="mono">active</span> 这类裸词</h4>
+    <p>
+    列表行的「选中」类如果叫 <span class="mono">.sel</span>，会和 <span class="mono">&lt;select&gt;</span> 的
+    <span class="mono">.sel</span> 撞名（后者是 <span class="mono">flex:1</span>）——
+    同权重、后写的赢，会<b>把行高从 46px 压成 0 基准</b>，选中行比别的行矮一截，但肉眼只像「有点扁」。
+    </p>
+    <p><b>规矩：修饰类一律带前缀</b>（<span class="mono">is-sel</span> / <span class="mono">has-x</span> / <span class="mono">--mod</span>）。</p>
+  </div>
+  <div>
+    <h4>坑 4 · 一个组件出多个根节点，样式点名要用属性选择器</h4>
+    <p>
+    统计区是「一个组件渲染三张卡」，序号区是「规则组件的第 2 个根节点」。
+    Vue 的 scoped 样式给子组件根节点打标记时，<b>多根组件拿不到父级的作用域</b>，
+    直接写 <span class="mono">:deep(.md-stat)</span> 可能选不中。
+    </p>
+    <p>
+    <b>解法：给每张卡/每块加稳定的 <span class="mono">data-*</span> 属性（<span class="mono">data-stat</span> /
+    <span class="mono">data-numbering</span>），用属性选择器点名。</b>
+    顺带一个好处：这些 <span class="mono">data-*</span> 同时是测试锚点，不会因为改类名而失效。
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">07</span>验收判据（可量，别靠眼看）</h2>
+
+<div class="tw">
+<table>
+<thead><tr><th style="width:44%">判据</th><th>怎么量</th></tr></thead>
+<tbody>
+<tr><td>窗口打开就是 1440 × 900</td><td>读窗口 bounds</td></tr>
+<tr><td>12 列网格成立：B/C/D 三张卡等宽（首两张相等）、猫块宽度 ≈ 462.7px</td><td>逐块量 <span class="mono">getBoundingClientRect().width</span></td></tr>
+<tr><td>五个页签永远全部可见（切到任一模式都是 5 个）</td><td>数量断言 + 逐个可见</td></tr>
+<tr><td>切到「插入 / 导入」时序号块消失且不留空洞</td><td>块不存在 + 下面的块与规则区底边距离 = 网格间距</td></tr>
+<tr><td>全窗口只有 2 条滚动条（<b>G 格 + 文件列表</b>），且主区不滚</td><td>遍历所有元素，数 <span class="mono">scrollHeight &gt; clientHeight</span> 且有 <span class="mono">overflow-y:auto</span> 的</td></tr>
+<tr><td>「开始改名」在 1440×900 下不被遮、可点</td><td>元素可见 + 命中测试</td></tr>
+<tr><td>左下角不出现「面板被压成一条缝」的块</td><td>每块高度 ≥ 其内容的 <span class="mono">scrollHeight</span>，或该块自己有滚动条</td></tr>
+<tr><td>文件列表空列表时仍有 180px 高（不塌）</td><td>量块高 ≥ 180</td></tr>
+<tr><td>系统开「减少动态效果」后所有入场/呼吸/环动画停</td><td>计算样式里 animation 为 none</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">08</span>设计稿没规定、由本文定死的清单</h2>
+
+<p>下面这些都是设计稿<b>看不到答案</b>的（因为画板是静态的），落地时以本文为准：</p>
+
+<ol>
+  <li><b>窗口固定 900px、不长高</b>；中间两行用 <span class="mono">minmax(0,1fr)</span> 吸收剩余空间。</li>
+  <li><b>内容装不下时由 G 格自己滚</b>（不是主区滚）；全局只允许两条滚动条：<b>G 格 + 文件列表</b>。</li>
+  <li><b>「属性」默认折起</b>（2026-09-26 起），与「示例 · 日期」同款折叠条。</li>
+  <li><b>文件列表的高度档位</b>：<span class="mono">clamp(180px, 38vh, 320px)</span>。</li>
+  <li><b>文件行高固定 36px</b>（设计稿是拉伸填满）。</li>
+  <li><b>「往里加东西」整组搬进标题栏</b>（2026-09-26）：<b>左边</b>放添加文件 / 添加文件夹 / 导入表格，<b>右边</b>放导出清单 / 清空列表 / 文件夹合并 / 文件提取 / 撤销·历史。猫块因此恢复成设计稿的<b>跨行 1-2、猫 224px、环 100px</b>；八个格子与设计稿完全一致。</li>
+  <li><b>空态文案要跟着改</b>：原来是「把文件拖进来，或者点左边的按钮」，按钮搬走后改成「点左上角的『添加文件』」。</li>
+  <li><b>「示例 · 日期」折叠条</b>：序号块里的低频项收进去（设计稿没有这条折叠）。</li>
+  <li><b>「常用规则」模板条常显</b>，放在页签上方（设计稿没画）。</li>
+  <li><b>导入模式的名字来源提示条</b>的位置与显示条件（设计稿没画）。</li>
+  <li><b>改扩展名 / 区分大小写的归属</b>：归「规则块」，放在进阶设置外面（设计稿没画）。</li>
+  <li><b>序号块在四个模式下消失</b>、空格的塌陷行为。</li>
+  <li><b>「操作控件」全部在 G 格，规则块只放「改成什么」</b>（2026-09-26 变更）：参数 / 改扩展名 / 区分大小写 从规则块搬到 G 格上半段，序号与属性在其下。</li>
+  <li><b>G 格在五个模式下都存在</b>（它现在装的是参数）；只有「序号 / 示例·日期 / 属性」这三段是自定义模式专属。</li>
+  <li><b>文件表内部自己滚、行高固定</b>：不能因为 G 格变高就把文件行拉长（实测过会被拉到 83~109px）。</li>
+  <li><b>环心显示什么（2026-09-26 定死）</b>：内圈净宽只有 <b>74px</b>（r=40、线宽 6），
+      23px 字号下实测 5/6=33px、12/34=58px、<b>99/999=69px 都塞得下</b>；123/456=82px、1234/5000=107px 塞不下。所以：<b>分数 ≤ 5 个字符显示分数，≥ 6 个字符自动改显示百分比（取整）</b>。
+      精确数字不必挤进圆圈 —— 三张统计卡和文件表底部的摘要条里都有；环只负责「一眼看出比例」，读屏的人从无障碍标签里听完整分数。<b>不要用「缩小字号」硬塞</b>。</li>
+  <li><b>窗口最小尺寸 1180 × 760</b>（设计稿只有 1440×900 一档）。</li>
+</ol>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2><span class="no">09</span>动手顺序（建议）</h2>
+
+<div class="note note--ok">
+  <span class="note__t">动手前先翻一遍画廊</span>
+  <p>先打开 <b>「主界面状态画廊-C面板阵列.html」</b>（24 屏，浅/深两套、可切 100% 缩放）建立整体印象，
+  再回到本文逐格量刑。<b>本文给的是数字，画廊给的是「做出来长什么样」</b> —— 两个一起看才不会做歪。</p>
+</div>
+
+<ol>
+  <li><b>先把窗口和网格立起来</b>：窗口<b>固定 1440×900</b>（最小 1180×760）；12 列 +
+      <span class="mono">grid-template-areas</span>；行高写
+      <span class="mono">auto auto minmax(0,1fr) minmax(0,1fr) auto</span>。
+      <b class="yes">★ 中间两行吸收剩余空间「并且受约束」</b> —— G 格才会被压住、由它自己滚，而不是把窗口顶高
+      （全 <span class="mono">auto</span> 会让窗口涨到 1271px；设计稿纯 <span class="mono">fr</span> 会撑到 2354px）。</li>
+  <li><b>再定三块「有自己高度 / 不参与抢高度」的块</b>：
+      文件列表（三段式 + 内部滚 + <b>行高固定</b>）、G 格（<span class="mono">overflow-y:auto</span>）、
+      规则块（不收缩）。</li>
+  <li><b>拆规则块</b>：把<b>参数、改扩展名、区分大小写</b>（五个模式各自的那套）从规则块里拿出来，
+      落到 <b>G 格上半段</b>。规则块只留「常用规则 + 五个页签 + 一句话 + 底栏 + 进阶设置入口」，
+      <b>一个输入框都不放</b>。</li>
+  <li><b>拆掉「往里加东西」这个模块</b>：它<b>不进网格</b>（设计稿里没有它，还会把猫块挤成一行）。
+      <b>添加文件 / 添加文件夹 / 导入表格</b> 放标题栏<b>左侧</b>（紧跟品牌字）；
+      <b>导出清单 / 清空列表</b> 放标题栏右侧那组。猫块因此恢复成<b>跨行 1-2、猫 224×209、环 100</b>。</li>
+  <li><b>再补收纳</b>：规则块的「进阶设置」是<b>弹窗入口、不是折叠条</b>；
+      G 格里的「示例 · 日期」和「属性 · 变量」各是一条<b>折叠条，默认折起</b>。</li>
+  <li><b>环心两条硬规矩</b>：数字用<b>绝对定位钉在圆心</b>（别用 grid 居中「数字+说明」两行 ——
+      实测会偏 22.2px）；<b>分数 ≤5 字符显分数、≥6 字符改百分比</b>；别忘了
+      <span class="mono">padding-left:1px</span> 补字距的尾随 1px。</li>
+  <li><b>最后量验收判据</b>（§7），别靠眼看 —— 尤其这四条：
+      全窗口只有 <b>2 条滚动条（G 格 + 文件列表）</b>、<b>主区不滚</b>、<b>文件行恒为 46px</b>、
+      <b>环心数字偏移 ≈ 0</b>。</li>
+</ol>
+
+<div class="note note--bad">
+  <span class="note__t">⚠️ 本节在 2026-09-26 改过一版（别照旧版做）</span>
+  <p>旧版写的是「行高全 auto + 主区整块滚 + 进阶设置是折叠条 + 序号/属性单独落 G 格」。
+  这四句<b>全部已被推翻</b>，推翻理由与实测数字分别在 §3.5、§3.3、§3.4。</p>
+</div>
+
+<div class="note note--warn">
+  <span class="note__t">⚠️ 关于本文的「当前实现对照」部分</span>
+  <p>
+  §5 是按 <b>2026-09-26 磁盘上的代码</b>写的。这个仓库当时<b>有另一个会话在同时改同一批文件</b>
+  （一小时内就发生过 <span class="mono">MainView.vue</span> 被整版重写、多出
+  <span class="mono">src/shared/constants.ts</span> 和 <span class="mono">tools/ui-probe.js</span>）。
+  所以：<b>§3 的规则是准绳，§5 的现状请以你打开文件时的实际内容为准。</b>
+  </p>
+</div>
+
+<div class="foot">
+  <p>
+    <b>数字来源</b>：设计稿几何全部取自 <span class="mono">界面方案-2-科技感/C-面板阵列.html</span> 的
+    <span class="mono">&lt;style&gt;</span>（窗口 <span class="mono">.win</span>、网格 <span class="mono">.grid</span>、
+    各块 <span class="mono">.pa</span>~<span class="mono">.ph</span>）；当前实现数值取自各组件
+    <span class="mono">&lt;style&gt;</span> 与 <span class="mono">src/shared/constants.ts</span>。
+    所有换算算式都写在 §2.1，可逐项复算。
+  </p>
+  <p>耄耋改名 · 主界面排版规格书 · C 面板阵列 · 2026-09-26</p>
+</div>
+
+</div>
+</body>
+</html>

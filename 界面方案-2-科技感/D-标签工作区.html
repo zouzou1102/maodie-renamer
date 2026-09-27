@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>方案 D · 标签工作区 — 耄耋改名</title>
+<style>
+:root{
+  --bg:#F1F4F7; --panel:#FFFFFF; --panel2:#E9EEF3; --hov:#E3EBF1;
+  --line:#DAE2E9; --line2:#C3CFD9;
+  --ink:#0E1720; --ink2:#5A6B7A; --ink3:#8A99A6; --ink4:#B3BFC9;
+  --acc:#D9531A; --acc-ink:#FFFFFF; --sel:rgba(217,83,26,.11);
+  --blue:#1F5FA8; --blue-sel:rgba(31,95,168,.10);
+  --ok:#1F7A48; --bad:#C4322A;
+  --grid:rgba(14,23,32,.035);
+  --cat:#F9C077; --cat-line:#C97E2E;
+  --r-win:12px; --r-lg:10px; --r-md:7px; --r-sm:5px;
+  --ui:"Segoe UI Variable Text","Segoe UI","Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  --disp:"Bahnschrift","Segoe UI Variable Display","Segoe UI",var(--ui);
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html[data-theme="dark"]{
+  --bg:#0E141A; --panel:#151D25; --panel2:#1B242E; --hov:#222E39;
+  --line:#25313C; --line2:#36444F;
+  --ink:#EDF2F6; --ink2:#9AABBA; --ink3:#6B7C8B; --ink4:#4A5A68;
+  --acc:#FF7440; --acc-ink:#1E0C04; --sel:rgba(255,116,64,.15);
+  --blue:#5C9BE0; --blue-sel:rgba(92,155,224,.14);
+  --ok:#3FB950; --bad:#F85149;
+  --grid:rgba(255,255,255,.026);
+  --cat:#F9C077; --cat-line:#B4712A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050505;font-family:var(--ui);-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;align-items:center;padding:20px 0 40px;gap:14px}
+.pgbar{display:flex;align-items:center;gap:12px;color:#b9b9b9;font-size:12.5px}
+.pgbar b{color:#fff;font-weight:600}
+.pgbar .t{font-size:11px;color:#8a8a8a;border:1px solid #333;border-radius:99px;padding:3px 10px}
+.pgbar button{font-family:var(--ui);font-size:12px;color:#cfcfcf;background:#1E1E1E;border:1px solid #363636;
+  border-radius:7px;padding:5px 12px;cursor:pointer}
+.pgbar button.on{background:#fff;color:#111;border-color:#fff}
+
+.win{width:1440px;height:900px;background:var(--bg);color:var(--ink);border-radius:var(--r-win);overflow:hidden;
+  display:flex;flex-direction:column;border:1px solid var(--line);box-shadow:0 40px 120px rgba(0,0,0,.75)}
+
+/* ───── 顶栏：品牌 + 面包屑 + 分段标签 + 窗口键 ───── */
+.tbar{height:48px;flex:0 0 48px;display:flex;align-items:center;gap:14px;padding:0 10px 0 16px;
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.brand__mark{width:26px;height:26px;display:block}
+.brand__name{font-size:13px;font-weight:600;letter-spacing:1.4px}
+.crumb{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink3);flex:0 0 auto}
+.crumb i{font-style:normal;color:var(--ink4)}
+.crumb b{font-weight:500;color:var(--ink2)}
+.seg{margin:0 auto;display:flex;gap:2px;padding:3px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:9px}
+.seg__i{height:26px;padding:0 15px;border:none;background:none;font:inherit;font-size:12.5px;color:var(--ink2);
+  border-radius:6px;cursor:pointer;transition:background-color .16s var(--ease),color .16s var(--ease)}
+.seg__i:hover{color:var(--ink)}
+.seg__i.on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(10,20,30,.10)}
+.tr{display:flex;align-items:center;gap:1px;flex:0 0 auto}
+.wkey{width:34px;height:28px;border:none;background:none;color:var(--ink3);font-size:12px;cursor:pointer;
+  border-radius:var(--r-sm);transition:background-color .15s var(--ease),color .15s var(--ease)}
+.wkey:hover{background:var(--panel2);color:var(--ink)}
+.wkey--x:hover{background:var(--bad);color:#fff}
+
+/* ───── 步骤条 ───── */
+.steps{height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:center;gap:0;
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.stp{display:flex;align-items:center;gap:9px}
+.stp__n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--mono);font-size:11px;color:var(--ink3);border:1px solid var(--line2);background:var(--panel);
+  transition:all .2s var(--ease)}
+.stp__t{font-size:12.5px;color:var(--ink3);letter-spacing:.3px}
+.stp.done .stp__n{background:var(--blue-sel);border-color:var(--blue);color:var(--blue)}
+.stp.done .stp__t{color:var(--ink2)}
+.stp.on .stp__n{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:700}
+.stp.on .stp__t{color:var(--ink);font-weight:600}
+.stp__ln{width:56px;height:1px;background:var(--line2);margin:0 18px}
+.stp__ln.done{background:var(--blue);opacity:.5}
+
+/* ───── 主体 ───── */
+.body{flex:1;min-height:0;overflow-y:auto;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:32px 32px}
+.sheet{width:1080px;margin:0 auto;padding:20px 0 28px}
+
+.bhead{display:flex;align-items:baseline;gap:14px;padding:0 18px 12px;border-bottom:1px solid var(--line2)}
+.bhead__t{font-family:var(--disp);font-size:17px;font-weight:600;letter-spacing:.6px}
+.bhead__s{font-size:12.5px;color:var(--ink3)}
+.bhead__s b{font-family:var(--mono);color:var(--ink);font-weight:600}
+.bhead__s b.bad{color:var(--ink3)}
+.bhead__r{margin-left:auto;display:flex;gap:6px}
+.gh{height:26px;padding:0 11px;border:1px solid var(--line2);background:var(--panel);color:var(--ink2);
+  font:inherit;font-size:12px;border-radius:var(--r-md);cursor:pointer;
+  transition:background-color .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease)}
+.gh:hover{background:var(--hov);color:var(--ink);border-color:var(--ink4)}
+
+.stream{display:flex;flex-direction:column;background:var(--panel);
+  border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.fp{display:grid;grid-template-columns:minmax(0,1fr) 210px;align-items:center;gap:18px;
+  padding:11px 18px 12px;border-top:1px solid var(--line);
+  transition:background-color .14s var(--ease),box-shadow .14s var(--ease)}
+.fp:hover{background:var(--hov)}
+.fp--no{opacity:.6}
+.fp--no:hover{opacity:.85}
+.pair{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ln{display:flex;align-items:center;gap:10px;min-width:0}
+.tag{flex:0 0 auto;width:20px;height:17px;display:grid;place-items:center;border-radius:4px;
+  font-family:var(--mono);font-size:9.5px;color:var(--ink3);border:1px solid var(--line2)}
+.tag--n{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:700}
+.nm{font-size:13.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-family:var(--mono)}
+.nm del{text-decoration:line-through;text-decoration-thickness:1px;color:var(--ink4)}
+.ln--n .nm{font-size:14px;color:var(--ink);font-weight:500}
+.ln--n .nm ins{text-decoration:none;color:var(--acc);font-weight:700;background:var(--sel);
+  border-radius:3px;padding:1px 2px;margin:0 -2px}
+.fp__meta{display:flex;align-items:center;gap:12px;justify-content:flex-end}
+.pill{font-size:11px;font-weight:500;padding:3px 10px;border-radius:99px;white-space:nowrap}
+.pill--go{background:var(--sel);color:var(--acc)}
+.pill--no{background:var(--panel2);color:var(--ink3)}
+.sz{font-family:var(--mono);font-size:11.5px;color:var(--ink3);font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+.hnd{width:26px;height:26px;border:1px solid transparent;background:none;color:var(--ink4);border-radius:var(--r-sm);
+  cursor:pointer;font-size:12px;line-height:1;transition:all .14s var(--ease)}
+.hnd:hover{border-color:var(--line2);color:var(--ink);background:var(--panel)}
+
+/* ───── 底部工具带 ───── */
+.dock{flex:0 0 104px;display:flex;align-items:center;padding:0 16px;background:var(--panel);
+  border-top:1px solid var(--line2)}
+.dock__cat{flex:0 0 auto;width:58px;display:grid;place-items:center}
+.dock__cat svg{width:46px;height:43px;display:block}
+.z{display:flex;align-items:center;gap:9px;height:56px;padding:0 20px;border-left:1px solid var(--line)}
+.z--go{border-left:none;margin-left:auto;padding-right:2px}
+.lb{flex:0 0 auto;font-size:11px;color:var(--ink3);letter-spacing:.6px}
+.mbtn{height:30px;padding:0 13px;border:1px solid var(--line2);background:var(--panel2);color:var(--ink2);
+  font:inherit;font-size:12.5px;border-radius:var(--r-md);cursor:pointer;
+  transition:background-color .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease)}
+.mbtn:hover{background:var(--hov);color:var(--ink)}
+.mbtn.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:600}
+.dinp{height:30px;width:132px;padding:0 10px;background:var(--panel2);border:1px solid var(--line2);
+  border-radius:var(--r-md);font-family:var(--mono);font-size:12.5px;color:var(--ink);outline:none;
+  transition:border-color .15s var(--ease),box-shadow .15s var(--ease)}
+.dinp:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--sel)}
+.sw{width:38px;height:22px;border-radius:99px;background:var(--line2);position:relative;cursor:pointer;flex:0 0 auto;
+  transition:background-color .2s var(--ease)}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,.28);transition:transform .2s var(--ease)}
+.sw.on{background:var(--acc)}
+.sw.on::after{transform:translateX(16px)}
+.go{height:46px;padding:0 32px;border:none;border-radius:var(--r-lg);background:var(--acc);color:var(--acc-ink);
+  font:inherit;font-size:14.5px;font-weight:700;letter-spacing:.6px;cursor:pointer;
+  transition:transform .12s var(--ease),filter .15s var(--ease)}
+.go:hover{filter:brightness(1.07)}
+.go:active{transform:scale(.96)}
+
+.body::-webkit-scrollbar{width:10px}
+.body::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px;border:3px solid transparent;background-clip:content-box}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<filter id="fur" x="-25%" y="-25%" width="150%" height="150%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" seed="11" result="n"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+<g id="catfig">
+  <g filter="url(#fur)">
+    <path d="M26 46 L34 12 L54 34 Z" fill="var(--cat)"/>
+    <path d="M94 46 L86 12 L66 34 Z" fill="var(--cat)"/>
+    <circle cx="60" cy="62" r="36" fill="var(--cat)"/>
+  </g>
+  <path d="M33 41 L37 20 L49 33 Z" fill="#E9A96A" opacity=".65"/>
+  <path d="M87 41 L83 20 L71 33 Z" fill="#E9A96A" opacity=".65"/>
+  <ellipse cx="46" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <ellipse cx="74" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <circle cx="48.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+  <circle cx="76.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+  <path d="M60 68 l-4.6 -4.2 h9.2 z" fill="#D97B2A"/>
+  <path d="M60 69 q-4.5 6.5 -9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M60 69 q4.5 6.5 9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="34" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <ellipse cx="86" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <path d="M28 62 h-14 M28 70 h-12 M92 62 h14 M92 70 h12" stroke="var(--cat-line)" stroke-width="1.8" stroke-linecap="round" opacity=".75"/>
+  <path d="M60 27 q4 -7 10 -3" stroke="var(--cat-line)" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".55"/>
+</g>
+</defs>
+</svg>
+
+<header class="pgbar">
+  <b>方案 D · 标签工作区</b>
+  <span class="t">1440×900</span>
+  <span class="t">浅色 · 冷灰蓝 + 橘</span>
+  <button id="t-light" class="on">浅色</button>
+  <button id="t-dark">深色</button>
+</header>
+
+<div class="win">
+
+  <div class="tbar">
+    <div class="brand">
+      <svg class="brand__mark" viewBox="0 0 120 112"><use href="#catfig"/></svg>
+      <span class="brand__name">耄耋改名</span>
+    </div>
+    <span class="crumb">工作区 <i>/</i> <b>重命名</b></span>
+    <nav class="seg">
+      <button class="seg__i on">重命名</button>
+      <button class="seg__i">规则库</button>
+      <button class="seg__i">历史</button>
+      <button class="seg__i">设置</button>
+    </nav>
+    <div class="tr">
+      <button class="wkey" title="帮助">?</button>
+      <button class="wkey">—</button><button class="wkey">□</button><button class="wkey wkey--x">✕</button>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="stp done"><span class="stp__n">✓</span><span class="stp__t">选文件夹</span></div>
+    <span class="stp__ln done"></span>
+    <div class="stp done"><span class="stp__n">✓</span><span class="stp__t">定规则</span></div>
+    <span class="stp__ln done"></span>
+    <div class="stp on"><span class="stp__n">3</span><span class="stp__t">看预览</span></div>
+    <span class="stp__ln"></span>
+    <div class="stp"><span class="stp__n">4</span><span class="stp__t">执行</span></div>
+  </div>
+
+  <div class="body">
+    <div class="sheet">
+
+      <div class="bhead">
+        <span class="bhead__t">改名预览</span>
+        <span class="bhead__s">6 个文件 · <b>5</b> 个将改名 · <b class="bad">0</b> 个重名</span>
+        <span class="bhead__r">
+          <button class="gh">全选</button><button class="gh">反选</button><button class="gh">重置</button>
+        </span>
+      </div>
+
+      <div class="stream">
+
+        <div class="fp">
+          <div class="pair">
+            <div class="ln"><span class="tag">原</span><span class="nm"><del>IMG_</del>2043.JPG</span></div>
+            <div class="ln ln--n"><span class="tag tag--n">新</span><span class="nm"><ins>旅行_</ins>2043.JPG</span></div>
+          </div>
+          <div class="fp__meta"><span class="pill pill--go">将改名</span><span class="sz">2.4 MB</span><button class="hnd">☰</button></div>
+        </div>
+
+        <div class="fp">
+          <div class="pair">
+            <div class="ln"><span class="tag">原</span><span class="nm"><del>IMG_</del>2044.JPG</span></div>
+            <div class="ln ln--n"><span class="tag tag--n">新</span><span class="nm"><ins>旅行_</ins>2044.JPG</span></div>
+          </div>
+          <div class="fp__meta"><span class="pill pill--go">将改名</span><span class="sz">3.1 MB</span><button class="hnd">☰</button></div>
+        </div>
+
+        <div class="fp">
+          <div class="pair">
+            <div class="ln"><span class="tag">原</span><span class="nm"><del>IMG_</del>2045.png</span></div>
+            <div class="ln ln--n"><span class="tag tag--n">新</span><span class="nm"><ins>旅行_</ins>2045.png</span></div>
+          </div>
+          <div class="fp__meta"><span class="pill pill--go">将改名</span><span class="sz">884 KB</span><button class="hnd">☰</button></div>
+        </div>
+
+        <div class="fp">
+          <div class="pair">
+            <div class="ln"><span class="tag">原</span><span class="nm"><del>IMG_</del>2046.JPG</span></div>
+            <div class="ln ln--n"><span class="tag tag--n">新</span><span class="nm"><ins>旅行_</ins>2046.JPG</span></div>
+          </div>
+          <div class="fp__meta"><span class="pill pill--go">将改名</span><span class="sz">2.7 MB</span><button class="hnd">☰</button></div>
+        </div>
+
+        <div class="fp">
+          <div class="pair">
+            <div class="ln"><span class="tag">原</span><span class="nm"><del>IMG_</del>2047.JPG</span></div>
+            <div class="ln ln--n"><span class="tag tag--n">新</span><span class="nm"><ins>旅行_</ins>2047.JPG</span></div>
+          </div>
+          <div class="fp__meta"><span class="pill pill--go">将改名</span><span class="sz">1.9 MB</span><button class="hnd">☰</button></div>
+        </div>
+
+        <div class="fp fp--no">
+          <div class="pair">
+            <div class="ln"><span class="tag">原</span><span class="nm">会议记录.docx</span></div>
+            <div class="ln ln--n"><span class="tag">新</span><span class="nm" style="color:var(--ink3);font-weight:400">会议记录.docx</span></div>
+          </div>
+          <div class="fp__meta"><span class="pill pill--no">不改</span><span class="sz">36 KB</span><button class="hnd">☰</button></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="dock">
+    <div class="dock__cat"><svg viewBox="0 0 120 112"><use href="#catfig"/></svg></div>
+
+    <div class="z">
+      <span class="lb">改法</span>
+      <button class="mbtn on">替换</button>
+      <button class="mbtn">插入</button>
+      <button class="mbtn">删除</button>
+      <button class="mbtn">只用编号</button>
+    </div>
+
+    <div class="z">
+      <span class="lb">找</span><input class="dinp" value="IMG_" spellcheck="false">
+      <span class="lb">换成</span><input class="dinp" value="旅行_" spellcheck="false">
+    </div>
+
+    <div class="z">
+      <span class="lb">序号</span><div class="sw"></div>
+      <span class="lb" style="margin-left:6px">扩展名</span><div class="sw on"></div>
+    </div>
+
+    <div class="z z--go">
+      <button class="go">开始重命名</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('t-light').onclick=function(){set('light',this)};
+document.getElementById('t-dark').onclick=function(){set('dark',this)};
+function set(v,el){document.documentElement.dataset.theme=v;
+  document.querySelectorAll('.pgbar button').forEach(function(b){b.classList.remove('on')});el.classList.add('on')}
+document.querySelectorAll('.seg__i').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.seg__i').forEach(function(x){x.classList.remove('on')});t.classList.add('on');
+  });
+});
+document.querySelectorAll('.mbtn').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.mbtn').forEach(function(x){x.classList.remove('on')});t.classList.add('on');
+  });
+});
+document.querySelectorAll('.sw').forEach(function(s){
+  s.addEventListener('click',function(){s.classList.toggle('on')});
+});
+document.querySelectorAll('.fp').forEach(function(r){
+  r.addEventListener('click',function(){
+    document.querySelectorAll('.fp').forEach(function(x){x.style.boxShadow='none'});
+    r.style.boxShadow='inset 3px 0 0 var(--acc)';
+  });
+});
+function fit(){
+  var w=document.querySelector('.win'),s=Math.min(1,(window.innerWidth-36)/1440);
+  w.style.transformOrigin='top center';
+  w.style.transform=s<1?'scale('+s+')':'none';
+}
+window.addEventListener('resize',fit);fit();
+</script>
+</body>
+</html>

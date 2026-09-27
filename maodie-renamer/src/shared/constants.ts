@@ -72,8 +72,21 @@ export const RESERVED_NAMES = [
 
 /* ── 窗口（数据库设计 §5）───────────────────────────────────────────── */
 
-export const WINDOW_DEFAULT = { width: 1080, height: 680 } as const
-export const WINDOW_MIN = { width: 900, height: 560 } as const
+/**
+ * 窗口默认 / 最小尺寸。
+ *
+ * ★ P3-10（2026-09-26）：默认尺寸从 1080×680 提到 **1440×900**。
+ *   原因：主界面按设计稿「C · 面板阵列」重排，而那份设计稿的画布是**固定 1440×900**
+ *   （`C-面板阵列.html` 的 `.win{width:1440px;height:900px}`）。原来 1080×680 的窗口
+ *   把 12 列网格压到 75%，面板普遍挤压（实测顶排容器 152px 装不下 184px 的内容，直接裁掉）。
+ *   窗口小于设计画布时，这个网格无论如何都还原不出来 —— 所以按设计稿给默认值。
+ *
+ * 最小尺寸同步提到 1180×760：再小的话 12 列网格里最窄的那列放不下统计卡的大数字。
+ * 屏幕可用区比这更小时，`window.ts` 的 `Math.min(..., area.*)` 会自动夹到可用区，
+ * 不会把窗口开到屏幕外面去。
+ */
+export const WINDOW_DEFAULT = { width: 1440, height: 900 } as const
+export const WINDOW_MIN = { width: 1180, height: 760 } as const
 /** 窗口尺寸/位置异步写的防抖 */
 export const WINDOW_SAVE_DEBOUNCE_MS = 500
 
@@ -96,8 +109,8 @@ export const PREVIEW_DEBOUNCE_MS = 200
 /** 列表行超过该行数启用虚拟滚动（ADR-005） */
 export const VIRTUAL_LIST_THRESHOLD = 500
 
-/** 固定行高（设计规范 §5.1 写死） */
-export const ROW_HEIGHT = 36
+/** 固定行高（★ C 方案施工单 2026-09-27：46px，旧版 36 已改；虚拟滚动的算术前提） */
+export const ROW_HEIGHT = 46
 
 /** problems 明细在 ExecuteResult 里的截断上限（接口文档 §3.4）*/
 export const PROBLEMS_MAX = 200

@@ -9,6 +9,7 @@
  * 组件里**不写**预览刷新逻辑，保证刷新入口只有一处。
  */
 import { computed, nextTick, ref, watch } from 'vue'
+import AppModal from './AppModal.vue'
 import MdIcon from './MdIcon.vue'
 import { useRuleStore } from '../stores/rule'
 import { useFilesStore } from '../stores/files'
@@ -23,6 +24,7 @@ import {
 import { ATTR_VARS } from '@shared/attr-vars'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
 import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
+import { buildRuleSummary } from '@shared/rule-summary'
 import { joinName, splitName } from '@shared/name-split'
 import { applyDelete, applyInsert, applyReplace, applyRuleMode, dateText, sizeText } from '@shared/rule-engine'
 import { todayYmd } from '@shared/today'
@@ -50,6 +52,20 @@ function clearImported(): void {
   const n = files.clearOverride()
   if (n > 0) files.showTransient(`已清除 ${n} 项表格导入的名字，它们回到按规则算`)
 }
+
+/**
+ * EL-156 规则「一句话」（P3-9 · 照 C 方案）。
+ *
+ * ★ **不另写一套摘要逻辑**：直接用 `buildRuleSummary` ——
+ *   历史卡片、撤销确认弹窗用的都是它。这里要是抄一份，迟早出现
+ *   「面板上写的是 A、历史记录里写的是 B」的漂移，而那种漂移没人会发现。
+ *
+ * ⚠️ 刻意**不传** `imported`（表格导入说明）：那条信息已经有 `data-import-bar`
+ *   专门在讲了（P3-5 起导入是五选一互斥的，只在导入模式下生效），
+ *   摘要在别的模式下提它就是误导；而且这里多一个 `mode === 'import'` 判断
+ *   就多一处「判断写错→静默显示错文案」的口子。少一处比多一处好。
+ */
+const sentence = computed(() => buildRuleSummary(rule.rule))
 
 /**
  * P2-B EL-120 / IX-106：点一下 chip = 套用整份模板。
@@ -96,6 +112,22 @@ const showAdvanced = computed(
  * 展开 / 收起是**纯 UI 状态**，不进 RuleConfig、不进 IPC（设计 §10.1）。
  */
 const advancedOpen = ref(false)
+
+/**
+ * ★ P3-10：序号面板里「示例 · 日期」那条折叠的展开状态。
+ *
+ * 为什么不用原生 `<details>`：Vue 的 SFC 模板编译器在这份文件里对 `<details>`
+ * 报「Element is missing end tag」（开闭标签明明配对），构建直接失败。
+ * 项目里「进阶设置」本来就是 `button + v-if` 这套写法 —— 沿用同一套，
+ * 不为了一个折叠条引入第二种机制。
+ */
+const numAdvOpen = ref(false)
+
+/**
+ * ★ C 方案施工单 §五-8：「属性 · 变量」折叠条（原常显，2026-09-26 起默认折起）。
+ * 与「示例 · 日期」同款：折起来仍留一行标题，不等于不存在。
+ */
+const attrAdvOpen = ref(false)
 /** 正则开关只在删除 / 替换模式出现 —— 与「区分大小写」同一条规则（正面判断）*/
 const regexOn = computed(() => isMatchMode.value && rule.rule.regexEnabled)
 /** 已启用的进阶项数量（折起态也要能看出「开了东西」）*/
@@ -341,528 +373,46 @@ function onExtMode(e: Event): void {
       <button class="md-srcbar__btn" data-import-clear @click="clearImported">清除导入</button>
     </div>
 
-    <!-- EL-040 页签组（三选一，互斥）-->
-    <div class="md-tabs" role="tablist">
-      <button
-        v-for="t in TABS"
-        :key="t.mode"
-        class="md-tab"
-        :class="{ 'md-tab--active': rule.activeMode === t.mode }"
-        role="tab"
-        :aria-selected="rule.activeMode === t.mode"
-        @click="rule.setMode(t.mode)"
-      >
-        {{ t.label }}
-      </button>
-    </div>
-
-    <div class="md-rulepanel__form">
-      <!-- ── 删除模式 ── -->
-      <template v-if="rule.rule.mode === 'delete'">
-        <label class="md-rulepanel__label">待删字符串</label>
-        <input
-          class="md-input"
-          :class="{ 'md-input--mono': regexOn, 'md-input--error': !!rule.regexError }"
-          placeholder="例如：【某某公众号】"
-          :value="rule.rule.delete.text"
-          @input="rule.patch({ delete: { text: ($event.target as HTMLInputElement).value } })"
-        />
-        <p v-if="rule.regexError" class="md-hint md-rulepanel__regerr md-rulepanel__span">
-          {{ rule.regexError }}
-        </p>
-      </template>
-
-      <!-- ── 替换模式 ── -->
-      <template v-else-if="rule.rule.mode === 'replace'">
-        <label class="md-rulepanel__label">查找</label>
-        <input
-          class="md-input"
-          :class="{ 'md-input--mono': regexOn, 'md-input--error': !!rule.regexError }"
-          placeholder="例如：最终版"
-          :value="rule.rule.replace.find"
-          @input="rule.patch({ replace: { find: ($event.target as HTMLInputElement).value } })"
-        />
-        <p v-if="rule.regexError" class="md-hint md-rulepanel__regerr md-rulepanel__span">
-          {{ rule.regexError }}
-        </p>
-        <label class="md-rulepanel__label">替换为</label>
-        <input
-          class="md-input"
-          :class="{ 'md-input--mono': regexOn }"
-          placeholder="留空 = 删除"
-          :value="rule.rule.replace.to"
-          @input="rule.patch({ replace: { to: ($event.target as HTMLInputElement).value } })"
-        />
-      </template>
-
-      <!-- ── 插入模式（P3-5 · EL-136）──────────────────────────────────
-           在名字的第 N 个字符后插入一段任意文字。它与「自定义」里的「插在第 n 个
-           字符后」不重叠：这里插任意文字，那里是「把序号/日期插到中间」（设计 §1.4）。 -->
-      <template v-else-if="isInsertMode">
-        <div class="md-rulepanel__group" data-insert-group>
-          <div class="md-rulepanel__seqline">
-            <label class="md-rulepanel__picker">
-              <span>在第</span>
-              <input
-                class="md-input md-input--num md-input--at"
-                data-insert-at
-                type="number"
-                min="0"
-                aria-label="插在第几个字符后"
-                :value="rule.rule.insert.at"
-                @input="setInsertAt"
-              />
-              <span>个字符后插入</span>
-            </label>
-            <input
-              class="md-input"
-              data-insert-text
-              placeholder="如 2026"
-              :value="rule.rule.insert.text"
-              @input="rule.patch({ insert: { text: ($event.target as HTMLInputElement).value } })"
-            />
-          </div>
-          <p class="md-hint md-rulepanel__span">
-            数字超出名字长度时会自动放到末尾；填 0 等于加在最前面。插入的文字里<b>不认识变量</b>（<code>{n}</code>、<code>{d}</code> 会原样插进去）。
-          </p>
-          <!-- EL-136 示例行：走 applyInsert —— 与真正改名、与预览 Worker 同一个函数 -->
-          <p class="md-hint md-rulepanel__span" data-insert-demo>
-            示例（拿「{{ INSERT_DEMO_STEM }}」这个名字试的，不是你列表里的文件）：
-            {{ INSERT_DEMO_STEM }} → {{ insertDemo }}
-          </p>
-        </div>
-      </template>
-
-      <!-- ── 导入模式（P3-5 · EL-137）──────────────────────────────────
-           这个模式**本身没有输入框**，它是一个「入口 + 状态」：名字由表格决定，
-           规则引擎完全不参与（设计 §2.2 / §1.5）。 -->
-      <template v-else-if="isImportMode">
-        <div class="md-rulepanel__group" data-import-group>
-          <p class="md-hint md-rulepanel__span">名字由表格决定，规则引擎不参与。</p>
-          <button
-            type="button"
-            class="md-btn md-btn--secondary"
-            data-import-pick
-            @click="files.pickTable()"
-          >
-            {{ files.overrideCount > 0 ? '重新选表格' : '选表格并导入…' }}
-          </button>
-          <template v-if="files.overrideCount > 0">
-            <p class="md-hint md-rulepanel__span" data-import-status>
-              已导入「{{ files.overrideSource }}」：{{ files.overrideCount }} 个文件有名字
-            </p>
-            <!-- ★ 这句必须写：不写的话用户会以为「我导入了，那其余文件也该改点什么」 -->
-            <p
-              v-if="files.importOutsideIds.size > 0"
-              class="md-hint md-rulepanel__span"
-              data-import-outside-note
-            >
-              另外 {{ files.importOutsideIds.size }} 个文件表里没有 —— 它们保持原名不动
-            </p>
-          </template>
-          <p v-else class="md-hint md-rulepanel__span" data-import-empty>
-            导入模式：还没选表格 —— 这一步每一项都不会改名。
-          </p>
-        </div>
-      </template>
-
-      <!-- ── 自定义模式（= 代码里的 `rule`；五个要素可叠加）── -->
-      <template v-else-if="isRuleMode">
-        <label class="md-rulepanel__label">前缀</label>
-        <input
-          class="md-input"
-          placeholder="如 {d}-发票-"
-          :value="rule.rule.rule.prefix"
-          @input="rule.patchInner({ prefix: ($event.target as HTMLInputElement).value })"
-        />
-        <label class="md-rulepanel__label">后缀</label>
-        <input
-          class="md-input"
-          placeholder="加在扩展名之前"
-          :value="rule.rule.rule.suffix"
-          @input="rule.patchInner({ suffix: ($event.target as HTMLInputElement).value })"
-        />
-
-        <!-- ★ P3-3：这行**不改就等于功能不存在** —— 三个属性变量完全正常工作、
-             测试全绿、界面一点异常都没有，**只是没有任何用户知道有它们**。
-             这不是代码 bug，而是「功能等于不存在」。 -->
-        <!-- ★★ P3-6：这一行**改成由 `ATTR_VARS` 生成**（不再是手写的一串 <code>）。
-             不这么做的后果已经发生过两次：功能完全正常、测试全绿、界面无异常，
-             **就是没有任何用户知道有新变量**（设计 §2.2 / §5.① / §7.3 第 1 行）。 -->
-        <p class="md-hint md-rulepanel__varhint" data-var-hint>
-          支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期（<b>需先勾选下方对应开关</b>）<template
-            v-for="v in ATTR_VARS"
-            :key="v.token"
-          >、<code>{{ v.token }}</code> {{ v.label }}</template>（<b>写上就生效，不用开关</b>）
-        </p>
-
-        <!-- ── 序号组（EL-121 ~ EL-125）────────────────────────────────────
-             P3-1 的组内顺序：启用序号 → 位置 → 类型 → 参数（随类型）→ 示例。
-             位置放在类型上面：沿用 P0 的排布（改动最小），也正是列需求时的语序。
-             组标题仍叫「启用序号」—— 它是这个组的开关，不跟着类型改名。 -->
-        <div class="md-rulepanel__group">
-          <label class="md-check">
-            <input
-              type="checkbox"
-              :checked="rule.rule.rule.seqEnabled"
-              @change="rule.patchInner({ seqEnabled: ($event.target as HTMLInputElement).checked })"
-            />
-            <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
-            <span class="md-check__label">启用序号</span>
-          </label>
-
-          <!-- EL-123 位置（三档）。选中第三档时就地长出一个数字框，**不另开一行**；
-               选别的两档这个框**不显示**（不是置灰）—— 它只对第三档有意义，
-               摆一个常驻的灰框会让人以为「填了就能用」。 -->
-          <div class="md-rulepanel__seqline">
-            <label class="md-rulepanel__picker">
-              <span>位置</span>
-              <select
-                class="md-select"
-                data-seq-position
-                :disabled="!seqOn"
-                :value="rule.rule.rule.seqPosition"
-                @change="rule.patchInner({ seqPosition: ($event.target as HTMLSelectElement).value as SeqPosition })"
-              >
-                <option v-for="o in SEQ_POSITION_OPTIONS" :key="o.value" :value="o.value">
-                  {{ o.label }}
-                </option>
-              </select>
-            </label>
-            <input
-              v-if="seqAtMode"
-              ref="seqAtInput"
-              class="md-input md-input--num md-input--at"
-              data-seq-at
-              type="number"
-              min="1"
-              max="200"
-              aria-label="插在第几个字符后"
-              :disabled="!seqOn"
-              :value="rule.rule.rule.seqAt"
-              @input="setNumber('seqAt', ($event.target as HTMLInputElement).value)"
-            />
-          </div>
-          <!-- 一句话把越界规则说在前面，省掉一次「为什么没生效」 -->
-          <p v-if="seqAtMode" class="md-hint md-rulepanel__span" data-seq-at-hint>
-            数字超出名字长度时，会自动放到末尾。
-          </p>
-
-          <!-- EL-121 编号类型。它是规则化模式**内部**的参数（与位置 / 起始同级），
-               不是第四种模式 —— 等到第 5 批把模式拆成五个，这个下拉照样待在这儿。 -->
-          <label class="md-rulepanel__picker">
-            <span>类型</span>
-            <select
-              class="md-select"
-              data-seq-kind
-              :disabled="!seqOn"
-              :value="rule.rule.rule.seqKind"
-              @change="onSeqKind"
-            >
-              <option v-for="o in SEQ_KIND_OPTIONS" :key="o.value" :value="o.value">
-                {{ o.label }}
-              </option>
-            </select>
-          </label>
-
-          <!-- EL-122 参数行：随类型切换。「位数」在三种类型下**不显示**（不是置灰）——
-               字母没有补零、随机字符的长度是另一个字段、时间的补零由样式决定；
-               摆一个填了也没用的框，只会让人怀疑自己填错了。 -->
-          <div class="md-rulepanel__nums" data-seq-params>
-            <template v-if="seqKind === 'number' || seqKind === 'letter'">
-              <label class="md-rulepanel__numitem">
-                <span>起始</span>
-                <input
-                  class="md-input md-input--num"
-                  data-seq-start
-                  type="number"
-                  min="0"
-                  :disabled="!seqOn"
-                  :value="rule.rule.rule.seqStart"
-                  @input="setNumber('seqStart', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-              <label class="md-rulepanel__numitem">
-                <span>增量</span>
-                <input
-                  class="md-input md-input--num"
-                  data-seq-step
-                  type="number"
-                  min="1"
-                  :disabled="!seqOn"
-                  :value="rule.rule.rule.seqStep"
-                  @input="setNumber('seqStep', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-            </template>
-
-            <label v-if="seqKind === 'number'" class="md-rulepanel__numitem">
-              <span>位数</span>
-              <input
-                class="md-input md-input--num"
-                data-seq-pad
-                type="number"
-                min="0"
-                max="6"
-                :disabled="!seqOn"
-                :value="rule.rule.rule.seqPad"
-                @input="setNumber('seqPad', ($event.target as HTMLInputElement).value)"
-              />
-            </label>
-
-            <template v-if="seqKind === 'random'">
-              <label class="md-rulepanel__numitem">
-                <span>长度</span>
-                <input
-                  class="md-input md-input--num"
-                  data-seq-len
-                  type="number"
-                  min="1"
-                  max="16"
-                  :disabled="!seqOn"
-                  :value="rule.rule.rule.seqRandomLen"
-                  @input="setNumber('seqRandomLen', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-              <button
-                type="button"
-                class="md-seqbtn"
-                data-seq-reroll
-                :disabled="!seqOn"
-                @click="onReroll"
-              >
-                换一批
-              </button>
-            </template>
-
-            <template v-if="seqKind === 'time'">
-              <label class="md-rulepanel__numitem">
-                <span>起点</span>
-                <input
-                  class="md-input md-input--date"
-                  data-seq-timestart
-                  type="date"
-                  :disabled="!seqOn"
-                  :value="rule.rule.rule.seqTimeStart"
-                  @input="onSeqTimeStart"
-                />
-              </label>
-              <label class="md-rulepanel__picker">
-                <span>样式</span>
-                <select
-                  class="md-select"
-                  data-seq-timeformat
-                  :disabled="!seqOn"
-                  :value="rule.rule.rule.seqTimeFormat"
-                  @change="rule.patchInner({ seqTimeFormat: ($event.target as HTMLSelectElement).value as DateFormat })"
-                >
-                  <option v-for="o in DATE_FORMAT_OPTIONS" :key="o.value" :value="o.value">
-                    {{ o.label }}
-                  </option>
-                </select>
-              </label>
-              <label class="md-rulepanel__numitem">
-                <span>增量（天）</span>
-                <input
-                  class="md-input md-input--num"
-                  data-seq-daystep
-                  type="number"
-                  min="1"
-                  :disabled="!seqOn"
-                  :value="rule.rule.rule.seqStep"
-                  @input="setNumber('seqStep', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-            </template>
-          </div>
-
-          <!-- EL-124 示例行。未勾「启用序号」时整块不显示（没启用就没什么可示例的）-->
-          <div v-if="seqOn" class="md-rulepanel__demo" data-seq-demo>
-            <p class="md-rulepanel__demotitle">
-              示例（拿「{{ DEMO_SEQ_STEM }}」这个名字试的，不是你列表里的文件）
-            </p>
-            <p class="md-rulepanel__demoline">
-              <template v-for="(name, i) in demoSeqNames" :key="i">
-                <span v-if="i > 0" class="md-rulepanel__demodot" aria-hidden="true">·</span>
-                <code class="md-rulepanel__demonew">{{ name }}</code>
-              </template>
-            </p>
-          </div>
-        </div>
-
-        <div class="md-rulepanel__group">
-          <label class="md-check">
-            <input
-              type="checkbox"
-              :checked="rule.rule.rule.dateEnabled"
-              @change="rule.patchInner({ dateEnabled: ($event.target as HTMLInputElement).checked })"
-            />
-            <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
-            <span class="md-check__label">启用日期（取执行当天）</span>
-          </label>
-
-          <label class="md-rulepanel__picker">
-            <span>日期格式</span>
-            <select
-              class="md-select"
-              data-date-format
-              :disabled="!rule.rule.rule.dateEnabled"
-              :value="rule.rule.rule.dateFormat"
-              @change="rule.patchInner({ dateFormat: ($event.target as HTMLSelectElement).value as DateFormat })"
-            >
-              <option v-for="o in DATE_FORMAT_OPTIONS" :key="o.value" :value="o.value">
-                {{ o.label }}
-              </option>
-            </select>
-          </label>
-        </div>
-
-        <!-- P3-1 §6 跨天提示。做成常显：「启用日期」取的是**执行当天**，
-             23:58 预览、00:01 执行就会差一天；好在主进程有挡板（`date` 必须
-             等于本机今天），跨过零点后会要求重新预览。这条行为此前只活在主进程的
-             一行校验里，文档与界面都没有 —— 现在把它显式讲出来。 -->
-        <p class="md-hint md-rulepanel__span" data-date-hint>
-          日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。
-        </p>
-
-        <!-- ── 属性组（EL-130 / EL-131 · P3-3）─────────────────────────
-             三个属性变量是**规则化模式里的变量**，不是第四种模式
-             （与 P3-1 把编号类型放进序号组同一个判断）。
-             ★ 它们**没有启用开关** —— 属性只有「用户写了才出现」，
-               不像序号 / 日期那样还有一个自动位置。加一个勾只会让人
-               以为「勾上就会自动加进名字」（设计 §1.2 / §5.①）。 -->
-        <div class="md-rulepanel__group">
-          <div class="md-attr__vars">
-            <span class="md-attr__label">属性</span>
-            <div class="md-attr__list">
-              <button
-                v-for="v in ATTR_VARS"
-                :key="v.token"
-                type="button"
-                class="md-attr__var"
-                :data-attr-insert="v.token"
-                @click="insertVar(v.token)"
-              >
-                <span>{{ v.label }}</span>
-                <code class="md-attr__token">{{ v.token }}</code>
-              </button>
-            </div>
-          </div>
-
-          <!-- 常显说明：日期格式两处共用一份
-               —— 不写的话，用户不启用日期就找不到那个下拉 -->
-          <p class="md-hint md-rulepanel__span">
-            注：创建 / 修改日期用的是上面「日期格式」那一档 —— 改那里，三处一起变。
-          </p>
-
-          <label class="md-rulepanel__picker">
-            <span>大小</span>
-            <select
-              class="md-select"
-              data-size-unit
-              :value="rule.rule.rule.sizeUnit"
-              @change="rule.patchInner({ sizeUnit: ($event.target as HTMLSelectElement).value as SizeUnit })"
-            >
-              <option v-for="o in SIZE_UNIT_OPTIONS" :key="o.value" :value="o.value">
-                {{ o.label }}
-              </option>
-            </select>
-          </label>
-
-          <p class="md-hint md-rulepanel__span" data-attr-demo>
-            示例（假的文件名 + 假的属性值，不是你列表里的文件）：{{ attrDemo }}
-          </p>
-
-          <p class="md-hint md-rulepanel__span">
-            属性是你把文件拖进来那一刻读的，之后不再刷新。
-          </p>
-
-          <!-- ★ P3-6 §2.3：只填 {文件夹} 会撞名 —— 说在前面，
-               省得用户看到「一半标红」以为软件坏了（其实那是既有的冲突保护）。 -->
-          <p class="md-hint md-rulepanel__span" data-folder-hint>
-            只填 <code>{文件夹}</code> 的话，同一个文件夹里的同类文件会重名 —— 建议配上
-            <code>{n}</code> 序号。
-          </p>
-        </div>
-
-        <label class="md-check md-rulepanel__span">
-          <input
-            type="checkbox"
-            :checked="rule.rule.rule.keepOriginal"
-            @change="rule.patchInner({ keepOriginal: ($event.target as HTMLInputElement).checked })"
-          />
-          <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
-          <span class="md-check__label">保留原文件名（取消则丢弃原主体）</span>
-        </label>
-
-        <p v-if="needsDateHint" class="md-hint md-rulepanel__warn">
-          名称里用了 <code>{d}</code>，但「启用日期」没勾 —— 日期会展开成空
-        </p>
-        <p v-if="needsSeqHint" class="md-hint md-rulepanel__warn">
-          名称里用了 <code>{n}</code>，但「启用序号」没勾 —— 序号会展开成空
-        </p>
-      </template>
-
-      <!-- ── EL-138 扩展名小组（P3-5）────────────────────────────────────
-           ★ 放在「进阶设置」折叠区**外面**：它虽然默认关，但要能被看见 ——
-           藏进折叠区就等于没有（P2-C 的教训：有开关没入口 = 等于没有，设计 §2.3 / §5.②）。
-           ★ 它不是第六个模式，而是与「大小写转换」同级的「结果处理」（设计 §1.6）。 -->
-      <div class="md-rulepanel__group" data-ext-group>
-        <label class="md-check">
-          <input type="checkbox" data-ext-toggle :checked="extOn" @change="onExtToggle" />
-          <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
-          <span class="md-check__label">改扩展名</span>
-        </label>
-        <div v-if="extOn" class="md-rulepanel__seqline">
-          <select class="md-select" data-ext-mode :value="rule.rule.extMode" @change="onExtMode">
-            <option v-for="o in EXT_MODE_OPTIONS" :key="o.value" :value="o.value">
-              {{ o.label }}
-            </option>
-          </select>
-          <input
-            v-if="extNeedsValue"
-            class="md-input md-input--ext"
-            data-ext-value
-            placeholder="如 pdf"
-            :value="rule.rule.extValue"
-            @input="rule.patch({ extValue: ($event.target as HTMLInputElement).value })"
-          />
-        </div>
-        <p class="md-hint md-rulepanel__span" data-ext-hint>
-          与「全部小写」互不影响：扩展名按你写的样子来（写 <code>PDF</code> 就是 <code>.PDF</code>）。
-        </p>
+    <!-- ★ P3-10（照设计稿 C 浅色版）：页签**不再占满一整行** ——
+         改成一行里「Rule / 规则 标签在左 · 五个页签在右」，与设计稿 `.pe__r` 一致。 -->
+    <div class="md-tabsrow">
+      <span class="md-tabsrow__label">Rule<span class="md-tabsrow__sep">/</span>规则</span>
+      <div class="md-tabs" role="tablist">
+        <button
+          v-for="t in TABS"
+          :key="t.mode"
+          class="md-tab"
+          :class="{ 'md-tab--active': rule.activeMode === t.mode }"
+          role="tab"
+          :aria-selected="rule.activeMode === t.mode"
+          @click="rule.setMode(t.mode)"
+        >
+          {{ t.label }}
+        </button>
       </div>
-
-      <!-- EL-044 区分大小写：只在删除 / 替换模式出现（正面判断，P3-5 修）-->
-      <label v-if="isMatchMode" class="md-check md-rulepanel__span">
-        <input
-          type="checkbox"
-          :checked="rule.rule.caseSensitive"
-          @change="rule.patch({ caseSensitive: ($event.target as HTMLInputElement).checked })"
-        />
-        <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
-        <span class="md-check__label">区分大小写</span>
-      </label>
     </div>
 
-    <!-- EL-056 进阶设置折叠条（默认折起；有启用项时高亮 + 徽标）-->
-    <div v-if="showAdvanced" class="md-adv">
-      <button
-        type="button"
-        class="md-adv__bar"
-        :class="{ 'md-adv__bar--on': advancedCount > 0 }"
-        :aria-expanded="advancedOpen"
-        @click="advancedOpen = !advancedOpen"
-      >
-        <MdIcon name="gear" :size="14" />
-        <span class="md-adv__title">进阶设置</span>
-        <span class="md-adv__right">
-          <span v-if="advancedCount > 0" class="md-adv__badge">已启用 {{ advancedCount }} 项</span>
-          <span class="md-adv__caret" :class="{ 'md-adv__caret--open': advancedOpen }" aria-hidden="true" />
-        </span>
-      </button>
+    <!-- ── P3-9 · EL-156 规则「一句话」────────────────────────────────────
+         照 C 方案：把「这条规则到底在干什么」用一句人话摆在参数上面。
+         为什么值得加：这一区有 5 个模式、几十个参数，改完一圈数字之后其实很难
+         一眼说清「所以我到底在改什么」；这句话就是那个答案，而且它与写进
+         `history.json` 的那句是**同一个函数**生成的（不可能漂移）。
 
-      <div v-if="advancedOpen" class="md-adv__body">
+         ⚠️ 它**只显示，不折叠任何东西** —— 参数全在下面照旧可改。
+         本批刻意**没做**「点『更多规则』才展开参数」：那会让整块控件在默认状态下
+         不可见，把几百条既有冒烟断言里「点得到参数」的前提全部推翻，而收益
+         只是少几行滚动。折叠这件事，本软件已有「⚙ 进阶设置」在承担。 -->
+    <p class="md-sentence" data-rule-sentence>
+      <span class="md-sentence__label">规则</span>
+      <span class="md-sentence__text">{{ sentence }}</span>
+    </p>
+
+    <!-- ★ P3-10（照设计稿 C 浅色版）：进阶设置不再「就地展开把参数往下顶」，
+         改成**弹窗**。入口是规则块右下角一行小字链接（见下方 `md-rulefoot__adv`）。
+         ★ 内容标记与逻辑**原地不动** —— 只把外层从折叠条换成 AppModal。
+         这样迁移风险最低，既有冒烟断言里的 data-* 锚点一个都没动。 -->
+    <AppModal v-if="advancedOpen" title="进阶设置" :width="560" @close="advancedOpen = false">
+      <div class="md-adv__body">
         <!-- EL-057 正则匹配开关：仅删除 / 替换模式出现 -->
         <template v-if="isMatchMode">
           <!-- 「?」按钮必须待在 <label> **外面** —— 塞进 label 里点它会连带勾选复选框 -->
@@ -931,7 +481,7 @@ function onExtMode(e: Event): void {
         </template>
 
         <!-- EL-059 大小写转换：三种模式都出现 -->
-        <label class="md-rulepanel__picker md-adv__case">
+        <label class="md-adv__case">
           <span>大小写</span>
           <select
             class="md-select"
@@ -944,7 +494,7 @@ function onExtMode(e: Event): void {
           </select>
         </label>
       </div>
-    </div>
+    </AppModal>
 
     <!-- EL-055 自动处理重名冲突（DEC-05：默认未勾选）-->
     <footer class="md-rulepanel__foot">
@@ -960,7 +510,492 @@ function onExtMode(e: Event): void {
       <p class="md-hint">
         关闭时冲突项会被跳过。无论开关如何，都「不会覆盖」任何已有文件。当前规则：{{ rule.summary }}
       </p>
+
+      <!-- ★ P3-10（照设计稿 C 的 `.pe__f`）：左下说明 + **右下角一行小字链接**。
+           进阶设置从这里进 —— 弹窗承载，不再就地展开把上面的参数顶下去。 -->
+      <div v-if="showAdvanced" class="md-rulefoot__row">
+        <span class="md-rulefoot__note">改动唯一真源就是这一句 · 改一个字下面那张表立刻重算</span>
+        <button type="button" class="md-rulefoot__adv" data-adv-open @click="advancedOpen = true">
+          <span v-if="advancedCount > 0" class="md-rulefoot__badge">已启用 {{ advancedCount }} 项</span>
+          进阶设置 · 正则 / 大小写<span class="md-rulefoot__caret" aria-hidden="true">›</span>
+        </button>
+      </div>
     </footer>
+  </section>
+
+  <!-- ★ C 方案施工单（2026-09-27）：G 控件块 —— 只放「怎么操作」，自己滚。
+       五个模式都在（参数段按页签换内容 + 改扩展名 + 区分大小写）；
+       「序号 / 示例·日期 / 属性·变量」只有自定义模式有（切走时这部分塌陷，
+       下面的块上移 —— 预期行为，不会留下空洞错位）。
+       顺序定死：参数 → 改扩展名 → 区分大小写 → 序号 → 示例·日期 → 属性·变量。 -->
+  <section class="md-numbering md-card" data-numbering>
+    <!-- ① 当前模式的参数（标签一行、控件一行；输入框高 34 / 圆角 6）-->
+    <div class="md-gparams">
+      <!-- ── 删除模式 ── -->
+      <template v-if="rule.rule.mode === 'delete'">
+        <label class="md-glabel" for="md-g-del-text">待删字符串</label>
+        <input
+          id="md-g-del-text"
+          class="md-input md-ginput"
+          :class="{ 'md-input--mono': regexOn, 'md-input--error': !!rule.regexError }"
+          placeholder="例如：【某某公众号】"
+          :value="rule.rule.delete.text"
+          @input="rule.patch({ delete: { text: ($event.target as HTMLInputElement).value } })"
+        />
+        <p v-if="rule.regexError" class="md-hint md-gerr">{{ rule.regexError }}</p>
+      </template>
+
+      <!-- ── 替换模式 ── -->
+      <template v-else-if="rule.rule.mode === 'replace'">
+        <label class="md-glabel" for="md-g-rep-find">查找</label>
+        <input
+          id="md-g-rep-find"
+          class="md-input md-ginput"
+          :class="{ 'md-input--mono': regexOn, 'md-input--error': !!rule.regexError }"
+          placeholder="例如：最终版"
+          :value="rule.rule.replace.find"
+          @input="rule.patch({ replace: { find: ($event.target as HTMLInputElement).value } })"
+        />
+        <p v-if="rule.regexError" class="md-hint md-gerr">{{ rule.regexError }}</p>
+        <label class="md-glabel" for="md-g-rep-to">替换为</label>
+        <input
+          id="md-g-rep-to"
+          class="md-input md-ginput"
+          :class="{ 'md-input--mono': regexOn }"
+          placeholder="留空 = 删除"
+          :value="rule.rule.replace.to"
+          @input="rule.patch({ replace: { to: ($event.target as HTMLInputElement).value } })"
+        />
+      </template>
+
+      <!-- ── 插入模式（P3-5 · EL-136）────────────────────────────────── -->
+      <template v-else-if="isInsertMode">
+        <div class="md-ggroup" data-insert-group>
+          <div class="md-grow">
+            <label class="md-grow__l" for="md-g-insert-at">位置</label>
+            <input
+              id="md-g-insert-at"
+              class="md-input md-input--num md-input--at"
+              data-insert-at
+              type="number"
+              min="0"
+              aria-label="插在第几个字符后"
+              :value="rule.rule.insert.at"
+              @input="setInsertAt"
+            />
+            <input
+              class="md-input md-ginput"
+              data-insert-text
+              placeholder="插入内容，如 2026"
+              :value="rule.rule.insert.text"
+              @input="rule.patch({ insert: { text: ($event.target as HTMLInputElement).value } })"
+            />
+          </div>
+          <p class="md-hint">
+            数字超出名字长度时会自动放到末尾；填 0 等于加在最前面。插入的文字里<b>不认识变量</b>（<code>{n}</code>、<code>{d}</code> 会原样插进去）。
+          </p>
+          <!-- EL-136 示例行：走 applyInsert —— 与真正改名、与预览 Worker 同一个函数 -->
+          <p class="md-hint" data-insert-demo>
+            示例（拿「{{ INSERT_DEMO_STEM }}」这个名字试的，不是你列表里的文件）：
+            {{ INSERT_DEMO_STEM }} → {{ insertDemo }}
+          </p>
+        </div>
+      </template>
+
+      <!-- ── 导入模式（P3-5 · EL-137）：入口 + 状态 ── -->
+      <template v-else-if="isImportMode">
+        <div class="md-ggroup" data-import-group>
+          <p class="md-hint">名字由表格决定，规则引擎不参与。</p>
+          <button
+            type="button"
+            class="md-btn md-btn--secondary md-gimportbtn"
+            data-import-pick
+            @click="files.pickTable()"
+          >
+            {{ files.overrideCount > 0 ? '重新选表格' : '选表格并导入…' }}
+          </button>
+          <template v-if="files.overrideCount > 0">
+            <p class="md-hint" data-import-status>
+              已导入「{{ files.overrideSource }}」：{{ files.overrideCount }} 个文件有名字
+            </p>
+            <p
+              v-if="files.importOutsideIds.size > 0"
+              class="md-hint"
+              data-import-outside-note
+            >
+              另外 {{ files.importOutsideIds.size }} 个文件表里没有 —— 它们保持原名不动
+            </p>
+          </template>
+          <p v-else class="md-hint" data-import-empty>
+            导入模式：还没选表格 —— 这一步每一项都不会改名。
+          </p>
+        </div>
+      </template>
+
+      <!-- ── 自定义模式（= 代码里的 rule）：前缀 / 后缀 / 变量提示 ── -->
+      <template v-else-if="isRuleMode">
+        <label class="md-glabel" for="md-g-prefix">前缀</label>
+        <input
+          id="md-g-prefix"
+          class="md-input md-ginput"
+          placeholder="如 {d}-发票-"
+          :value="rule.rule.rule.prefix"
+          @input="rule.patchInner({ prefix: ($event.target as HTMLInputElement).value })"
+        />
+        <label class="md-glabel" for="md-g-suffix">后缀</label>
+        <input
+          id="md-g-suffix"
+          class="md-input md-ginput"
+          placeholder="加在扩展名之前"
+          :value="rule.rule.rule.suffix"
+          @input="rule.patchInner({ suffix: ($event.target as HTMLInputElement).value })"
+        />
+        <!-- ★ 由 ATTR_VARS 生成（P3-6 的教训：手写这行，加了变量必忘改提示）-->
+        <p class="md-hint md-gvarhint" data-var-hint>
+          支持变量 <code>{n}</code> 序号、<code>{d}</code> 日期（<b>需先勾选下方对应开关</b>）<template
+            v-for="v in ATTR_VARS"
+            :key="v.token"
+          >、<code>{{ v.token }}</code> {{ v.label }}</template>（<b>写上就生效，不用开关</b>）
+        </p>
+      </template>
+    </div>
+
+    <!-- ② 改扩展名：常显的勾（不进任何折叠），勾上后就地长出一行 -->
+    <div class="md-ggroup md-ggroup--tight" data-ext-group>
+      <label class="md-check">
+        <input type="checkbox" data-ext-toggle :checked="extOn" @change="onExtToggle" />
+        <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
+        <span class="md-check__label">改扩展名</span>
+      </label>
+      <div v-if="extOn" class="md-grow">
+        <select class="md-select md-gsel" data-ext-mode :value="rule.rule.extMode" @change="onExtMode">
+          <option v-for="o in EXT_MODE_OPTIONS" :key="o.value" :value="o.value">
+            {{ o.label }}
+          </option>
+        </select>
+        <input
+          v-if="extNeedsValue"
+          class="md-input md-ginput md-input--ext"
+          data-ext-value
+          placeholder="如 pdf"
+          :value="rule.rule.extValue"
+          @input="rule.patch({ extValue: ($event.target as HTMLInputElement).value })"
+        />
+      </div>
+      <p class="md-hint" data-ext-hint>
+        与「全部小写」互不影响：扩展名按你写的样子来（写 <code>PDF</code> 就是 <code>.PDF</code>）。
+      </p>
+    </div>
+
+    <!-- ③ 区分大小写：紧接扩展名之后；仅删除 / 替换模式出现（正面判断）-->
+    <label v-if="isMatchMode" class="md-check">
+      <input
+        type="checkbox"
+        :checked="rule.rule.caseSensitive"
+        @change="rule.patch({ caseSensitive: ($event.target as HTMLInputElement).checked })"
+      />
+      <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
+      <span class="md-check__label">区分大小写</span>
+    </label>
+
+    <!-- ④~⑧ 自定义专属：序号 → 示例·日期 → 属性·变量 -->
+    <template v-if="isRuleMode">
+      <!-- ④ 组标题「序号」+ 一根 flex:1 的发丝线（分组用发丝线，不用空白块）-->
+      <div class="md-gsec"><span class="md-gsec__t">序号</span></div>
+
+      <!-- ⑤ 行标签固定 38px；开关 40×23；开关后面接占满剩余宽的下拉（位置）-->
+      <div class="md-grow">
+        <span class="md-grow__l">启用</span>
+        <label class="md-switch md-switch--sm">
+          <input
+            type="checkbox"
+            :checked="rule.rule.rule.seqEnabled"
+            @change="rule.patchInner({ seqEnabled: ($event.target as HTMLInputElement).checked })"
+          />
+          <span class="md-switch__track"><span class="md-switch__thumb" /></span>
+        </label>
+        <select
+          class="md-select md-gsel"
+          data-seq-position
+          :disabled="!seqOn"
+          :value="rule.rule.rule.seqPosition"
+          @change="rule.patchInner({ seqPosition: ($event.target as HTMLSelectElement).value as SeqPosition })"
+        >
+          <option v-for="o in SEQ_POSITION_OPTIONS" :key="o.value" :value="o.value">
+            {{ o.label }}
+          </option>
+        </select>
+        <!-- 「位置」选第三档时就地长出数字框，不另开一行 -->
+        <input
+          v-if="seqAtMode"
+          ref="seqAtInput"
+          class="md-input md-input--num md-input--at"
+          data-seq-at
+          type="number"
+          min="1"
+          max="200"
+          aria-label="插在第几个字符后"
+          :disabled="!seqOn"
+          :value="rule.rule.rule.seqAt"
+          @input="setNumber('seqAt', ($event.target as HTMLInputElement).value)"
+        />
+      </div>
+      <p v-if="seqAtMode" class="md-hint" data-seq-at-hint>
+        数字超出名字长度时，会自动放到末尾。
+      </p>
+
+      <div class="md-grow">
+        <span class="md-grow__l">类型</span>
+        <select
+          class="md-select md-gsel"
+          data-seq-kind
+          :disabled="!seqOn"
+          :value="rule.rule.rule.seqKind"
+          @change="onSeqKind"
+        >
+          <option v-for="o in SEQ_KIND_OPTIONS" :key="o.value" :value="o.value">
+            {{ o.label }}
+          </option>
+        </select>
+      </div>
+
+      <!-- ⑥ 数字框同一行并排（56px / 高34 / 居中 / 等宽），行尾跟小字说明 -->
+      <div class="md-grow" data-seq-params>
+        <template v-if="seqKind === 'number' || seqKind === 'letter'">
+          <input
+            class="md-input md-gnum"
+            data-seq-start
+            type="number"
+            min="0"
+            aria-label="起始"
+            :disabled="!seqOn"
+            :value="rule.rule.rule.seqStart"
+            @input="setNumber('seqStart', ($event.target as HTMLInputElement).value)"
+          />
+          <input
+            class="md-input md-gnum"
+            data-seq-step
+            type="number"
+            min="1"
+            aria-label="增量"
+            :disabled="!seqOn"
+            :value="rule.rule.rule.seqStep"
+            @input="setNumber('seqStep', ($event.target as HTMLInputElement).value)"
+          />
+        </template>
+        <input
+          v-if="seqKind === 'number'"
+          class="md-input md-gnum"
+          data-seq-pad
+          type="number"
+          min="0"
+          max="6"
+          aria-label="位数"
+          :disabled="!seqOn"
+          :value="rule.rule.rule.seqPad"
+          @input="setNumber('seqPad', ($event.target as HTMLInputElement).value)"
+        />
+        <template v-if="seqKind === 'number' || seqKind === 'letter'">
+          <span class="md-grow__hint">{{ seqKind === 'number' ? '起始 / 增量 / 位数' : '起始 / 增量' }}</span>
+        </template>
+
+        <template v-if="seqKind === 'random'">
+          <input
+            class="md-input md-gnum"
+            data-seq-len
+            type="number"
+            min="1"
+            max="16"
+            aria-label="长度"
+            :disabled="!seqOn"
+            :value="rule.rule.rule.seqRandomLen"
+            @input="setNumber('seqRandomLen', ($event.target as HTMLInputElement).value)"
+          />
+          <span class="md-grow__hint">长度</span>
+          <button
+            type="button"
+            class="md-seqbtn"
+            data-seq-reroll
+            :disabled="!seqOn"
+            @click="onReroll"
+          >
+            换一批
+          </button>
+        </template>
+
+        <template v-if="seqKind === 'time'">
+          <input
+            class="md-input md-input--date"
+            data-seq-timestart
+            type="date"
+            aria-label="起点"
+            :disabled="!seqOn"
+            :value="rule.rule.rule.seqTimeStart"
+            @input="onSeqTimeStart"
+          />
+          <select
+            class="md-select md-gsel md-gsel--time"
+            data-seq-timeformat
+            :disabled="!seqOn"
+            :value="rule.rule.rule.seqTimeFormat"
+            @change="rule.patchInner({ seqTimeFormat: ($event.target as HTMLSelectElement).value as DateFormat })"
+          >
+            <option v-for="o in DATE_FORMAT_OPTIONS" :key="o.value" :value="o.value">
+              {{ o.label }}
+            </option>
+          </select>
+          <label class="md-grow__l md-grow__l--wide">增量（天）</label>
+          <input
+            class="md-input md-gnum"
+            data-seq-daystep
+            type="number"
+            min="1"
+            aria-label="增量（天）"
+            :disabled="!seqOn"
+            :value="rule.rule.rule.seqStep"
+            @input="setNumber('seqStep', ($event.target as HTMLInputElement).value)"
+          />
+        </template>
+      </div>
+
+      <!-- ⑦ 「示例 · 日期」折叠条（默认折起）—— 内容：示例行 / 日期组 / 跨天提示 -->
+      <div class="md-numadv">
+        <button
+          type="button"
+          class="md-numadv__bar"
+          :aria-expanded="numAdvOpen"
+          data-num-adv
+          @click="numAdvOpen = !numAdvOpen"
+        >
+          <span class="md-numadv__title">示例 · 日期</span>
+          <span class="md-numadv__caret" :class="{ 'md-numadv__caret--open': numAdvOpen }" aria-hidden="true"></span>
+        </button>
+
+        <div v-if="numAdvOpen">
+          <!-- EL-124 示例行。未勾「启用序号」时整块不显示 -->
+          <div v-if="seqOn" class="md-rulepanel__demo" data-seq-demo>
+            <p class="md-rulepanel__demotitle">
+              示例（拿「{{ DEMO_SEQ_STEM }}」这个名字试的，不是你列表里的文件）
+            </p>
+            <p class="md-rulepanel__demoline">
+              <template v-for="(name, i) in demoSeqNames" :key="i">
+                <span v-if="i > 0" class="md-rulepanel__demodot" aria-hidden="true">·</span>
+                <code class="md-rulepanel__demonew">{{ name }}</code>
+              </template>
+            </p>
+          </div>
+
+          <div class="md-ggroup md-ggroup--tight">
+            <label class="md-check">
+              <input
+                type="checkbox"
+                :checked="rule.rule.rule.dateEnabled"
+                @change="rule.patchInner({ dateEnabled: ($event.target as HTMLInputElement).checked })"
+              />
+              <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
+              <span class="md-check__label">启用日期（取执行当天）</span>
+            </label>
+
+            <label class="md-grow">
+              <span class="md-grow__l">格式</span>
+              <select
+                class="md-select md-gsel"
+                data-date-format
+                :disabled="!rule.rule.rule.dateEnabled"
+                :value="rule.rule.rule.dateFormat"
+                @change="rule.patchInner({ dateFormat: ($event.target as HTMLSelectElement).value as DateFormat })"
+              >
+                <option v-for="o in DATE_FORMAT_OPTIONS" :key="o.value" :value="o.value">
+                  {{ o.label }}
+                </option>
+              </select>
+            </label>
+          </div>
+
+          <!-- P3-1 §6 跨天提示（常显在折叠条内部）-->
+          <p class="md-hint" data-date-hint>
+            日期取的是你点「开始改名」那天；如果中途跨过了零点，需要重新预览一次。
+          </p>
+        </div>
+      </div>
+
+      <!-- ⑧ 「属性 · 变量」折叠条（★ 新增，原常显；默认折起，高30/圆角6/描边）-->
+      <div class="md-attradv">
+        <button
+          type="button"
+          class="md-attradv__bar"
+          :aria-expanded="attrAdvOpen"
+          data-attr-adv
+          @click="attrAdvOpen = !attrAdvOpen"
+        >
+          <span class="md-attradv__title">属性 · 变量</span>
+          <span class="md-attradv__caret" :class="{ 'md-attradv__caret--open': attrAdvOpen }" aria-hidden="true"></span>
+        </button>
+
+        <div v-if="attrAdvOpen" class="md-attradv__body">
+          <!-- 变量 chip ×4：点一下追加到前缀末尾（IX-112）-->
+          <div class="md-attr__list">
+            <button
+              v-for="v in ATTR_VARS"
+              :key="v.token"
+              type="button"
+              class="md-attr__var"
+              :data-attr-insert="v.token"
+              @click="insertVar(v.token)"
+            >
+              <span>{{ v.label }}</span>
+              <code class="md-attr__token">{{ v.token }}</code>
+            </button>
+          </div>
+
+          <label class="md-grow">
+            <span class="md-grow__l">大小</span>
+            <select
+              class="md-select md-gsel"
+              data-size-unit
+              :value="rule.rule.rule.sizeUnit"
+              @change="rule.patchInner({ sizeUnit: ($event.target as HTMLSelectElement).value as SizeUnit })"
+            >
+              <option v-for="o in SIZE_UNIT_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
+            </select>
+          </label>
+
+          <p class="md-hint" data-attr-demo>
+            示例（假的文件名 + 假的属性值，不是你列表里的文件）：{{ attrDemo }}
+          </p>
+
+          <p class="md-hint">
+            注：创建 / 修改日期用的是上面「示例 · 日期」里的「日期格式」—— 改那里，三处一起变。
+            属性是你把文件拖进来那一刻读的，之后不再刷新。
+          </p>
+
+          <!-- ★ P3-6 §2.3：只填 {文件夹} 会撞名 —— 说在前面 -->
+          <p class="md-hint" data-folder-hint>
+            只填 <code>{文件夹}</code> 的话，同一个文件夹里的同类文件会重名 —— 建议配上
+            <code>{n}</code> 序号。
+          </p>
+        </div>
+      </div>
+
+      <label class="md-check">
+        <input
+          type="checkbox"
+          :checked="rule.rule.rule.keepOriginal"
+          @change="rule.patchInner({ keepOriginal: ($event.target as HTMLInputElement).checked })"
+        />
+        <span class="md-check__box"><MdIcon name="check" :size="11" /></span>
+        <span class="md-check__label">保留原文件名（取消则丢弃原主体）</span>
+      </label>
+
+      <p v-if="needsDateHint" class="md-hint md-gwarn">
+        名称里用了 <code>{d}</code>，但「启用日期」没勾 —— 日期会展开成空
+      </p>
+      <p v-if="needsSeqHint" class="md-hint md-gwarn">
+        名称里用了 <code>{n}</code>，但「启用序号」没勾 —— 序号会展开成空
+      </p>
+    </template>
   </section>
 </template>
 
@@ -973,9 +1008,177 @@ function onExtMode(e: Event): void {
   display: flex;
   flex-direction: column;
   gap: var(--md-space-3);
-  /* ★ 按内容完整展开，**自己不做滚动**（滚动交给外层 .md-main__right-body 整块滚）。
-     规则化模式内容再长也只是把整块工作区撑高，不去压缩列表、也不出现嵌套滚动条。 */
+  /* ★ P3-10：本块**自己不做滚动**，滚动交给外层 `.md-main` 整块滚
+     （产品负责人拍板：高度按真实内容给足，超出就整体滚，不要嵌套滚动条）。 */
   flex: 0 0 auto;
+}
+
+/* ★ P3-10：序号 + 属性 —— 本组件的**第二个根节点**，落在设计稿 C 的 `.pg` 格子
+   （文件列表右侧、开始改名上方）。外壳与规则块同源（`md-card` 给底色/圆角/阴影），
+   这里只补内边距与纵向间距。 */
+.md-numbering {
+  padding: var(--md-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* ── ★ P3-10：页签行（照设计稿 C 的 `.pe__r`）────────────────────────
+   一行里「Rule / 规则 标签在左 · 五个页签在右」。下面是 RulePanel 内的
+   scoped 覆盖 —— 不动 base.css 的全局实现，免得改到别的弹窗。 */
+.md-tabsrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--md-space-3);
+  min-width: 0;
+}
+
+.md-tabsrow__label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--md-ink-4);
+  white-space: nowrap;
+}
+
+.md-tabsrow__sep {
+  margin: 0 6px;
+  color: var(--md-line-strong);
+}
+
+/* 从「占满整行的分段控件」改成「一排独立小胶囊」 */
+.md-tabs {
+  gap: 6px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.md-tab {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 13px;
+  border: 1px solid var(--md-line-strong);
+  border-radius: 99px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--md-ink-3);
+  /* 明确列属性，不用 transition: all */
+  transition:
+    background-color var(--md-dur-hover) ease,
+    border-color var(--md-dur-hover) ease,
+    color var(--md-dur-hover) ease;
+}
+
+.md-tab:hover {
+  border-color: var(--md-orange-primary);
+  color: var(--md-ink-1);
+}
+
+.md-tab--active {
+  background: var(--md-orange-primary);
+  border-color: var(--md-orange-primary);
+  color: var(--md-on-brand);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+/* ── ★ P3-10：左下说明 + 右下角「进阶设置」入口（照设计稿 `.pe__f`）── */
+.md-rulefoot__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--md-space-3);
+  margin-top: var(--md-space-2);
+  min-width: 0;
+}
+
+.md-rulefoot__note {
+  font-size: 11px;
+  color: var(--md-ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.md-rulefoot__adv {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--md-ink-3);
+  cursor: pointer;
+  transition: color var(--md-dur-hover) ease;
+}
+
+.md-rulefoot__adv:hover {
+  color: var(--md-orange-dark);
+}
+
+.md-rulefoot__badge {
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--md-orange-primary);
+  color: var(--md-on-brand);
+  font-size: 10px;
+}
+
+/* ★ P3-10：「示例 · 日期」折叠条（默认折起）。
+   样式比规则块那条 `.md-adv` 更轻 —— 它是次要折叠，不该抢「启用序号」的注意力。 */
+.md-numadv {
+  border-top: 1px solid var(--md-line-strong);
+  padding-top: var(--md-space-2);
+}
+
+.md-numadv__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--md-space-2);
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--md-ink-3);
+}
+
+.md-numadv__title {
+  flex: 1 1 auto;
+}
+
+.md-numadv__caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid currentColor;
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  transition: transform var(--md-dur-hover) ease;
+}
+
+.md-numadv__caret--open {
+  transform: rotate(90deg);
+}
+
+/* 展开后内部各块之间补回被折叠吃掉的间距 */
+.md-numadv > div > .md-ggroup,
+.md-numadv > div > .md-rulepanel__demo,
+.md-numadv > div > .md-hint {
+  margin-top: var(--md-space-3);
 }
 
 /* ── P2-B · EL-120 常用规则条 ────────────────────────────────────────
@@ -1026,63 +1229,6 @@ function onExtMode(e: Event): void {
   background: var(--md-orange-primary);
   color: var(--md-on-brand);
   box-shadow: var(--md-shadow-btn-hover);
-}
-
-.md-rulepanel__form {
-  display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--md-space-2);
-}
-
-.md-rulepanel__label {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--md-ink-2);
-}
-
-.md-rulepanel__span {
-  grid-column: 1 / -1;
-}
-
-.md-rulepanel__varhint,
-.md-rulepanel__warn {
-  grid-column: 1 / -1;
-  margin: 0;
-}
-
-.md-rulepanel__warn {
-  color: var(--md-warn);
-}
-
-/* 正则非法：红字原因（设计 §3.3）—— 与红描边同为「冲突 / 失败」语义色 #E5544B */
-.md-rulepanel__regerr {
-  color: var(--md-bad);
-}
-
-.md-rulepanel__group {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--md-space-2);
-  padding: var(--md-space-2);
-  border-radius: var(--md-radius-input);
-  background: var(--md-bg-warm);
-}
-
-.md-rulepanel__nums {
-  display: flex;
-  gap: var(--md-space-3);
-  flex-wrap: wrap;
-}
-
-.md-rulepanel__numitem,
-.md-rulepanel__picker {
-  display: flex;
-  align-items: center;
-  gap: var(--md-space-2);
-  font-size: 12.5px;
-  color: var(--md-ink-2);
 }
 
 .md-rulepanel__foot {
@@ -1297,6 +1443,12 @@ code {
 
 .md-adv__case {
   margin-top: var(--md-space-1);
+  /* 原 .md-rulepanel__picker 的排布职责并进来（参数区搬去 G 格后该类已删）*/
+  display: flex;
+  align-items: center;
+  gap: var(--md-space-2);
+  font-size: 12.5px;
+  color: var(--md-ink-2);
 }
 
 /* 正则开启：输入框切等宽（技术信息字体）*/
@@ -1317,14 +1469,6 @@ code {
 /* ══ P3-1 · 序号组的新控件（设计 §7.4）═════════════════════════════════
    规格要点：**零新增令牌、零新增色值** —— 下面全部复用既有令牌，
    所以 `tokens.css` 的深色块里一个值都不用补（也就不会漏补）。 */
-
-/* 「位置」与第三档的内联数字框同一行 —— 选中第三档时就地长出来，不另开一行 */
-.md-rulepanel__seqline {
-  display: flex;
-  align-items: center;
-  gap: var(--md-space-2);
-  flex-wrap: wrap;
-}
 
 /* 「第 n 个字符后」的框：64px、居中。
    （数字很短，左对齐会看着像「还没填」；`.md-input--num` 给的 104px 太宽）*/
@@ -1416,19 +1560,6 @@ code {
 }
 /* ── P3-3：属性组（零新增令牌 / 零新增色值，全部用既有变量）───── */
 
-.md-attr__vars {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--md-space-3);
-}
-
-.md-attr__label {
-  flex: none;
-  font-size: 12.5px;
-  line-height: var(--md-ctrl-h);
-  color: var(--md-ink-2);
-}
-
 .md-attr__list {
   display: flex;
   flex-wrap: wrap;
@@ -1492,4 +1623,210 @@ code {
   cursor: pointer;
 }
 
+
+/* ══ C 方案施工单 §五：G 控件块（只放「怎么操作」）════════════════════
+   设计稿 .pg：标签 11.5px/--ink3；输入框高 34 / 圆角 6；行标签固定 38px；
+   数字框 56px；分组用发丝线；零新增令牌（全部复用既有变量）。 */
+
+/* ① 当前模式的参数：标签一行、控件一行 */
+.md-gparams {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.md-glabel {
+  font-size: 11.5px;
+  color: var(--md-ink-3);
+}
+
+/* G 格里的输入框：高 34 / 圆角 6 / 底=页面底（设计稿 .inp）*/
+.md-ginput {
+  height: 34px;
+  border-radius: 6px;
+  background: var(--md-bg-cream);
+}
+
+.md-gerr {
+  color: var(--md-bad);
+}
+
+.md-gvarhint {
+  margin: 0;
+}
+
+/* 小组壳（插入 / 导入 / 扩展名 / 日期组）*/
+.md-ggroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.md-gimportbtn {
+  align-self: flex-start;
+}
+
+/* 一行：38px 标签列 + 控件（标签宽度写死，两个下拉的左边缘才对得齐）*/
+.md-grow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.md-grow__l {
+  flex: 0 0 38px;
+  font-size: 11.5px;
+  color: var(--md-ink-3);
+  white-space: nowrap;
+}
+
+.md-grow__l--wide {
+  flex: 0 0 auto;
+}
+
+.md-grow__hint {
+  font-size: 11px;
+  color: var(--md-ink-3);
+  margin-left: 2px;
+  white-space: nowrap;
+}
+
+/* G 格里的下拉：高 34 / 圆角 6 / 占满剩余宽 */
+.md-gsel {
+  height: 34px;
+  border-radius: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--md-bg-cream);
+}
+
+.md-gsel--time {
+  flex: 0 1 auto;
+}
+
+/* 数字框：固定 56px / 高 34 / 文字居中 / 等宽（设计稿 .inp--n）*/
+.md-gnum {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--md-bg-cream);
+  text-align: center;
+  font-family: var(--md-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ④ 组标题 + 一根 flex:1 的发丝线（分组用发丝线，不用空白块）*/
+.md-gsec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.md-gsec__t {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
+  color: var(--md-ink-4);
+}
+
+.md-gsec::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--md-line);
+}
+
+/* ⑤ 小号开关：40×23 / 圆角 99 / 滑块 17px 白点（盖过 base.css 的 46×26）*/
+.md-switch--sm .md-switch__track {
+  width: 40px;
+  height: 23px;
+  border-radius: 99px;
+}
+
+.md-switch--sm .md-switch__thumb {
+  width: 17px;
+  height: 17px;
+}
+
+.md-switch--sm input:checked + .md-switch__track .md-switch__thumb {
+  transform: translateX(17px);
+}
+
+/* ⑧ 「属性 · 变量」折叠条（默认折起：高 30 / 圆角 6 / 描边）*/
+.md-attradv__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--md-space-2);
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--md-line);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--md-ink-3);
+  transition: border-color var(--md-dur-hover) ease;
+}
+
+.md-attradv__bar:hover {
+  border-color: var(--md-line-strong);
+}
+
+.md-attradv__title {
+  flex: 1 1 auto;
+}
+
+.md-attradv__caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid currentColor;
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  transition: transform var(--md-dur-hover) ease;
+}
+
+.md-attradv__caret--open {
+  transform: rotate(90deg);
+}
+
+.md-attradv__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 变量 chip：横排 gap 6px、放不下换行不缩字；悬停 = 边框文字转橘 + 上移 1px */
+.md-attr__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.md-attr__var {
+  transition:
+    border-color var(--md-dur-hover) ease,
+    color var(--md-dur-hover) ease,
+    transform var(--md-dur-hover) ease;
+}
+
+.md-attr__var:hover {
+  border-color: var(--md-orange-dark);
+  color: var(--md-orange-dark);
+  transform: translateY(-1px);
+}
+
+/* 警告（{d}/{n} 没开开关）*/
+.md-gwarn {
+  margin: 0;
+  color: var(--md-warn);
+}
 </style>

@@ -79,9 +79,11 @@ useKeyboard({
 
 <template>
   <div class="md-window">
-    <TitleBar />
+    <!-- ★ C 方案施工单（2026-09-27）：「撤销 / 历史」从动作区搬进标题栏右组，
+         所以打开历史页的入口也挪到这里（MainView 不再转发）。 -->
+    <TitleBar @open-history="openHistory" />
 
-    <MainView v-if="view === 'main'" @open-history="openHistory" />
+    <MainView v-if="view === 'main'" />
     <HistoryView v-else @back="view = 'main'" />
 
     <StatusBar />

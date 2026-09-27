@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="zh-CN" data-dark="0">
+<head>
+<meta charset="utf-8">
+<title>方案 2 · 竖向流水线 — 耄耋改名</title>
+<style>
+:root{
+  --floor:#EFE9E1; --card:#FFFDFA; --sub:#F5F0E9;
+  --ink:#241F1B; --ink2:#5A5148; --ink3:#8B8073;
+  --line:#DCD3C7; --line2:#C2B7A7;
+  --caramel:#B4661F; --caramel-soft:rgba(180,102,31,.13);
+  --safety:#F2C230; --safety-dark:#DDA517;
+  --machine:#342F29; --machine-ink:#F4EFE7;
+  --cat:#F9C077; --cat-line:#D98B33;
+  --sans:"Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --mono:"JetBrains Mono",Consolas,"Cascadia Mono",monospace;
+}
+html[data-dark="1"]{
+  --floor:#1E1B17; --card:#282320; --sub:#302A25;
+  --ink:#F3EDE5; --ink2:#C6B9A9; --ink3:#948878;
+  --line:#3E3730; --line2:#544A40;
+  --caramel:#E0913F; --caramel-soft:rgba(224,145,63,.17);
+  --machine:#15120F; --machine-ink:#F1E9DE;
+  --cat:#F2B36A; --cat-line:#B4712A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#151515;font-family:var(--sans);display:flex;flex-direction:column;align-items:center;padding:22px 0 46px;gap:16px}
+.bar{display:flex;align-items:center;gap:14px;color:#c9c9c9;font-size:13px}
+.bar b{color:#fff;font-weight:600}
+.bar .tag{font-size:11px;color:#8a8a8a;border:1px solid #3a3a3a;border-radius:99px;padding:3px 10px}
+.bar button{font-family:var(--sans);font-size:12px;color:#cfcfcf;background:#262626;border:1px solid #3a3a3a;border-radius:6px;padding:5px 12px;cursor:pointer}
+.bar button.on{background:#fff;color:#111;border-color:#fff}
+
+.win{width:1280px;height:800px;border-radius:12px;overflow:hidden;background:var(--floor);color:var(--ink);
+  display:flex;flex-direction:column;box-shadow:0 30px 90px rgba(0,0,0,.6)}
+
+/* ── 机头 ── */
+.head{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--machine);color:var(--machine-ink)}
+.head__left{display:flex;align-items:center;gap:12px}
+.head__name{font-size:18px;font-weight:700;letter-spacing:3px}
+.head__badge{font-family:var(--mono);font-size:9.5px;letter-spacing:2px;background:var(--safety);color:#2A2418;padding:3px 7px;border-radius:2px;font-weight:700}
+.head__right{display:flex;align-items:center;gap:6px}
+.tb-btn{width:32px;height:28px;border:none;background:transparent;border-radius:4px;display:grid;place-items:center;cursor:pointer;color:#BDB4A8}
+.tb-btn:hover{background:rgba(242,194,48,.16);color:var(--safety)}
+.tb-key{width:32px;height:28px;border:none;background:transparent;color:#BDB4A8;font-size:13px;cursor:pointer;border-radius:4px}
+.tb-key--close:hover{background:#C0392B;color:#fff}
+
+.stripe{height:9px;background:repeating-linear-gradient(45deg,var(--safety) 0 12px,#2E2A24 12px 24px)}
+
+/* ── 主体：工头位 + 工位列 ── */
+.body{flex:1;min-height:0;display:flex;gap:14px;padding:14px 16px}
+
+.foreman{flex:0 0 92px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.foreman__plate{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--ink2);
+  background:var(--sub);border:1px solid var(--line2);border-radius:3px;padding:4px 6px;text-align:center;line-height:1.5}
+.foreman__plate b{color:var(--caramel)}
+.belt{width:84px;height:11px;background:#4A423A;border-radius:6px;position:relative;margin-top:-16px}
+.belt::after{content:"";position:absolute;inset:3px 6px;border-radius:3px;
+  background:repeating-linear-gradient(90deg,#2A2521 0 4px,transparent 4px 9px)}
+.belt i{position:absolute;width:7px;height:7px;border-radius:50%;background:#6B5F52;top:2px}
+.belt i:nth-child(1){left:4px}.belt i:nth-child(2){left:38px}.belt i:nth-child(3){left:73px}
+.cat{width:82px;height:82px;display:block;margin-bottom:-4px}
+
+.cards{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+
+.card{display:flex;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.card--1{height:132px}.card--2{height:232px}.card--3{height:186px}.card--4{height:96px}
+.card__rail{flex:0 0 58px;background:var(--sub);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.card--4 .card__rail{background:var(--caramel);border-right-color:var(--caramel)}
+.card__num{font-family:var(--mono);font-size:24px;line-height:1;color:var(--line2);font-weight:700}
+.card--4 .card__num{color:#FFF6E6}
+.card__rail span{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--ink3);writing-mode:vertical-rl}
+.card--4 .card__rail span{color:rgba(255,246,230,.72)}
+.card__body{flex:1;min-width:0;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+.card__top{display:flex;align-items:center;gap:9px}
+.card__title{font-size:13.5px;font-weight:700;letter-spacing:1.5px}
+.card__hint{font-size:11.5px;color:var(--ink3)}
+.card__ok{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--caramel);
+  border:1px solid var(--caramel);border-radius:2px;padding:2px 6px}
+
+/* 工位 1 */
+.drop{flex:1;height:56px;border:1.5px dashed var(--line2);border-radius:6px;display:flex;align-items:center;
+  justify-content:center;font-size:12.5px;color:var(--ink3);background:var(--sub)}
+.drop b{color:var(--caramel);font-weight:400}
+.intake-btns{display:flex;flex-direction:column;gap:6px}
+.btn{font-family:var(--sans);cursor:pointer;border-radius:5px;white-space:nowrap}
+.btn--sm{height:25px;padding:0 12px;font-size:12px;background:var(--card);border:1px solid var(--line2);color:var(--ink2)}
+.btn--sm:hover{border-color:var(--caramel);color:var(--caramel)}
+.fchips{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{font-size:11.5px;color:var(--ink2);background:var(--sub);border:1px solid var(--line);
+  border-radius:3px;padding:4px 8px;font-family:var(--mono)}
+.fchip i{font-style:normal;color:var(--ink3)}
+
+/* 工位 2 */
+.tabs{display:inline-flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.tab{font-family:var(--sans);font-size:12.5px;height:28px;padding:0 15px;background:var(--card);
+  border:none;border-right:1px solid var(--line);color:var(--ink2);cursor:pointer}
+.tab:last-child{border-right:none}
+.tab--on{background:var(--caramel);color:#FFF6E6;font-weight:700}
+.rowline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lbl{font-size:12px;color:var(--ink2);flex:0 0 auto}
+.inp{height:30px;border:1px solid var(--line2);border-radius:5px;background:var(--card);color:var(--ink);
+  font-family:var(--sans);font-size:12.5px;padding:0 9px;outline:none}
+.inp:focus{border-color:var(--caramel);box-shadow:0 0 0 2px var(--caramel-soft)}
+.inp--w{width:132px}.inp--n{width:58px;font-family:var(--mono);text-align:center;padding:0 4px}
+.sel{height:30px;border:1px solid var(--line2);border-radius:5px;background:var(--card);color:var(--ink);
+  font-family:var(--sans);font-size:12.5px;padding:0 8px;outline:none;cursor:pointer}
+.arrow{color:var(--caramel);font-size:14px}
+.cbx{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);cursor:pointer}
+.cbx .box{width:15px;height:15px;border:1.5px solid var(--line2);border-radius:3px;background:var(--card);position:relative;flex:0 0 auto}
+.cbx .box.on{background:var(--caramel);border-color:var(--caramel)}
+.cbx .box.on::after{content:"";position:absolute;left:4px;top:1.5px;width:4px;height:7px;
+  border-right:2px solid #FFF6E6;border-bottom:2px solid #FFF6E6;transform:rotate(40deg)}
+.gear{align-self:flex-start;margin-left:auto;font-size:11.5px;color:var(--ink3);background:none;border:none;cursor:pointer}
+.gear:hover{color:var(--caramel)}
+.divider{height:1px;background:var(--line);margin:1px 0}
+.hint{font-size:11.5px;color:var(--ink3)}
+.vars{display:flex;gap:5px;align-items:center}
+.var{font-size:11.5px;color:var(--ink2);border:1px solid var(--line);background:var(--sub);border-radius:3px;padding:3px 7px;cursor:pointer}
+.var:hover{border-color:var(--caramel);color:var(--caramel)}
+
+/* 工位 3 */
+.tbl{flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.tbl__head,.tbl__row{display:grid;grid-template-columns:34px 1fr 1fr 62px;align-items:center;font-size:12.5px}
+.tbl__head{height:26px;background:var(--sub);border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--ink3)}
+.tbl__head>*{padding:0 10px}
+.tbl__row{height:22px;border-bottom:1px solid var(--line)}
+.tbl__row:last-child{border-bottom:none}
+.tbl__row>*{padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbl__row .no{font-family:var(--mono);font-size:10.5px;color:var(--ink3)}
+.del{color:var(--ink3);text-decoration:line-through;text-decoration-thickness:2px}
+.add{color:var(--caramel);background:var(--caramel-soft);border-radius:2px;padding:1px 3px}
+.chipst{font-family:var(--mono);font-size:9.5px;letter-spacing:1px;border-radius:2px;padding:1px 5px;justify-self:start;margin-left:10px}
+.chipst--ok{background:var(--caramel);color:#FFF6E6}
+.chipst--no{background:var(--sub);color:var(--ink3);border:1px solid var(--line)}
+.none{color:var(--line2)}
+
+/* 工位 4 */
+.out{flex:1;display:flex;align-items:center;gap:16px}
+.out__stats{display:flex;gap:20px}
+.out__stats span{font-size:11.5px;color:var(--ink3);display:block}
+.out__stats b{font-family:var(--mono);font-size:21px;font-weight:400;color:var(--ink);display:block;line-height:1.2}
+.btn--go{height:52px;padding:0 40px;background:var(--caramel);border:none;color:#FFF6E6;font-size:17px;
+  font-weight:700;letter-spacing:4px;border-radius:6px;box-shadow:0 3px 0 #8A4C13}
+.btn--go:active{transform:translateY(2px);box-shadow:0 1px 0 #8A4C13}
+.out__side{margin-left:auto;display:flex;gap:8px}
+
+.status{height:34px;display:flex;align-items:center;gap:10px;padding:0 16px;background:var(--machine);
+  color:#BDB4A8;font-family:var(--mono);font-size:11px;letter-spacing:1px}
+.dot{width:7px;height:7px;border-radius:50%;background:#5FBF8A}
+.status__sep{margin-left:auto}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<filter id="fur2" x="-25%" y="-25%" width="150%" height="150%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.085" numOctaves="2" seed="4" result="n"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="6.5" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+</defs>
+</svg>
+
+<header class="bar">
+  <b>方案 2 · 竖向流水线</b>
+  <span class="tag">1280×800</span>
+  <span class="tag">米灰 · 焦糖 · 安全黄</span>
+  <button id="b-light" class="on">浅色</button>
+  <button id="b-dark">深色</button>
+</header>
+
+<div class="win">
+
+  <div class="head">
+    <div class="head__left">
+      <span class="head__name">耄耋改名</span>
+      <span class="head__badge">LINE&nbsp;MODE</span>
+    </div>
+    <div class="head__right">
+      <button class="tb-btn" title="设置">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="currentColor" stroke="none"/>
+          <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="8" cy="17" r="2" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <button class="tb-key">—</button><button class="tb-key">□</button><button class="tb-key tb-key--close">✕</button>
+    </div>
+  </div>
+  <div class="stripe"></div>
+
+  <div class="body">
+
+    <div class="foreman">
+      <div class="foreman__plate">工头<br><b>01 / 04</b></div>
+      <svg class="cat" viewBox="0 0 100 100" aria-label="耄耋猫（工头）">
+        <g filter="url(#fur2)">
+          <path d="M23 45 L29 15 L47 30 Z" fill="var(--cat)"/>
+          <path d="M77 45 L71 15 L53 30 Z" fill="var(--cat)"/>
+          <circle cx="50" cy="55" r="31" fill="var(--cat)"/>
+        </g>
+        <path d="M30 33 A20 17 0 0 1 70 33 Z" fill="#F2C230"/>
+        <rect x="24" y="31" width="52" height="5.5" rx="2.7" fill="#DDA517"/>
+        <circle cx="39" cy="52" r="3.3" fill="#3A2A20"/>
+        <circle cx="61" cy="52" r="3.3" fill="#3A2A20"/>
+        <path d="M50 59 l-4.5 -4 h9 z" fill="#E08B33"/>
+        <path d="M50 60 q-5 7 -9.5 1.5" stroke="#3A2A20" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+        <path d="M50 60 q5 7 9.5 1.5" stroke="#3A2A20" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+        <path d="M19 55 h-8 M19 62 h-7 M81 55 h8 M81 62 h7" stroke="var(--cat-line)" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <div class="belt"><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="cards">
+
+      <div class="card card--1">
+        <div class="card__rail"><span class="card__num">01</span><span>INTAKE</span></div>
+        <div class="card__body">
+          <div class="card__top"><span class="card__title">投料口</span><span class="card__hint">文件不会离开你的电脑</span>
+            <span class="card__ok">已投 6 项</span></div>
+          <div style="display:flex;gap:10px;align-items:stretch">
+            <div class="drop">把文件或文件夹拖到这里 · 也可以点右边两个按钮</div>
+            <div class="intake-btns">
+              <button class="btn btn--sm">＋ 添加文件</button>
+              <button class="btn btn--sm">＋ 添加文件夹</button>
+            </div>
+          </div>
+          <div class="fchips">
+            <span class="fchip">广告素材-01.png</span><span class="fchip">夏季新品广告主图.jpg</span>
+            <span class="fchip">广告-详情页-03.webp</span><span class="fchip">主图-04-备用.jpg</span>
+            <span class="fchip">banner广告位-05.png</span><span class="fchip">广告素材-06.gif</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card--2">
+        <div class="card__rail"><span class="card__num">02</span><span>PROCESS</span></div>
+        <div class="card__body">
+          <div class="card__top">
+            <span class="card__title">工序</span><span class="card__hint">规则改一下，下面那张表立刻跟着变</span>
+            <button class="gear">⚙ 进阶设置 ›</button>
+          </div>
+          <div class="rowline">
+            <span class="lbl">改法</span>
+            <div class="tabs">
+              <button class="tab">删除</button><button class="tab tab--on">替换</button>
+              <button class="tab">自定义</button><button class="tab">插入</button><button class="tab">导入</button>
+            </div>
+          </div>
+          <div class="rowline">
+            <span class="lbl">把</span><input class="inp inp--w" value="广告">
+            <span class="arrow">→</span>
+            <input class="inp inp--w" value="推广">
+            <span class="lbl">换掉</span>
+            <label class="cbx"><span class="box"></span>区分大小写</label>
+            <span class="hint" style="margin-left:auto">? 看不懂？</span>
+          </div>
+          <div class="divider"></div>
+          <div class="rowline">
+            <label class="cbx"><span class="box on"></span><b style="font-weight:400;color:var(--ink)">启用序号</b></label>
+            <select class="sel"><option>排在最前</option><option>排在最后</option><option>第 n 个字符后</option></select>
+            <select class="sel"><option>数字</option><option>字母</option><option>随机字符</option><option>时间</option></select>
+            <span class="lbl">起始</span><input class="inp inp--n" value="1">
+            <span class="lbl">增量</span><input class="inp inp--n" value="1">
+            <span class="lbl">位数</span><input class="inp inp--n" value="2">
+            <span class="hint">名字不够长时自动放到末尾</span>
+          </div>
+          <div class="rowline">
+            <span class="lbl">属性</span>
+            <div class="vars"><span class="var">{文件名}</span><span class="var">{序号}</span><span class="var">{日期}</span><span class="var">{文件夹名}</span></div>
+            <label class="cbx" style="margin-left:14px"><span class="box"></span>改扩展名</label>
+            <select class="sel"><option>改成指定扩展名</option><option>删掉扩展名</option><option>在后面再加一个</option></select>
+            <input class="inp inp--n" style="width:64px" value="jpg">
+          </div>
+        </div>
+      </div>
+
+      <div class="card card--3">
+        <div class="card__rail"><span class="card__num">03</span><span>CHECK</span></div>
+        <div class="card__body">
+          <div class="card__top"><span class="card__title">检视</span><span class="card__hint">真改之前先看这一眼，一个文件都不会动</span>
+            <span class="card__ok">将变化 5 · 无变化 1</span></div>
+          <div class="tbl">
+            <div class="tbl__head"><span>NO.</span><span>原本的名字</span><span>改完的名字</span><span>状态</span></div>
+            <div class="tbl__row"><span class="no">01</span><span><span class="del">广告</span>素材-01.png</span><span><span class="add">推广</span>素材-01.png</span><span class="chipst chipst--ok">将改</span></div>
+            <div class="tbl__row"><span class="no">02</span><span>夏季新品<span class="del">广告</span>主图.jpg</span><span>夏季新品<span class="add">推广</span>主图.jpg</span><span class="chipst chipst--ok">将改</span></div>
+            <div class="tbl__row"><span class="no">03</span><span><span class="del">广告</span>-详情页-03.webp</span><span><span class="add">推广</span>-详情页-03.webp</span><span class="chipst chipst--ok">将改</span></div>
+            <div class="tbl__row"><span class="no">04</span><span>主图-04-备用.jpg</span><span class="none">—</span><span class="chipst chipst--no">无变化</span></div>
+            <div class="tbl__row"><span class="no">05</span><span>banner<span class="del">广告</span>位-05.png</span><span>banner<span class="add">推广</span>位-05.png</span><span class="chipst chipst--ok">将改</span></div>
+            <div class="tbl__row"><span class="no">06</span><span><span class="del">广告</span>素材-06.gif</span><span><span class="add">推广</span>素材-06.gif</span><span class="chipst chipst--ok">将改</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card--4">
+        <div class="card__rail"><span class="card__num">04</span><span>OUTPUT</span></div>
+        <div class="card__body">
+          <div class="out">
+            <button class="btn btn--go">开咬改名</button>
+            <div class="out__stats">
+              <div><span>共</span><b>6</b></div>
+              <div><span>将变化</span><b>5</b></div>
+              <div><span>无变化</span><b>1</b></div>
+              <div><span>重名</span><b>0</b></div>
+            </div>
+            <div class="out__side">
+              <button class="btn btn--sm" style="height:32px">导入表格</button>
+              <button class="btn btn--sm" style="height:32px">导出清单</button>
+              <button class="btn btn--sm" style="height:32px">撤销 / 历史</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="status">
+    <span class="dot"></span>
+    <span>READY · 规则 替换「广告」→「推广」 · 无重名</span>
+    <span class="status__sep">Ctrl+O 添料 · Enter 开咬 · Ctrl+Z 撤销</span>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('b-light').onclick=function(){set(0,this)};
+document.getElementById('b-dark').onclick=function(){set(1,this)};
+function set(v,el){
+  document.documentElement.dataset.dark=v;
+  document.querySelectorAll('.bar button').forEach(function(b){b.classList.remove('on')});
+  el.classList.add('on');
+}
+function fit(){
+  var w=document.querySelector('.win'),s=Math.min(1,(window.innerWidth-36)/1280);
+  w.style.transformOrigin='top center';
+  w.style.transform=s<1?'scale('+s+')':'none';
+}
+window.addEventListener('resize',fit);fit();
+</script>
+</body>
+</html>

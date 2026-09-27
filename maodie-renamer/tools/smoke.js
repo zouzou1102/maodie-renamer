@@ -196,12 +196,55 @@ const importSingleCsv = ['新文件名', '自定义名字A', '自定义名字B',
 fs.writeFileSync(IMPORT_SINGLE_COL_CSV_PATH, '\uFEFF' + importSingleCsv.join('\r\n') + '\r\n', 'utf8');
 console.log(`P3-4 单列夹具：${path.basename(IMPORT_SINGLE_COL_CSV_PATH)}（只 1 列）`);
 
+// ── P3-7：合并对话框用例的夹具 ─────────────────────────────────────────
+// 为什么另造：①「选择已有目标」需要一个**空目录**当落点，默认 stub 返回的样本里
+// 没有这种目录，会把整批落点变成 skip；②「长路径换行」需要一个**名字足够长**的文件，
+// 长到在弹窗里放不下一行 —— 否则这条用例根本碰不到原来的 nowrap + ellipsis 截断。
+// 全部写在 tmpRoot 下（与 sampleDir 不同子树），不会污染前面用例看到的样本清单。
+const P37_DIR = path.join(tmpRoot, 'p37');
+const mergeTargetDir = path.join(P37_DIR, '合并目标');
+fs.mkdirSync(mergeTargetDir, { recursive: true });
+
+const DROP_FILE_A = path.join(P37_DIR, '拖入文件甲.txt');
+const DROP_FILE_B = path.join(P37_DIR, '拖入文件乙.txt');
+fs.writeFileSync(DROP_FILE_A, 'p3-7 drop fixture A', 'utf8');
+fs.writeFileSync(DROP_FILE_B, 'p3-7 drop fixture B', 'utf8');
+
+// 文件夹里**故意只放 1 个文件**：1 个单独文件 + 1 个单独文件 + 这个文件夹
+// 混加后干跑应**恰好 3 条**（recurse 默认开，文件夹会被摊平）。多一条少一条
+// 都说明引擎算错了，不是"差不多就行"。
+const DROP_DIR_A = path.join(P37_DIR, '拖入文件夹');
+fs.mkdirSync(DROP_DIR_A, { recursive: true });
+fs.writeFileSync(path.join(DROP_DIR_A, '夹内唯一文件.txt'), 'p3-7 in-folder fixture', 'utf8');
+
+const LONG_PATH_FILE = path.join(
+  P37_DIR,
+  '超长路径自动换行验证_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.repeat(3) + '.txt',
+);
+fs.writeFileSync(LONG_PATH_FILE, 'p3-7 long path fixture', 'utf8');
+console.log(
+  `P3-7 夹具：目标目录 + 2 个拖入文件 + 1 个文件夹（内 1 文件）+ 超长名文件（${path.basename(LONG_PATH_FILE).length} 字）`
+);
+
 // ── 原生对话框 stub（仅运行时替换；不动生产代码）──────────────────────
 // 说明：系统原生对话框是 OS 组件，sendInputEvent 驱动不了。这里让「添加文件/文件夹」
 // 返回临时副本路径，从而真实走通"点击 → 入列 → 预览"的链路。报告里会标注这一代价。
 // 注：此处不保留原生 showOpenDialog 引用——冒烟进程用完即退，无需还原，留引用反而是死代码。
+/**
+ * ★ P3-7：让用例决定「下一次原生选择框返回什么」。
+ *
+ * 合并对话框要连点几次选择（选源文件 → 选源文件夹 → 选目标目录），默认 stub 的返回值
+ * 里没有「空目标目录」，落点会整批变 skip。用例在自己的 `setup` 里把队列排好，
+ * 这里按**调用顺序**依次出队；队列空 → 回到默认行为（前面 79 个功能完全不受影响）。
+ *
+ * ⚠️ 必须放在 `setup`（执行前）而不是 `build`（定义时）里排队，否则会污染前面全部用例。
+ */
+let pickQueue = [];
 dialog.showOpenDialog = async (_win, opts) => {
   const isDir = Array.isArray(opts && opts.properties) && opts.properties.includes('openDirectory');
+  if (pickQueue.length > 0) {
+    return { canceled: false, filePaths: pickQueue.shift() };
+  }
   // ★ P2-B：文件选择**追加**那 4 个专用夹具（插在原有 5 个之后，前面用例依赖的
   //   样本一个没挤掉）。理由同上：只有名字已知，才能断言"新名正好等于什么"。
   return {
@@ -304,9 +347,8 @@ const seqPreviewExpr = (stem, ext, prefixExpr = "''") => `(() => {
 
 /** 「启用序号」那个勾选框的选中态（按文案找，不按下标 —— 组里以后可能加控件）*/
 const SEQ_ENABLED_EXPR =
-  "(() => { const l = Array.from(document.querySelectorAll('.md-rulepanel__group .md-check'))"
-  + ".find((e) => e.textContent.includes('启用序号'));"
-  + " return !!(l && l.querySelector('input').checked); })()";
+  "(() => { const i = document.querySelector('[data-numbering] .md-switch--sm input');"
+  + " return !!i && i.checked; })()";
 
 /**
  * EL-124 示例行里第 i 个示例名。
@@ -343,34 +385,35 @@ const FEATURES = [
   ),
   feature('空列表：空态引导可见', (c) =>
     c.see('.md-empty', '空态引导卡可见（且有尺寸、在视口内）')
-     .seeText('.md-empty__title', '把文件拖进来，或者点左边的按钮', '空态文案正确')
+     .seeText('.md-empty__title', '点左上角的「添加文件」，或者直接拖进来', '空态文案正确（按钮已搬进标题栏，规格书 §08 定死的改法）')
   ),
 
   feature('空列表：计数为 0 且"开始改名"置灰', (c) =>
-    c.seeText('.md-filelist__count', '共 0 项', '列表计数显示 0')
+    c.seeText('.md-filelist__count', '0 项', '列表计数显示 0（施工单 §六：标题「文件」+ 计数）')
      .seeCount('.md-actionbar .md-btn--primary:disabled', 1, '"开始改名"按钮处于禁用态')
   ),
 
-  feature('空列表："清空列表"置灰', (c) =>
-    // ★ P3-2 起左栏多了「导出清单」（同为幽灵级），空列表时两个一起置灰，
-    //   所以计数从 1 变成 2 —— 这是**改动导致的同步**，不是把标准放宽。
-    c.seeCount('.md-actionpanel .md-btn--ghost:disabled', 2, '空列表时「导出清单」与「清空列表」一起置灰')
+  feature('空列表："导出清单 / 清空列表"置灰', (c) =>
+    // ★ 施工单 §二（2026-09-27）：按钮搬进标题栏，断言对象从左栏类名换成
+    //   各自的 data-* 锚点 —— 仍是「空列表时两个一起置灰」，标准没放宽。
+    c.seeCount('[data-export-open]:disabled', 1, '空列表时「导出清单」置灰')
+     .seeCount('[data-clear-open]:disabled', 1, '空列表时「清空列表」置灰')
   ),
 
   feature('切到"规则化"页签生效', (c) =>
     c.click('.md-tabs .md-tab:nth-child(3)')
      .seeAttr('.md-tabs .md-tab:nth-child(3)', 'aria-selected', 'true', '页签 aria-selected=true')
-     .see('.md-rulepanel__form', '规则表单可见')
+     .see('[data-numbering]', 'G 控件块可见（参数已按施工单搬去 G 格）')
   ),
 
   feature('规则化：勾"启用序号"后数字输入框解禁', (c) =>
-    c.seeCount('.md-input--num:disabled', 3, '未勾选时三个数字框都禁用')
-     .click('.md-rulepanel__group:nth-of-type(1) .md-check')
-     .seeCount('.md-input--num:disabled', 0, '勾选后数字框解禁')
+    c.seeCount('.md-gnum:disabled', 3, '未启用序号时三个数字框都禁用')
+     .click('[data-numbering] .md-switch--sm')
+     .seeCount('.md-gnum:disabled', 0, '打开「启用」开关后数字框解禁')
   ),
 
   feature('添加文件 → 入列（对话框返回临时副本）', (c) =>
-    c.click('.md-actionpanel button:nth-of-type(1)')
+    c.click('[data-add-files]')
      .waitUntil("document.querySelectorAll('.md-filelist__row').length > 0", 8000)
      .scroll('.md-filelist__row')
      .see('.md-filelist__row', '出现文件行（可见且有尺寸、在视口内）')
@@ -395,55 +438,84 @@ const FEATURES = [
      // P3-1 起，规则区多了一行常显的「跨天提示」（设计 §6），把这条警告挤到了折叠线以下。
      // 所以先滚动到它 —— 与 P1 正则那条 `.scroll('.md-rulepanel__regerr')` 是同一个做法，
      // 断言本身一个字没改（`see` 要求元素真的在视口内，这条要求不放松）。
-     .scroll('.md-rulepanel__warn')
-     .see('.md-rulepanel__warn', '出现"日期会展开成空"的提示')
+     .scroll('[data-numbering] .md-gwarn')
+     .see('[data-numbering] .md-gwarn', '出现"日期会展开成空"的提示')
   ),
 
   // ══ P1 第二版：F-10 正则匹配 / F-11 大小写转换（设计稿《P1轻量设计确认》§2–§7）══
 
-  feature('P1 进阶设置：默认折起，点开展开', (c) =>
-    c.scroll('.md-adv__bar')
-     .see('.md-adv__bar', '「⚙ 进阶设置」折叠条可见')
-     .notSee('.md-adv__body', '默认折起：折叠内容不在页面上')
-     .seeAttr('.md-adv__bar', 'aria-expanded', 'false', '折起态 aria-expanded=false')
-     .seeStyle('.md-adv__bar', 'color', 'rgb(138, 129, 120)', '折起态文字色 #8A8178（与 P0 一致）')
-     .click('.md-adv__bar')
-     .see('.md-adv__body', '点开后折叠内容出现')
-     .seeAttr('.md-adv__bar', 'aria-expanded', 'true', '展开态 aria-expanded=true')
-     .seeText('.md-adv__title', '进阶设置', '标题文案为「进阶设置」')
-     .seeStyle('.md-adv__body', 'backgroundColor', 'rgb(255, 246, 233)', '展开块底色 #FFF6E9（复用参数组，不新增色）')
+  feature('P1 进阶设置：入口常显，点开是弹窗（P3-10 起不再是就地折叠）', (c) =>
+    c.scroll('[data-adv-open]')
+     .see('[data-adv-open]', '「进阶设置」入口可见（规则块右下角一行小字）')
+     .notSee('.md-modal', '默认没有弹窗')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     .see('.md-adv__body', '点开后弹窗出现，里面是进阶内容')
+     .seeText('.md-modal__title', '进阶设置', '弹窗标题为「进阶设置」')
+     .seeStyle('.md-adv__body', 'backgroundColor', 'rgb(250, 248, 245)', '内容底色 #FAF8F5（复用参数组，不新增色）')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
+     .notSee('.md-modal', 'Esc 关闭弹窗')
   ),
 
   feature('P1 正则开关：仅删除 / 替换模式出现', (c) =>
     c.click('.md-tabs .md-tab:nth-child(1)')
      .seeText('.md-tabs .md-tab:nth-child(1)', '删除', '已切到「删除」页签（P3-5：四字标签改成两字）')
-     .seeText('.md-adv__body .md-check__label', '用正则匹配', '删除模式：折叠区出现「用正则匹配」')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     .seeText('.md-adv__body .md-check__label', '用正则匹配', '删除模式：弹窗里出现「用正则匹配」')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .click('.md-tabs .md-tab:nth-child(3)')
-     .seeText('.md-adv__body .md-check__label', null, '规则化模式：折叠区**不**出现正则开关（小白隔离，红线 5）')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     .seeText('.md-adv__body .md-check__label', null, '规则化模式：弹窗里**不**出现正则开关（小白隔离，红线 5）')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
   ),
 
   feature('P1 大小写下拉：三种模式都出现，共 4 项', (c) =>
-    c.seeCount('.md-adv__case .md-select', 1, '规则化模式已有大小写下拉')
+    // 进阶设置是弹窗：每个模式都开一次弹窗来看这枚下拉
+    c.click('.md-tabs .md-tab:nth-child(3)')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     .seeCount('.md-adv__case .md-select', 1, '规则化模式已有大小写下拉')
      .seeCount('.md-adv__case .md-select option', 4, '下拉共 4 项（保持原样 + 3 种转换）')
      .seeText('.md-adv__case .md-select option:nth-child(4)', '首字母大写', '第 4 项是「首字母大写」')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .click('.md-tabs .md-tab:nth-child(2)')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .seeCount('.md-adv__case .md-select', 1, '替换模式同样有大小写下拉')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .click('.md-tabs .md-tab:nth-child(1)')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .seeCount('.md-adv__case .md-select', 1, '删除模式同样有大小写下拉')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
   ),
 
   feature('P1 正则非法：红描边 + 红字 + 状态栏提示 + 按钮置灰', (c) =>
-    c.click('.md-adv__body .md-check')
+    c.click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     .seeThat("document.querySelector('.md-adv__body .md-check input').checked", false,
+       '前提钉死：正则此刻是关的（顺序一改这里会当场红，不会静默测歪）')
+     .click('.md-adv__body .md-check')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .seeCount('.md-input--mono', 1, '开启正则后删除输入框切等宽（技术信息字体）')
      .click('input[placeholder="例如：【某某公众号】"]')
      .type('(')
      .waitUntil("!!document.querySelector('.md-input--error')", 5000)
      .seeCount('.md-input--error', 1, '输入 `(` 后删除输入框进入非法态')
-     .seeStyleSettled('.md-input--error', 'borderTopColor', 'rgb(229, 84, 75)', '红描边用色 #E5544B（等 180ms 过渡结束再读，避免读到插值色）')
+     .seeStyleSettled('.md-input--error', 'borderTopColor', 'rgb(196, 50, 42)', '红描边用色 #C4322A（等 180ms 过渡结束再读，避免读到插值色）')
      .seeStyle('.md-input--error', 'borderTopWidth', '2px', '红描边宽度 = 2px（设计 §3.3）')
-     .scroll('.md-rulepanel__regerr')
-     .see('.md-rulepanel__regerr', '输入框下方出现错误提示')
-     .seeStyle('.md-rulepanel__regerr', 'color', 'rgb(229, 84, 75)', '错误文字为红色 #E5544B')
+     .scroll('[data-numbering] .md-gerr')
+     .see('[data-numbering] .md-gerr', '输入框下方出现错误提示')
+     .seeStyle('[data-numbering] .md-gerr', 'color', 'rgb(196, 50, 42)', '错误文字为红色 #C4322A')
      .seeContains('.md-statusbar__text', '正则表达式有误', '状态栏追加「· 正则表达式有误」')
      .seeCount('.md-actionbar .md-btn--primary:disabled', 1, '「开始改名」被置灰（复用 P0 机制）')
   ),
@@ -453,7 +525,7 @@ const FEATURES = [
      .type(')')
      .waitUntil("!document.querySelector('.md-input--error')", 5000)
      .seeCount('.md-input--error', 0, '补全右括号成 `()` 后红描边消失')
-     .seeCount('.md-rulepanel__regerr', 0, '红字原因消失')
+     .seeCount('[data-numbering] .md-gerr', 0, '红字原因消失')
      .notSee('.md-input--error', '输入框已回到正常态')
   ),
 
@@ -464,20 +536,29 @@ const FEATURES = [
      .waitUntil("(() => { const n = document.querySelector('.md-filelist__newname'); return !!n && n.textContent.includes('abc'); })()", 8000)
      .seeContains('.md-filelist__newname', 'abc', '后缀 abc 已进入预览')
      .seeCount('.md-actionbar .md-btn--primary:disabled', 0, '有可改项后「开始改名」解禁（说明置灰只是正则非法带来的）')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .focus('.md-adv__case .md-select')
      .key('Down').key('Down')
      .waitUntil("(() => { const n = document.querySelector('.md-filelist__newname'); return !!n && n.textContent.includes('ABC'); })()", 8000)
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .seeContains('.md-filelist__newname', 'ABC', '切到「全部大写」后预览里的 abc 变 ABC')
-     .seeText('.md-adv__badge', '已启用 1 项', '折叠条出现「已启用 1 项」徽标')
-     .seeStyle('.md-adv__bar', 'color', 'rgb(224, 139, 51)', '有启用项时折叠条文字变 #E08B33')
+     .seeText('.md-rulefoot__badge', '已启用 1 项',
+       '入口徽标「已启用 1 项」（原折叠条徽标搬到了入口上；徽标只数本模式看得见的进阶项 —— 自定义下正则开关不出现，正则那项不计）')
   ),
 
   feature('P1 大小写「保持原样」：预览回退（红线 3）', (c) =>
-    c.focus('.md-adv__case .md-select')
+    c.click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     .focus('.md-adv__case .md-select')
      .key('Up').key('Up')
      .waitUntil("(() => { const n = document.querySelector('.md-filelist__newname'); return !!n && n.textContent.includes('abc') && !n.textContent.includes('ABC'); })()", 8000)
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .seeContains('.md-filelist__newname', 'abc', '回到「保持原样」：预览恢复小写 abc')
-     .seeCount('.md-adv__badge', 0, '无启用项时徽标消失')
+     .notSee('.md-modal', '弹窗已关（下一条要在主界面点页签）')
+     .seeCount('.md-rulefoot__badge', 0, '最后一个可见进阶项（大小写）关掉后徽标消失（自定义模式下正则本就不计）')
   ),
 
   // ══ P1 说明小白化：照抄表（EL-104）+ 当场演示（EL-105）════════════════
@@ -489,24 +570,34 @@ const FEATURES = [
     c.click('.md-tabs .md-tab:nth-child(2)')
      .seeText('.md-tabs .md-tab:nth-child(2)', '替换', '切到「替换」页签（P3-5）')
      .seeCount('.md-input--mono', 2, '正则开启态：查找 / 替换两个框都切等宽')
-     // 折叠条此刻是展开的（前面的用例点开过），点两下 = 关 → 开，把状态摆正
-     .click('.md-adv__bar')
-     .notSee('.md-adv__body', '第一下：折叠条收起')
-     .click('.md-adv__bar')
-     .see('.md-adv__body', '第二下：重新展开（不依赖上一步的残留状态）')
+     // 进阶设置是弹窗：先关掉（上一条可能开着）再按「开 → 查 → 关 → 换页签 → 再开」走
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .see('.md-adv__helpbtn', '「? 看不懂？」按钮可见')
      .notSee('.md-adv__cheat', '小抄卡默认不出现（要点开才有）')
      .click('.md-adv__helpbtn')
      .seeAttr('.md-adv__helpbtn', 'aria-expanded', 'true', '点开后 aria-expanded=true')
      .see('.md-adv__cheat', '小抄卡出现')
      .seeCount('.md-adv__cheatrow', 4, '替换模式给 4 个例子')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .click('.md-tabs .md-tab:nth-child(1)')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .seeCount('.md-adv__cheatrow', 3, '删除模式只剩 3 个（按模式过滤，不带 $1 那种只属于替换的写法）')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .click('.md-tabs .md-tab:nth-child(2)')
-     .seeCount('.md-adv__cheatrow', 4, '切回替换模式又是 4 个')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
+     // helpOpen 是组件持久状态：第一段点开后一直开着（换模式只是重过滤行数），
+     // 这里不能再点 —— 再点一下是「收起」，小抄就没了
+     .seeCount('.md-adv__cheatrow', 4, '切回替换模式又是 4 个（小抄还开着，行数随模式变）')
      // 收尾滚到卡片上，让报告里这张「操作后」的图能看见照抄表本身
      .scroll('.md-adv__cheat')
      .see('.md-adv__cheat', '照抄表可见（4 个例子，含「替换填」列）')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
   ),
 
   feature('P1 小白化：当场演示跟着填的内容真变', (c) =>
@@ -514,6 +605,8 @@ const FEATURES = [
      .type('(\\d{4})-(\\d{2})-(\\d{2})')
      .click('input[placeholder="留空 = 删除"]')
      .type('$1年$2月$3日')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .waitUntil("(() => { const n = document.querySelector('.md-adv__demonew'); return !!n && n.textContent.includes('2026年08月01日'); })()", 8000)
      .scroll('.md-adv__demo')
      .see('.md-adv__demo', '演示区可见（有尺寸、在视口内）')
@@ -523,14 +616,20 @@ const FEATURES = [
 
   feature('P1 小白化：写法对不上时，不假装"变了"', (c) =>
     // 先把光标按到末尾再追加（点击落在输入框正中会插到文字中间，那样就测歪了）
-    c.click('input[placeholder="例如：最终版"]')
+    c.key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
+     .click('input[placeholder="例如：最终版"]')
      .key('End')
      .type('ZZ')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .waitUntil("(() => { const n = document.querySelector('.md-adv__demonew'); return !!n && n.textContent.trim() === '发票 2026-08-01.pdf'; })()", 8000)
      .scroll('.md-adv__demo')
      .seeText('.md-adv__demonew', '发票 2026-08-01.pdf', '示例名字里没有 ZZ，匹配不上 → 如实显示"没变"')
      .seeContains('.md-adv__demo', '没找到能匹配的内容', '并明确提示「没找到能匹配的内容」')
-     .seeStyle('.md-adv__demonew', 'color', 'rgb(185, 172, 158)', '未变化时用灰字 #B9AC9E，而不是"变了"的橘色（不骗人）')
+     .seeStyle('.md-adv__demonew', 'color', 'rgb(106, 98, 87)', '未变化时用灰字 #6A6257，而不是"变了"的橘色（不骗人）')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
   ),
 
   /* ══ P2-B（F-12 常用规则模板库）════════════════════════════════════════
@@ -563,18 +662,18 @@ const FEATURES = [
        '每个 chip 带 title：点下去会发生什么，先悬停说清楚')
      .seeStyle('[data-template="datePrefix"]', 'borderRadius', '9px',
        'chip 圆角 9px（复用既有 --md-radius-chip，本批零新增令牌）')
-     .seeStyle('[data-template="datePrefix"]', 'backgroundColor', 'rgb(255, 243, 226)',
-       'chip 默认底色 orange-soft #FFF3E2')
-     .seeStyle('[data-template="datePrefix"]', 'color', 'rgb(224, 139, 51)',
-       'chip 默认文字 orange-dark #E08B33')
+     .seeStyle('[data-template="datePrefix"]', 'backgroundColor', 'rgb(251, 241, 234)',
+       'chip 默认底色 orange-soft #FBF1EA')
+     .seeStyle('[data-template="datePrefix"]', 'color', 'rgb(122, 47, 8)',
+       'chip 默认文字 orange-dark #7A2F08')
      .hover('[data-template="datePrefix"]')
      .waitUntil(
        "getComputedStyle(document.querySelector('[data-template=\"datePrefix\"]')).backgroundColor"
-       + " === 'rgb(245, 166, 35)'", 4000)
-     .seeStyle('[data-template="datePrefix"]', 'backgroundColor', 'rgb(245, 166, 35)',
-       '悬停底色转 orange-primary #F5A623')
-     .seeStyle('[data-template="datePrefix"]', 'color', 'rgb(42, 26, 16)',
-       '悬停文字转深棕 #2A1A10（橘底上对比度 8.3:1）')
+       + " === 'rgb(161, 66, 13)'", 4000)
+     .seeStyle('[data-template="datePrefix"]', 'backgroundColor', 'rgb(161, 66, 13)',
+       '悬停底色转 orange-primary #A1420D')
+     .seeStyle('[data-template="datePrefix"]', 'color', 'rgb(255, 255, 255)',
+       '悬停文字转白 #FFFFFF（深赭橘底上对比度 6.4:1 —— P3-9 起 on-brand 分主题）')
   ),
 
   feature('P2-B TC-38 套用「加日期前缀」：页签跳到规则化、参数框被填满、预览真的跟着变', (c) =>
@@ -586,15 +685,15 @@ const FEATURES = [
      .seeAttr('.md-tabs .md-tab:nth-child(3)', 'aria-selected', 'true', '★ 页签自动跳到「规则化」')
      .seeThat("document.querySelector('input[placeholder=\"如 {d}-发票-\"]').value", '{d} ',
        '前缀框出现 {d} ')
+     // 「启用日期 / 日期格式」自施工单起收进「示例 · 日期」折叠条（默认折起）
+     .click('[data-num-adv]')
+     .waitUntil("!!document.querySelector('[data-date-format]')", 8000)
      .seeThat(
-       "(() => { const l = Array.from(document.querySelectorAll('.md-rulepanel__group .md-check'))"
+       "(() => { const l = Array.from(document.querySelectorAll('[data-numbering] label.md-check'))"
        + ".find((e) => e.textContent.includes('启用日期'));"
        + " return l ? l.querySelector('input').checked : null; })()",
        true, '★「启用日期」被自动勾上 —— 模板把「日期从哪来」这一步也替用户办了')
-     .seeThat(
-       "(() => { const l = Array.from(document.querySelectorAll('.md-rulepanel__picker'))"
-       + ".find((e) => e.textContent.includes('日期格式'));"
-       + " return l ? l.querySelector('select').value : null; })()",
+     .seeThat("document.querySelector('[data-date-format]').value",
        'YYYY-MM-DD', '日期格式 = YYYY-MM-DD')
      .waitUntil(
        `(() => { const v = ${newNameOf('IMG_0001.JPG')};`
@@ -624,26 +723,23 @@ const FEATURES = [
     // 前置归一化：这条断言的是「模板**替用户把正则开了**」。若正则本来就开着，
     // 那就等于什么都没验（折叠条本来就亮着）。所以先把「现在确实没开」钉下来：
     // 上一条用的是「加日期前缀」，它把整份规则恢复成默认值，而默认是**不用正则**。
-    c.seeAttr('.md-adv__bar', 'aria-expanded', 'true',
-       '前置：进阶折叠区是展开的（P1 段留下的状态；顺序一改这行会当场红，不会静默测歪）')
-     .click('.md-tabs .md-tab:nth-child(2)')
-     .waitUntil("!!document.querySelector('.md-adv__body .md-check input')", 8000)
+    c.click('.md-tabs .md-tab:nth-child(2)')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .seeThat("document.querySelector('.md-adv__body .md-check input').checked", false,
        '★ 套用前「用正则匹配」是**没勾**的 —— 前提不成立的话，后面那句「模板帮我开了正则」就是空话')
-     .seeCount('.md-adv__badge', 0, '套用前折叠条没有「已启用 N 项」徽标')
-     .seeStyle('.md-adv__bar', 'color', 'rgb(138, 129, 120)', '套用前折叠条是常态灰 #8A8178')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
+     .seeCount('.md-rulefoot__badge', 0, '套用前入口没有「已启用 N 项」徽标')
      .click('[data-template="stripBrackets"]')
      .seeContains('.md-statusbar__text', '已套用模板：去掉括号（已自动开启正则）',
        '★ 状态栏必须说清「已自动开启正则」—— 不说的话用户会以为软件自己乱动了他的设置')
-     .waitUntil("!!document.querySelector('.md-adv__badge')", 8000)
+     .waitUntil("!!document.querySelector('.md-rulefoot__badge')", 8000)
      .seeAttr('.md-tabs .md-tab:nth-child(2)', 'aria-selected', 'true', '页签停在「替换字符」')
      .seeThat("document.querySelector('input[placeholder=\"例如：最终版\"]').value", P2B_BRACKET_RE,
        '查找框被填成模板里那串正则（不是留空、也不是上次填的内容）')
-     .seeContains('.md-adv__badge', '已启用 1 项',
-       '★ 折叠条徽标出现「已启用 1 项」—— 模板顺手替用户开了一个进阶开关，看得见')
-     // 折叠条的颜色是 180ms 过渡过去的，刚点完读到的是起始帧（还是灰的）。
-     // 用 seeStyleSettled：等它过渡到稳定值再判，不是放宽，是等它本来就会到的地方。
-     .seeStyleSettled('.md-adv__bar', 'color', 'rgb(224, 139, 51)', '折叠条转橘 #E08B33')
+     .seeContains('.md-rulefoot__badge', '已启用 1 项',
+       '★ 入口徽标出现「已启用 1 项」—— 模板顺手替用户开了一个进阶开关，看得见')
   ),
 
   feature('P2-B TC-40 「去掉括号」要匹配全部：一个名字里两组括号必须全去掉', (c) =>
@@ -657,16 +753,14 @@ const FEATURES = [
   feature('P2-B 其余 4 个模板逐个点：页签与关键参数都对得上（不是「点了没反应」）', (c) =>
     // ① 补零编号
     c.click('[data-template="seqPad"]')
-     .waitUntil("(() => { const l = Array.from(document.querySelectorAll('.md-rulepanel__group .md-check'))"
-       + ".find((e) => e.textContent.includes('启用序号'));"
-       + " return !!l && l.querySelector('input').checked; })()", 8000)
+     .waitUntil("(() => { const i = document.querySelector('[data-numbering] .md-switch--sm input');"
+       + " return !!i && i.checked; })()", 8000)
      .seeAttr('.md-tabs .md-tab:nth-child(3)', 'aria-selected', 'true', '「补零编号」→ 页签跳到规则化')
      .seeThat(
        // P3-1 把这格的界面用词从「补零」改成了「位数」（设计 §7.3：与「增量」一道对齐大白话）。
        // 找的是**渲染出来的标签**，所以这里跟着改；断言的值仍是 3，一个字没放宽。
-       "(() => { const i = Array.from(document.querySelectorAll('.md-rulepanel__numitem'))"
-       + ".find((e) => e.textContent.includes('位数'));"
-       + " return i ? i.querySelector('input').value : null; })()",
+       "(() => { const i = document.querySelector('[data-seq-pad]');"
+       + " return i ? i.value : null; })()",
        '3', '位数 = 3（出来的是 001、002 而不是 1、2）')
      // 预览重算有 200ms 防抖 + Worker 一次往返，所以先等它算出来再断言。
      // 等的是**逐字符相等**这个结果本身，不是"等一会儿"—— 没有放宽标准。
@@ -690,12 +784,16 @@ const FEATURES = [
      .waitUntil(`(() => { const v = ${newNameOf('my file name.txt')}; return v === 'my_file_name.txt'; })()`, 8000)
      .seeThat(newNameOf('my file name.txt'), 'my_file_name.txt',
        '★ 两个空格**全换成**下划线（换的是全部出现位置，不是只换第一个）')
-    // ④ 全部小写
+    // ④ 全部小写（大小写下拉在弹窗里：先开窗读值、读完关窗）
      .click('[data-template="lowercase"]')
+     .click('[data-adv-open]')
+     .waitUntil(MODAL_VISIBLE, 8000)
      .waitUntil("(() => { const s = document.querySelector('.md-adv__case .md-select');"
        + " return !!s && s.value === 'lower'; })()", 8000)
      .seeAttr('.md-tabs .md-tab:nth-child(3)', 'aria-selected', 'true', '「全部小写」→ 页签跳到规则化')
      .seeThat("document.querySelector('.md-adv__case .md-select').value", 'lower', '大小写 = 全部小写')
+     .key('Escape')
+     .waitUntil("!document.querySelector('.md-modal')", 8000)
      .waitUntil(`(() => { const v = ${newNameOf('IMG_0001.JPG')}; return v === 'img_0001.JPG'; })()`, 8000)
      .seeThat(newNameOf('IMG_0001.JPG'), 'img_0001.JPG',
        '★ 主体变成 img_0001，扩展名 .JPG **原样保留** —— 扩展名保护没被大小写规则绕过去')
@@ -759,7 +857,7 @@ const FEATURES = [
      // 于是「它真的在跟系统走」在两台不同设置的机器上都看得出来，
      // 而不是在浅色机器上"本来就对"地假通过。
      .click('.md-settings__seg .md-tab:nth-child(3)')
-     .waitUntil(`${CARD_BG} === 'rgb(46, 33, 25)'`, 8000)
+     .waitUntil(`${CARD_BG} === 'rgb(33, 29, 26)'`, 8000)
      .seeAttr('html', 'data-theme', 'dark', '先强制到「始终深色」')
      .click('.md-settings__seg .md-tab:nth-child(1)')
      // 先等这一下真的落稳（等 aria-pressed 变了再往下读）——
@@ -768,14 +866,14 @@ const FEATURES = [
        + ".getAttribute('aria-pressed') === 'true'", 8000)
      // 色彩翻转比属性翻得慢半拍（媒体查询要等一次样式重算），所以先等它落定再断言
      .waitUntil(`(() => { const m = matchMedia('(prefers-color-scheme: dark)').matches;`
-       + ` return ${CARD_BG} === (m ? 'rgb(46, 33, 25)' : 'rgb(255, 255, 255)'); })()`, 8000)
+       + ` return ${CARD_BG} === (m ? 'rgb(33, 29, 26)' : 'rgb(255, 255, 255)'); })()`, 8000)
      .seeAttr('.md-settings__seg .md-tab:nth-child(1)', 'aria-pressed', 'true', '「跟随系统」变为选中')
      .seeThat("(() => { const t = document.documentElement.dataset.theme;"
        + " return t === (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); })()", true,
        'data-theme 严格等于系统信号解析出来的值（期望值取决于本机 Windows 设置，所以用表达式而不是写死）')
      .seeThat(`${CARD_BG} === (matchMedia('(prefers-color-scheme: dark)').matches`
-       + " ? 'rgb(46, 33, 25)' : 'rgb(255, 255, 255)')", true,
-       '卡片底色也跟着系统信号走（深色系统→深底 #2E2119 / 浅色系统→白底）')
+       + " ? 'rgb(33, 29, 26)' : 'rgb(255, 255, 255)')", true,
+       '卡片底色也跟着系统信号走（深色系统→深底 #211D1A / 浅色系统→白底）')
      .seeCount('html[data-theme="light"], html[data-theme="dark"]', 1,
        'data-theme 落在 light / dark 两个已知值之一（没把 "system" 这个字面量写进属性）')
      .click('.md-settings__seg .md-tab:nth-child(2)')
@@ -790,25 +888,25 @@ const FEATURES = [
      .waitUntil(MODAL_VISIBLE, 8000)
      .seeAttr('html', 'data-theme', 'light', '切换前是浅色')
      .seeStyle('.md-filelist', 'backgroundColor', 'rgb(255, 255, 255)', '切换前卡片是白底')
-     .seeStyle('.md-settings__seg', 'backgroundColor', 'rgb(247, 239, 227)', '切换前页签槽是浅凹陷色 #F7EFE3')
-     .seeStyle('.md-modal__foot--spread .md-btn--primary', 'color', 'rgb(42, 26, 16)',
-       '主按钮文字是深棕 #2A1A10（浅色下也改了 —— P2-A 唯一改动浅色现有观感的地方）')
+     .seeStyle('.md-settings__seg', 'backgroundColor', 'rgb(227, 223, 216)', '切换前页签槽是浅凹陷色 #E3DFD8')
+     .seeStyle('.md-modal__foot--spread .md-btn--primary', 'color', 'rgb(255, 255, 255)',
+       '主按钮文字是白 #FFFFFF（P3-9：深赭橘底上白字 6.4:1）')
      .click('.md-settings__seg .md-tab:nth-child(3)')
-     .waitUntil(`${CARD_BG} === 'rgb(46, 33, 25)'`, 8000)
+     .waitUntil(`${CARD_BG} === 'rgb(33, 29, 26)'`, 8000)
      .seeAttr('html', 'data-theme', 'dark', '切换后 <html data-theme> = dark')
      .seeAttr('.md-settings__seg .md-tab:nth-child(3)', 'aria-pressed', 'true', '「始终深色」变为选中')
-     .seeStyle('.md-filelist', 'backgroundColor', 'rgb(46, 33, 25)', '卡片底色真的变成深色 #2E2119')
-     .seeStyle('.md-settings__seg', 'backgroundColor', 'rgb(26, 18, 16)',
-       '页签槽变成 #1A1210 —— 仍比卡片暗（层级方向没弄反，否则选中态就看不见了）')
-     .seeStyle('.md-modal__foot--spread .md-btn--primary', 'color', 'rgb(42, 26, 16)',
-       '主按钮文字仍是深棕（品牌橘与橘底前景两主题同值）')
+     .seeStyle('.md-filelist', 'backgroundColor', 'rgb(33, 29, 26)', '卡片底色真的变成深色 #211D1A')
+     .seeStyle('.md-settings__seg', 'backgroundColor', 'rgb(7, 6, 5)',
+       '页签槽变成 #070605 —— 仍比卡片暗（层级方向没弄反，否则选中态就看不见了）')
+     .seeStyle('.md-modal__foot--spread .md-btn--primary', 'color', 'rgb(28, 13, 3)',
+       '主按钮文字反过来是近黑 #1C0D03（亮橘底上用暗字，7.3:1 —— DEC-31 起 on-brand 分主题）')
      // 开关轨道描边：这是 P2-A 唯一"破例新增"的第 15 个令牌。
      // box-shadow 的序列化格式各版本 Chrome 略有差异，所以判"含这个颜色"而不是全等字面量。
      .waitUntil("(() => { const el = document.querySelector('.md-settings__switch--motion .md-switch__track');"
-       + " return !!el && getComputedStyle(el).boxShadow.includes('94, 74, 59'); })()", 8000)
+       + " return !!el && getComputedStyle(el).boxShadow.includes('90, 74, 62'); })()", 8000)
      .click('.md-modal__foot--spread .md-btn--primary')
      .waitUntil("!document.querySelector('.md-modal')", 8000)
-     .seeStyle('.md-filelist', 'backgroundColor', 'rgb(46, 33, 25)',
+     .seeStyle('.md-filelist', 'backgroundColor', 'rgb(33, 29, 26)',
        '关掉弹窗后主界面仍然是深色（说明是全应用生效，不是只有弹窗里好看）')
   ),
 
@@ -828,7 +926,7 @@ const FEATURES = [
     c.click('.md-winbtn--settings')
      .waitUntil(MODAL_VISIBLE, 8000)
      .seeAttr('html', 'data-reduce-motion', 'false', '默认关闭')
-     .seeStyle('.md-tab', 'transitionDuration', '0.18s', '开启前页签有 180ms 过渡（= 设计规范 §7 的 --md-dur-hover）')
+     .seeStyle('.md-tab', 'transitionDuration', '0.18s, 0.18s, 0.18s', '开启前页签有 180ms 过渡（= --md-dur-hover；C 方案页签过渡底/边框/字三个属性，computed 是逗号清单，每段仍是 180ms）')
      .click('.md-settings__switch--motion')
      .waitUntil("document.documentElement.dataset.reduceMotion === 'true'", 8000)
      .seeAttr('html', 'data-reduce-motion', 'true', '开启后 <html data-reduce-motion> = true')
@@ -838,7 +936,7 @@ const FEATURES = [
      .seeAttr('html', 'data-reduce-motion', 'false', '再点一下能关回去（不留脏状态）')
      .click('.md-modal__foot--spread .md-btn--primary')
      .waitUntil("!document.querySelector('.md-modal')", 8000)
-      .seeStyle('.md-tab', 'transitionDuration', '0.18s', '关掉「减少动画」后过渡恢复 180ms')
+      .seeStyle('.md-tab', 'transitionDuration', '0.18s, 0.18s, 0.18s', '关掉「减少动画」后过渡恢复 180ms（三属性逗号清单，每段 180ms）')
   ),
 
   /* ══ P2-C（历史完整版 + 命令行入口）══════════════════════════════════
@@ -962,7 +1060,7 @@ const FEATURES = [
   ),
 
   feature('P2-C TC-33 明细就地展开：序号与「原名 → 新名」逐条正确，再点收回', (c) =>
-    c.click('.md-actionbar .md-btn--secondary')
+    c.click('[data-history-open]')
      .waitUntil("!!document.querySelector('.md-history')", 8000)
      .seeCount('.md-history-card', 3, '历史页应有 3 条记录（本轮的夹具）')
      .notSee('.md-detail__list', '明细默认是收起的')
@@ -1038,8 +1136,8 @@ const FEATURES = [
            .seeContains('.md-modal__warn', '仍然可以撤销', '警告里写明「N 条仍可撤销」')
            .seeContains('.md-modal__warn', '无法再还原', '并写明「清空后无法还原，只能手动改回去」')
            .seeText('.md-modal__foot .md-btn--danger', '仍然清空', '主按钮文案改成「仍然清空」')
-           .seeStyle('.md-modal__foot .md-btn--danger', 'backgroundColor', 'rgb(229, 84, 75)',
-             '主按钮底色是危险色 --md-bad #E5544B（字用 on-danger 深棕，4.58:1 达标）')
+           .seeStyle('.md-modal__foot .md-btn--danger', 'backgroundColor', 'rgb(196, 50, 42)',
+             '主按钮底色是危险色 --md-bad #C4322A（字用 on-danger 白，5.5:1 达标）')
            .seeContains('.md-confirm__body', '文件本身不会被删除',
              '正文必须写清「不删文件」，否则用户会以为「清空历史 = 删文件」而不敢用')
         ),
@@ -1072,11 +1170,11 @@ const FEATURES = [
   feature('P3-1 从历史页返回主界面：规则区仍在「规则化」页签', (c) =>
     c.see('.md-history__head', '当前确实停在历史页（上一条用例留下的状态）')
      .click('.md-history__head .md-btn--ghost')
-     .waitUntil("!!document.querySelector('.md-rulepanel__form')", 8000)
+     .waitUntil("!!document.querySelector('[data-numbering]')", 8000)
      .click('.md-tabs .md-tab:nth-child(3)')
      .waitUntil("document.querySelector('.md-tabs .md-tab:nth-child(3)')"
        + ".getAttribute('aria-selected') === 'true'", 8000)
-     .see('.md-rulepanel__form', '回到了主界面，规则区在「规则化」')
+     .see('[data-numbering]', '回到了主界面，规则区在「规则化」')
   ),
 
   feature('P3-1 起始态：序号没启用 → 两个下拉与参数框全禁用、示例行整块不在', (c) =>
@@ -1089,7 +1187,9 @@ const FEATURES = [
   ),
 
   feature('P3-1 EL-124 勾上「启用序号」：整组解禁，示例行出现并明说"不是你的文件"', (c) =>
-    c.click('.md-rulepanel__group:nth-of-type(1) .md-check')
+    c.click('[data-numbering] .md-switch--sm')
+     // 组件重挂载后折叠条回到默认折起：示例行在折叠条里，先打开再等
+     .click('[data-num-adv]')
      .waitUntil("!!document.querySelector('[data-seq-demo]')", 8000)
      .seeThat(SEQ_ENABLED_EXPR, true, '勾选生效')
      .seeCount('[data-seq-start]:disabled', 0, '参数框全部解禁')
@@ -1097,7 +1197,7 @@ const FEATURES = [
        '★ 文案必须说清这不是真实预览，否则用户会以为"我的文件被改成这样了"')
      .seeText(seqDemoSel(0), '【素材】001', '默认（数字 / 位数 3）第 1 个示例 = 【素材】001')
      .seeText(seqDemoSel(2), '【素材】003', '第 3 个 = 【素材】003（序号按 1/2/3 递增）')
-     .seeStyle('[data-seq-demo] code', 'color', 'rgb(224, 139, 51)',
+     .seeStyle('[data-seq-demo] code', 'color', 'rgb(122, 47, 8)',
        '示例里的新名走橘色高亮 —— 这条同时钉住那个**两级选择器**（单写类名会被上面的规则盖掉）')
   ),
 
@@ -1187,7 +1287,7 @@ const FEATURES = [
   ),
 
   feature('P3-1 取消「启用序号」：整组回到禁用、示例行整块消失（临时状态必须归位）', (c) =>
-    c.click('.md-rulepanel__group:nth-of-type(1) .md-check')
+    c.click('[data-numbering] .md-switch--sm')
      .waitUntil("!document.querySelector('[data-seq-demo]')", 8000)
      .seeThat(SEQ_ENABLED_EXPR, false, '「启用序号」已取消')
      .seeCount('[data-seq-demo]', 0, '★ 示例行整块消失，不留空壳')
@@ -1199,17 +1299,16 @@ const FEATURES = [
 
   // ══ P3-2：导出清单（《P3-2提取文件名轻量设计确认》§2 / §9 / §10）══════════
 
-  feature('P3-2 EL-126：「导出清单」在左栏、位于「清空列表」之上', (c) =>
+  feature('P3-2 EL-126：「导出清单」在标题栏右组、位于「清空列表」之左', (c) =>
+    // ★ 施工单 §二：整组搬进标题栏后，右组次序被钉死：
+    //   导出清单 → 清空列表 → 文件夹合并 → 文件提取 → 撤销 / 历史。
     c.scroll('[data-export-open]')
      .see('[data-export-open]', '「导出清单」按钮可见（有尺寸、在视口内）')
      .seeContains('[data-export-open]', '导出清单', '按钮文案正确')
      .seeThat(
-       // ★ P3-4 改了这里的形状：左栏加了第 5 个按钮「导入表格」（EL-132，设计 §2.1）。
-       //   断言改成看**最后三个**的次序 —— 这是**形状同步**（按钮真的多了一个），
-       //   不是放宽：次序本身仍然被钉死（往进加 → 产出 → 销毁）。
-       "(function(){var a=[].slice.call(document.querySelectorAll('.md-actionpanel button')).map(function(x){return x.textContent.trim()});return JSON.stringify(a.slice(-3))})()",
-       JSON.stringify(['导入表格', '导出清单', '清空列表']),
-       '最后三个按钮依次是「导入表格」「导出清单」「清空列表」（往里加 → 产出 → 销毁）'
+       "(function(){var a=['[data-export-open]','[data-clear-open]','[data-merge-open]','[data-extract-open]','[data-history-open]'].map(function(q){return document.querySelector(q).textContent.trim()});return JSON.stringify(a)})()",
+       JSON.stringify(['导出清单', '清空列表', '文件夹合并', '文件提取', '撤销 / 历史']),
+       '标题栏右组五枚胶囊依次就位（产出 → 销毁 → 窗口级工具 → 历史）'
      )
   ),
 
@@ -1239,7 +1338,7 @@ const FEATURES = [
   ),
 
   feature('P3-2 ★ 真导出一次 CSV（仅选中 1 项）：通道打通、真的落盘', (c) =>
-    c.click('.md-filelist__check input')
+    c.click('.md-filelist__ck input')
      .click('[data-export-open]')
      .waitUntil("!!document.querySelector('[data-export-confirm]')", 8000)
      .seeThat(
@@ -1264,7 +1363,10 @@ const FEATURES = [
   // ══ P3-3：按文件属性命名（《P3-3按文件属性命名轻量设计确认》§2 / §9）══
 
   feature('P3-3 EL-130：属性组在规则区里，属性变量都露出来（P3-6 起是 4 个）', (c) =>
-    c.scroll('[data-var-hint]')
+    // ★ 施工单 §五-8：「属性 · 变量」默认折起 —— 先打开折叠条再数 chip
+    c.click('[data-attr-adv]')
+     .waitUntil("!!document.querySelector('[data-attr-insert]')", 8000)
+     .scroll('[data-var-hint]')
      .see('[data-var-hint]', '变量提示行可见')
      // ★ 不改这行提示，功能完全正常、测试全绿、界面无异常 ——
      //   但**没有任何用户知道有这些变量**。这几条是唯一能抓它的断言。
@@ -1566,7 +1668,7 @@ const FEATURES = [
         0,
         '★ 插入模式下「区分大小写」不出现（它只对删除 / 替换有意义）'
       )
-      .seeThat("document.querySelectorAll('.md-adv').length", 0, '★ 插入模式下连「进阶设置」整条都不出现')
+      .seeThat("document.querySelectorAll('[data-adv-open]').length", 0, '★ 插入模式下连「进阶设置」入口都不出现')
       .click('.md-tabs .md-tab:nth-child(5)')
       .waitUntil("!!document.querySelector('[data-import-group]')", 8000)
       .seeThat(
@@ -1574,7 +1676,7 @@ const FEATURES = [
         0,
         '★ 导入模式下「区分大小写」同样不出现'
       )
-      .seeThat("document.querySelectorAll('.md-adv').length", 0, '★ 导入模式下「进阶设置」同样不出现')
+      .seeThat("document.querySelectorAll('[data-adv-open]').length", 0, '★ 导入模式下「进阶设置」入口同样不出现')
   ),
 
   // ══ P3-6：提取文件夹名（`{文件夹}` 变量）═══════════════════════════════
@@ -1584,6 +1686,7 @@ const FEATURES = [
   feature('P3-6 EL-140：属性组出现第 4 个 chip「文件夹名」', (c) =>
     c
       .click('.md-tabs .md-tab:nth-child(3)')
+      .waitUntil("!!document.querySelector('[data-attr-adv]')", 8000)
       .waitUntil("!!document.querySelector('[data-attr-insert=\"{文件夹}\"]')", 8000)
       .scroll('[data-attr-insert="{文件夹}"]')
       .see('[data-attr-insert="{文件夹}"]', '★ 第 4 个属性 chip「文件夹名」可见')
@@ -1644,6 +1747,110 @@ const FEATURES = [
         '★★ 每一行的新名都**不再含字面 {文件夹}** —— 变量真的被换成了文件夹名（不是原样留着）'
       )
   ),
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // P3-7 修复验收（2026-09-25 · 产品负责人本机实测报的 3 个 bug）
+  //   ① 拖文件/文件夹进拖放区加不进去
+  //   ② 文件 + 文件夹混合添加后，「干跑并预览」点了没反应
+  //   ③ 长路径显示不全（弹窗太窄 + 路径不换行）
+  // ═══════════════════════════════════════════════════════════════════════
+
+  feature('P3-7 修复①：拖文件 / 文件夹进拖放区 → 真的入列', (c) =>
+    c
+      .click('[data-merge-open]')
+      .wait(300)
+      .see('[data-merge-drop]', '「文件夹合并」对话框已打开，拖放区可见')
+      .seeCount('.md-merge__list li', 0, '初始源列表为空（还没拖任何东西）')
+      .dropFiles(
+        '[data-merge-drop]',
+        [DROP_FILE_A, DROP_DIR_A],
+        '★ 用 Chromium 真实拖放通道拖入 1 个文件 + 1 个文件夹'
+      )
+      .seeCount('.md-merge__list li', 2, '★ 拖进来的 2 条都进了源列表')
+      .seeContains('.md-merge__item', path.basename(DROP_FILE_A), '列表里第一行真的是刚才拖进来的那个文件')
+      .seeThat(
+        '[].slice.call(document.querySelectorAll(".md-filelist__name")).some(function (e) { return e.textContent.indexOf("拖入文件甲") >= 0; })',
+        false,
+        '★ 主列表里**没有**刚拖入的那个文件 —— 证明拖放落在弹窗拖放区上，没被主窗口的监听截走'
+      )
+      // ★ 这里**不关对话框**：本条的"操作后"截图必须拍到源列表里那 2 条，
+      //   那才是这条用例的证据。关窗交给下一条的开头（key('Escape') 是空操作也无妨）。
+  ),
+
+  feature('P3-7 修复②：文件 + 文件夹混合添加 → 干跑能出清单（不再是「点了没反应」）', (c) =>
+    c
+      // 先关掉上一条留下的对话框（本来就没开的话，按 Esc 是空操作）
+      .key('Escape')
+      .wait(250)
+      .click('[data-merge-open]')
+      .wait(300)
+      .click('[data-merge-add-files]')
+      .wait(300)
+      .click('[data-merge-add-folder]')
+      .wait(300)
+      .seeThat(
+        'document.querySelectorAll(".md-merge__list li").length',
+        3,
+        '源列表里同时有「文件」和「文件夹」两种来源（混合添加成功）'
+      )
+      .click('[data-merge-pick-existing]')
+      .wait(300)
+      .seeThat(
+        '!!document.querySelector("[data-merge-plan]") && document.querySelector("[data-merge-plan]").disabled === false',
+        true,
+        '★ 干跑按钮是**可点**的（源和目标都齐了）—— 原来这里是灰的，怎么点都没反应'
+      )
+      .click('[data-merge-plan]')
+      .waitUntil('!!document.querySelector("[data-merge-report]")', 10000)
+      .see('[data-merge-report]', '★ 干跑报告出现了 —— 不是「点了没反应」')
+      // ★ 把拒绝原因**读出来当断言**：失败时报告里会直接印出"不能开始：xxx"，
+      //   而不是只告诉人"有个红框"，省得再跑一次才知道为什么。
+      .seeThat(
+        '(function(){ var e = document.querySelector("[data-merge-reject]"); return e ? "拒绝：" + e.textContent.trim() : "（无拒绝）"; })()',
+        '（无拒绝）',
+        '★ 没有被「不能开始」挡住（若被挡，本栏会直接打印拒绝原文）'
+      )
+      .seeThat(
+        'document.querySelectorAll("[data-merge-entry]").length',
+        3,
+        '★ 清单里恰好 3 条（2 个单独文件 + 文件夹里摊平出的 1 个）'
+      ),
+    { setup: () => { pickQueue = [[DROP_FILE_A, DROP_FILE_B], [DROP_DIR_A], [mergeTargetDir]] } }
+  ),
+
+  feature('P3-7 修复③：长路径自动换行（不被省略号截断）', (c) =>
+    c
+      // 先关掉上一条留下的对话框
+      .key('Escape')
+      .wait(250)
+      .click('[data-merge-open]')
+      .wait(300)
+      .click('[data-merge-add-files]')
+      .wait(350)
+      .seeCount('.md-merge__item', 1, '超长路径已入列')
+      .seeThat(
+        'getComputedStyle(document.querySelector(".md-merge__item")).whiteSpace',
+        'normal',
+        '★ 路径元素允许换行（原来是 nowrap）'
+      )
+      .seeThat(
+        'getComputedStyle(document.querySelector(".md-merge__item")).wordBreak',
+        'break-all',
+        '★ 长串能断行（word-break: break-all）'
+      )
+      .seeThat('document.querySelector(".md-modal").style.width', '720px', '★ 弹窗加宽到 720（原来是 600，太窄）')
+      .seeThat(
+        'document.querySelector(".md-merge__item").scrollWidth <= document.querySelector(".md-merge__item").clientWidth + 1',
+        true,
+        '★ 路径没有横向溢出 —— 真的换了行，不是靠 overflow:hidden 裁掉'
+      )
+      .seeThat(
+        'document.querySelector(".md-merge__item").getBoundingClientRect().height > 24',
+        true,
+        '路径占了不止一行（确实折行了，不是恰好塞下）'
+      ),
+    { setup: () => { pickQueue = [[LONG_PATH_FILE]] } }
+  ),
 ];
 
 
@@ -1691,7 +1898,17 @@ app.whenReady().then(async () => {
         + `${S.config.hud ? '，已注入测试光标与横幅' : ''}。想快跑：SMOKE_FAST=1`);
     }
 
-    await S.runSteps(win, outDir, result, FEATURES);
+    // ★ 用例过滤器：只跑名字里含 SMOKE_ONLY 的功能，供"只验这一批"时用。
+    //   不设 = 全跑（默认，交付前必须全跑一遍）。报告里会写明"本次只跑了 N 条"。
+    const ONLY = process.env.SMOKE_ONLY || '';
+    const FEATURES_RUN = ONLY ? FEATURES.filter((f) => f.name.indexOf(ONLY) >= 0) : FEATURES;
+    if (ONLY) {
+      console.log(`※ SMOKE_ONLY=${ONLY} → 只跑 ${FEATURES_RUN.length}/${FEATURES.length} 条用例`);
+    }
+    result.only = ONLY || null;
+    result.totalFeatures = FEATURES.length;
+
+    await S.runSteps(win, outDir, result, FEATURES_RUN);
 
     // ── 「本次没验到的」：必须显式写，不许留空 ────────────────────────
     result.notVerified = [

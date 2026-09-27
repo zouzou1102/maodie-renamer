@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>耄耋改名 · 五套界面方案总览</title>
+<style>
+:root{
+  --bg:#0F0F10; --card:#18181A; --card2:#1F1F22; --line:#2C2C30; --line2:#3A3A40;
+  --ink:#F2F2F3; --ink2:#B4B4BA; --ink3:#7E7E86;
+  --orange:#FF8A3D; --ok:#5FBF8A;
+  --sans:"Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --mono:"JetBrains Mono",Consolas,"Cascadia Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);padding:44px 24px 90px;line-height:1.6}
+.wrap{max-width:1260px;margin:0 auto}
+h1{font-size:27px;font-weight:700;letter-spacing:1px}
+.lead{margin-top:12px;font-size:14px;color:var(--ink2);max-width:900px}
+.lead b{color:var(--orange);font-weight:400}
+.rule{height:2px;background:var(--orange);margin:26px 0 34px;opacity:.5}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.card__head{padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+.card__n{font-family:var(--mono);font-size:10.5px;letter-spacing:2px;color:var(--orange)}
+.card__t{font-size:16px;font-weight:700;margin-top:3px;letter-spacing:1px}
+.card__tags{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.card__tags span{font-size:10.5px;color:var(--ink3);border:1px solid var(--line2);border-radius:99px;padding:2px 8px}
+.shot{position:relative;width:100%;height:253px;overflow:hidden;background:#000}
+.shot iframe{position:absolute;top:0;left:0;width:1280px;height:800px;border:0;
+  transform:scale(.3164);transform-origin:0 0}
+.shot a{position:absolute;inset:0;z-index:2}
+.card__trait{padding:13px 16px 16px;font-size:12.5px;color:var(--ink2);display:flex;flex-direction:column;gap:7px}
+.card__trait div{display:flex;gap:8px}
+.card__trait i{color:var(--orange);font-style:normal;flex:0 0 auto}
+.card__trait b{color:var(--ink);font-weight:400}
+
+h2{font-size:17px;font-weight:700;letter-spacing:1px;margin:52px 0 6px}
+.note{font-size:12.5px;color:var(--ink3);margin-bottom:16px}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{background:var(--card2);font-size:11.5px;color:var(--ink);letter-spacing:.5px;white-space:nowrap}
+thead th:first-child{color:var(--ink3)}
+tbody tr:last-child td{border-bottom:none}
+tbody td:first-child{color:var(--ink3);font-family:var(--mono);font-size:10.5px;letter-spacing:1px;white-space:nowrap}
+tbody tr:hover td{background:#1D1D20}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle;
+  border:1px solid rgba(255,255,255,.25)}
+.mono{font-family:var(--mono);font-size:11px}
+
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+.box h3{font-size:14.5px;font-weight:700;margin-bottom:10px;letter-spacing:.5px}
+.box ul{list-style:none;display:flex;flex-direction:column;gap:9px;font-size:12.5px;color:var(--ink2)}
+.box li{display:flex;gap:9px}
+.box li i{color:var(--orange);font-style:normal;flex:0 0 auto}
+.box li b{color:var(--ink);font-weight:400}
+.box p{font-size:12.5px;color:var(--ink2);margin-bottom:9px}
+.warn{border-color:#4A3520;background:#1C1610}
+.warn h3{color:var(--orange)}
+.foot{margin-top:44px;font-size:12px;color:var(--ink3);border-top:1px solid var(--line);padding-top:18px}
+code{font-family:var(--mono);font-size:11.5px;background:var(--card2);border:1px solid var(--line);
+  border-radius:5px;padding:1px 6px;color:var(--ink2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>耄耋改名 · 五套界面方案总览</h1>
+<p class="lead">
+  五套的<b>主题完全一样</b>——还是那只圆头炸毛的橘猫耄耋、还是暖色调、还是一模一样的功能。
+  变的是<b>它周围那个世界</b>：分区方式、主轴方向、猫的戏份、配色、圆角、字号节奏，全部重做。
+  每一套都能点：<b>预览图可以点开看全尺寸</b>，每个文件里还有「浅色 / 深色」切换和能真的按的按钮。
+</p>
+<div class="rule"></div>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="card__head">
+      <div class="card__n">SCHEME 01</div>
+      <div class="card__t">对开档案台</div>
+      <div class="card__tags"><span>牛皮纸</span><span>墨绿</span><span>印章</span><span>横向对开</span></div>
+    </div>
+    <div class="shot"><iframe src="01-对开档案台.html" scrolling="no"></iframe><a href="01-对开档案台.html" target="_blank" title="点开看全尺寸"></a></div>
+    <div class="card__trait">
+      <div><i>·</i><span><b>原本的名字 / 改完的名字拆成左右两栏</b>，像两页摊开的账本</span></div>
+      <div><i>·</i><span>猫卡在两栏中间的<b>咬合缝</b>里，去掉了哪个字就在那一侧划掉</span></div>
+      <div><i>·</i><span>鼠标划过任意一行，<b>两栏同时亮</b></span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__head">
+      <div class="card__n">SCHEME 02</div>
+      <div class="card__t">竖向流水线</div>
+      <div class="card__tags"><span>米灰</span><span>焦糖</span><span>安全黄</span><span>单列四步</span></div>
+    </div>
+    <div class="shot"><iframe src="02-竖向流水线.html" scrolling="no"></iframe><a href="02-竖向流水线.html" target="_blank" title="点开看全尺寸"></a></div>
+    <div class="card__trait">
+      <div><i>·</i><span><b>投料 → 工序 → 检视 → 出品</b>，四张全宽工单卡往下排</span></div>
+      <div><i>·</i><span>猫戴安全帽站在<b>传送带上当工头</b>，旁边挂着「01 / 04」工牌</span></div>
+      <div><i>·</i><span>每张卡有独立职责，只有第 4 张会真改文件</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__head">
+      <div class="card__n">SCHEME 03</div>
+      <div class="card__t">抽屉工作台</div>
+      <div class="card__tags"><span>暖黑</span><span>橘</span><span>默认深色</span><span>面板化</span></div>
+    </div>
+    <div class="shot"><iframe src="03-抽屉工作台.html" scrolling="no"></iframe><a href="03-抽屉工作台.html" target="_blank" title="点开看全尺寸"></a></div>
+    <div class="card__trait">
+      <div><i>·</i><span>左侧<b>图标轨道</b> + 占满屏幕的文件列表 + 右侧<b>规则抽屉</b></span></div>
+      <div><i>·</i><span>猫缩成轨道底部的<b>小挂件</b>，点它会说话，还会顺手把抽屉拉开</span></div>
+      <div><i>·</i><span>抽屉点把手能<b>收起来</b>，列表瞬间变宽</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__head">
+      <div class="card__n">SCHEME 04</div>
+      <div class="card__t">指挥台</div>
+      <div class="card__tags"><span>纯白</span><span>炭黑</span><span>零圆角</span><span>瑞士栅格</span></div>
+    </div>
+    <div class="shot"><iframe src="04-指挥台.html" scrolling="no"></iframe><a href="04-指挥台.html" target="_blank" title="点开看全尺寸"></a></div>
+    <div class="card__trait">
+      <div><i>·</i><span><b>全部直角</b>，报头上四个巨型数字告诉你全局</span></div>
+      <div><i>·</i><span>猫变成<b>橘黑双色几何标志</b>，藏在报头右上角</span></div>
+      <div><i>·</i><span>鼠标划过表格行<b>整行反白</b>，右侧用 01–05 编号分段</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__head">
+      <div class="card__n">SCHEME 05</div>
+      <div class="card__t">一句话</div>
+      <div class="card__tags"><span>米白</span><span>单橘</span><span>大留白</span><span>渐进披露</span></div>
+    </div>
+    <div class="shot"><iframe src="05-一句话.html" scrolling="no"></iframe><a href="05-一句话.html" target="_blank" title="点开看全尺寸"></a></div>
+    <div class="card__trait">
+      <div><i>·</i><span>猫<b>占掉左半屏</b>，是绝对主角</span></div>
+      <div><i>·</i><span>规则写成人话：<b>「把名字里所有的『广告』都换成『推广』」</b>，词能点着改</span></div>
+      <div><i>·</i><span>点巨型按钮，<b>猫会眯眼笑</b>；序号正则那些全藏进「更多设置」</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="justify-content:center;background:transparent;border-style:dashed">
+    <div style="padding:26px 22px">
+      <div class="card__n" style="color:var(--ink3)">HOW TO LOOK</div>
+      <div class="card__t" style="margin-bottom:12px">怎么快速挑出你想要的</div>
+      <div class="card__trait" style="padding:0;font-size:12.5px">
+        <div><i>1</i><span>先看<b>猫在哪</b>——它决定了这个软件的性格</span></div>
+        <div><i>2</i><span>再问自己<b>打开第一眼看哪里</b>：看名字（1、4）、看步骤（2）、看进度（3）、看题目（5）</span></div>
+        <div><i>3</i><span>最后想<b>你是谁在用</b>：给自己用、给完全不看说明的人用、还是给要一次改一千个的人用</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<h2>逐项对照表</h2>
+<p class="note">这张表就是「至少 95% 不同」的账本：除了标题栏和弹窗，几乎没有一格是重的。</p>
+
+<table>
+<thead>
+<tr><th>维度</th><th>1 对开档案台</th><th>2 竖向流水线</th><th>3 抽屉工作台</th><th>4 指挥台</th><th>5 一句话</th></tr>
+</thead>
+<tbody>
+<tr><td>主轴方向</td><td>横向左右</td><td>纵向上下</td><td>左中右三块</td><td>栅格分区</td><td>单点</td></tr>
+<tr><td>分区</td><td>2 个等宽栏</td><td>4 张全宽工单卡</td><td>图标轨道 + 工作区 + 抽屉</td><td>报头 + 表格 + 指令栏</td><td>猫 + 一句话</td></tr>
+<tr><td>导航模型</td><td>无导航，一屏对照</td><td>线性四步</td><td>图标轨道 + 可收合抽屉</td><td>01–05 编号分段</td><td>渐进披露，默认全藏</td></tr>
+<tr><td>猫在哪 / 戏份</td><td>两栏之间的咬合缝，主角之一</td><td>左侧工头位，戴安全帽站传送带</td><td>轨道底部挂件，会说话</td><td>报头右上角几何标志</td><td>占左半屏，绝对主角</td></tr>
+<tr><td>底色</td><td><span class="sw" style="background:#E8DCC8"></span>牛皮纸 <span class="mono">#E8DCC8</span></td><td><span class="sw" style="background:#EFE9E1"></span>米灰 <span class="mono">#EFE9E1</span></td><td><span class="sw" style="background:#1A1614"></span>暖黑 <span class="mono">#1A1614</span></td><td><span class="sw" style="background:#FFFFFF"></span>纯白 <span class="mono">#FFFFFF</span></td><td><span class="sw" style="background:#FAF7F2"></span>米白 <span class="mono">#FAF7F2</span></td></tr>
+<tr><td>强调色</td><td><span class="sw" style="background:#2F5D50"></span>墨绿 <span class="mono">#2F5D50</span></td><td><span class="sw" style="background:#B4661F"></span>焦糖 <span class="mono">#B4661F</span></td><td><span class="sw" style="background:#F5A623"></span>橘 <span class="mono">#F5A623</span></td><td><span class="sw" style="background:#FF6B1A"></span>橘 <span class="mono">#FF6B1A</span></td><td><span class="sw" style="background:#F5751F"></span>橘 <span class="mono">#F5751F</span></td></tr>
+<tr><td>圆角</td><td>3–8px 近直角</td><td>5–8px</td><td>6–10px</td><td>0–2px 全直角</td><td>10–99px 全胶囊</td></tr>
+<tr><td>字号节奏</td><td>衬线大标题 + 常规正文</td><td>粗黑标题 + 等宽数字</td><td>小标题 + 等宽数字</td><td>巨型报头 + 极小正文</td><td>41px 巨句 + 极小注脚</td></tr>
+<tr><td>列表怎么放</td><td>拆成左右两栏对开</td><td>收在第 3 张卡里</td><td>占满主工作区</td><td>左 7 栏，表格化</td><td>只露 1 行示例</td></tr>
+<tr><td>规则放哪</td><td>顶部一条「配方带」</td><td>第 2 张卡「工序」</td><td>右侧可收合抽屉</td><td>右侧 5 栏「指令」区</td><td>藏进「更多设置」</td></tr>
+<tr><td>执行按钮</td><td>底部右侧，方形印章感</td><td>第 4 张卡里的立体键</td><td>抽屉最底部</td><td>黑底执行条上的橘方块</td><td>巨型胶囊，页面中央</td></tr>
+<tr><td>信息密度</td><td>中</td><td>中高</td><td>高（能一眼看很多行）</td><td>高（数字优先）</td><td>极低</td></tr>
+<tr><td>最适合谁</td><td>想逐一核对每个名字的人</td><td>第一次用、想被带着走的人</td><td>熟手、要一次处理很多文件的人</td><td>想一眼掌握全局的人</td><td>只想改一下就走的人</td></tr>
+</tbody>
+</table>
+
+<h2>五套的共同底线</h2>
+<p class="note">不管你选哪套，下面这些一条都不会少 —— 换的只是皮，不是骨。</p>
+
+<div class="twocol">
+  <div class="box">
+    <h3>功能一个不少</h3>
+    <ul>
+      <li><i>·</i><span><b>五个改法</b>：删除 / 替换 / 自定义 / 插入 / 导入表格</span></li>
+      <li><i>·</i><span><b>序号系统</b>：数字 / 字母 / 随机字符 / 时间，位置与位数齐全</span></li>
+      <li><i>·</i><span><b>属性组</b>：文件名 / 序号 / 日期 / 文件夹名，以及改扩展名</span></li>
+      <li><i>·</i><span><b>进阶功能</b>：正则、大小写、文件夹合并、文件提取、导出清单</span></li>
+      <li><i>·</i><span><b>撤销与历史</b>：每一套都留了入口</span></li>
+    </ul>
+  </div>
+  <div class="box">
+    <h3>规矩一条不破</h3>
+    <ul>
+      <li><i>·</i><span><b>绝不覆盖</b>：重名的行会标红并跳过去</span></li>
+      <li><i>·</i><span><b>先看后改</b>：改之前一定先给你看一遍新名字</span></li>
+      <li><i>·</i><span><b>颜色不是唯一信号</b>：状态永远同时有文字标签</span></li>
+      <li><i>·</i><span><b>深浅两套主题都要达标</b>：对比度按 WCAG AA 4.5:1 算</span></li>
+      <li><i>·</i><span><b>不动数据结构、不动接口</b>：这次改的只有「长什么样」</span></li>
+    </ul>
+  </div>
+</div>
+
+<div class="box warn" style="margin-top:22px">
+  <h3>⚠️ 有一件事我要提醒你</h3>
+  <p>五套里的<b>配色</b>是我按每种气质配的，其中 <b>2 号（米灰 + 焦糖）</b>和 <b>4 号（纯白 + 炭黑）</b>会把你的产品从「暖萌橘猫」往「专业工具」的方向拉一点；<b>3 号默认是深色</b>，跟你现在默认浅色的设定相反。</p>
+  <p>这不是做不到，是<b>有取舍</b>。你选的时候不用管这些细节——先把「结构」挑中，配色我可以再单独给你配几版。</p>
+</div>
+
+<div class="foot">
+  打开方式：直接双击本页即可。上面每张预览都可以点开看全尺寸。<br>
+  如果某张预览图是空的（浏览器对本地中文文件名偶尔会犯懒），直接双击对应的 HTML 文件就行，五个文件都在同一个文件夹里。<br>
+  每个文件顶部都有一行「浅色 / 深色」按钮 —— 你产品的深色主题也一并做了。
+</div>
+
+</div>
+</body>
+</html>

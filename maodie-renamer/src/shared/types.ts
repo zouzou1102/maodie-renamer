@@ -865,6 +865,25 @@ export interface MaoDieAPI {
      *   无入参 —— 选哪个文件由系统「打开」对话框决定（与导出对称）。
      */
     importTable(): Promise<MdResult<ImportTableResult>>
+    /**
+     * ★ P3-7 修复（2026-09-25）：取拖入文件的**真实磁盘路径**。
+     *
+     * 为什么必须有它：`File.path` 是 Electron 的非标准扩展，**Electron 32.0 已正式移除**
+     * （官方 breaking changes：*"beginning in Electron 32.0 it has been removed in favor of
+     * the `webUtils.getPathForFile` method"*）。本项目正是 Electron 32.3.3，所以凡是读
+     * `file.path` 的地方（主列表拖拽、合并对话框拖放区）拿到的**全是 `undefined`** ——
+     * 界面没有任何报错，只是"拖了没反应"。这是典型的静默失效。
+     *
+     * 为什么必须走预加载：`webUtils` 只在预加载/渲染进程可用，而渲染层被
+     * `contextIsolation` 隔离，拿不到 `electron` 模块，只能由预加载代为调用。
+     *
+     * 不是 IPC：同步调用、不经过主进程。拿不到路径时（纯文本 / 网页链接 / 非文件对象）
+     * 返回**空串**，调用方据此丢弃，绝不产生假路径。
+     *
+     * ⚠️ 与 `exportList` / `importTable` 同一处陷阱：`preload/api.ts` 是**强转**，
+     *   接口声明漏了这行照样编译过、typecheck 0 错，渲染层调用时才会拿到 `undefined`。
+     */
+    pathForFile(file: unknown): string
   }
   rename: {
     execute(req: ExecuteRequest): Promise<MdResult<ExecuteResult>>

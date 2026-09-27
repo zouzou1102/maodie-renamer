@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>五套新界面方案 · 总览 — 耄耋改名</title>
+<style>
+:root{
+  --bg:#0B0C0E; --card:#131519; --card2:#191C21; --line:#23262C; --line2:#2E323A;
+  --ink:#E9EBEF; --ink2:#A3A9B4; --ink3:#767D89; --ink4:#525963;
+  --acc:#FF6B1A; --acc-ink:#1B0A02; --sel:rgba(255,107,26,.14);
+  --ok:#3FB950; --bad:#F85149; --warn:#E3B341;
+  --cat:#F9C077;
+  --ui:"Segoe UI Variable Text","Segoe UI","Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  --disp:"Bahnschrift","Segoe UI Variable Display","Segoe UI",var(--ui);
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);-webkit-font-smoothing:antialiased;
+  padding:44px 20px 90px;line-height:1.65}
+.wrap{max-width:1140px;margin:0 auto}
+
+/* 页头 */
+.hd{display:flex;align-items:flex-start;gap:16px;padding-bottom:22px;border-bottom:1px solid var(--line2)}
+.hd__cat{width:60px;height:56px;flex:0 0 auto}
+h1{font-family:var(--disp);font-size:31px;font-weight:600;letter-spacing:-.4px;line-height:1.2}
+.hd__sub{margin-top:9px;font-size:14px;color:var(--ink2);max-width:74ch}
+.chips{margin-top:15px;display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-size:11.5px;color:var(--ink2);border:1px solid var(--line2);border-radius:99px;padding:4px 11px}
+.chip b{color:var(--ink);font-weight:600}
+
+/* 通用块 */
+h2{font-family:var(--disp);font-size:20px;font-weight:600;letter-spacing:.2px;margin:44px 0 6px}
+h2 .n{font-family:var(--mono);font-size:12px;color:var(--acc);letter-spacing:1.5px;margin-right:9px;vertical-align:2px}
+.h2s{font-size:13.5px;color:var(--ink3);margin-bottom:18px}
+
+.howto{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+.howto div{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px 16px}
+.howto b{display:block;font-size:13px;margin-bottom:5px}
+.howto span{font-size:12.5px;color:var(--ink3)}
+
+/* 方案卡 */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:16px}
+.card__hd{display:flex;align-items:center;gap:14px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.card__ix{font-family:var(--disp);font-size:26px;font-weight:600;color:var(--acc);line-height:1;width:30px;flex:0 0 auto}
+.card__t{min-width:0}
+.card__t b{font-size:16px;font-weight:600;letter-spacing:.3px}
+.card__t p{font-size:12.5px;color:var(--ink3);margin-top:3px}
+.card__sw{margin-left:auto;display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.sw{width:20px;height:20px;border-radius:6px;border:1px solid var(--line2)}
+.card__open{flex:0 0 auto;font-size:12.5px;color:var(--ink2);text-decoration:none;border:1px solid var(--line2);
+  border-radius:8px;padding:6px 13px;transition:all .15s var(--ease);white-space:nowrap}
+.card__open:hover{background:var(--card2);color:var(--ink);border-color:var(--ink4)}
+.pv{position:relative;overflow:hidden;background:#050505;border-bottom:1px solid var(--line)}
+.pv iframe{position:absolute;left:0;top:0;width:1440px;height:900px;border:0;transform-origin:top left;display:block}
+.card__ft{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:15px 18px;font-size:12.5px;color:var(--ink2)}
+.card__ft h4{font-size:11px;letter-spacing:1.1px;color:var(--ink4);font-weight:600;margin-bottom:6px}
+.card__ft ul{list-style:none;display:flex;flex-direction:column;gap:4px}
+.card__ft li{position:relative;padding-left:13px}
+.card__ft li::before{content:"";position:absolute;left:2px;top:9px;width:4px;height:4px;border-radius:50%;background:var(--ink4)}
+.card__ft li.gone::before{background:var(--bad)}
+.card__ft li.keep::before{background:var(--ok)}
+
+/* 表 */
+.tblwrap{overflow-x:auto;margin-top:14px;-webkit-overflow-scrolling:touch}
+.tblwrap table{margin-top:0}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:14px}
+th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+th{background:var(--card2);font-weight:600;color:var(--ink);font-size:12px;white-space:nowrap}
+th.r,td.r{text-align:right}
+td.z{color:var(--ink2)}
+td b{color:var(--ink);font-weight:600}
+.tag{display:inline-block;font-size:10.5px;border-radius:5px;padding:1px 6px;margin-right:5px;font-family:var(--mono)}
+.tag--same{background:rgba(63,185,80,.16);color:var(--ok)}
+.tag--move{background:var(--sel);color:var(--acc)}
+.tag--gone{background:rgba(248,81,73,.16);color:var(--bad);margin-right:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* 矩阵 */
+.mx td,.mx th{text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.mx td.d{background:var(--card2);color:var(--ink4)}
+.mx td.hi{color:var(--bad);font-weight:600}
+.mx td.lo{color:var(--ok);font-weight:600}
+
+/* 提示块 */
+.box{border-radius:12px;padding:16px 18px;font-size:13px;margin-top:16px;border:1px solid}
+.box--warn{background:rgba(227,179,65,.07);border-color:rgba(227,179,65,.3)}
+.box--bad{background:rgba(248,81,73,.07);border-color:rgba(248,81,73,.3)}
+.box--ok{background:rgba(63,185,80,.07);border-color:rgba(63,185,80,.28)}
+.box b{color:var(--ink)}
+.box h3{font-size:13.5px;margin-bottom:9px;display:flex;align-items:center;gap:8px}
+ol.honest{list-style:none;counter-reset:h;display:flex;flex-direction:column;gap:11px;margin-top:14px}
+ol.honest li{counter-increment:h;position:relative;padding-left:34px;font-size:13px;color:var(--ink2)}
+ol.honest li::before{content:counter(h,decimal-leading-zero);position:absolute;left:0;top:1px;
+  font-family:var(--mono);font-size:11px;color:var(--acc);border:1px solid var(--line2);border-radius:5px;padding:1px 6px}
+ol.honest b{color:var(--ink)}
+.kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 16px;font-size:12.5px;margin-top:13px}
+.kv dt{color:var(--ink4);font-family:var(--mono);font-size:11.5px}
+.kv dd{color:var(--ink2)}
+code{font-family:var(--mono);font-size:12px;background:var(--card2);border:1px solid var(--line);
+  border-radius:5px;padding:1px 5px;color:var(--ink)}
+footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--line2);font-size:12px;color:var(--ink4)}
+@media (max-width:820px){ .howto{grid-template-columns:1fr} .card__ft{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<filter id="fur" x="-25%" y="-25%" width="150%" height="150%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" seed="11" result="n"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+<g id="catfig">
+  <g filter="url(#fur)">
+    <path d="M26 46 L34 12 L54 34 Z" fill="var(--cat)"/>
+    <path d="M94 46 L86 12 L66 34 Z" fill="var(--cat)"/>
+    <circle cx="60" cy="62" r="36" fill="var(--cat)"/>
+  </g>
+  <path d="M33 41 L37 20 L49 33 Z" fill="#E9A96A" opacity=".65"/>
+  <path d="M87 41 L83 20 L71 33 Z" fill="#E9A96A" opacity=".65"/>
+  <ellipse cx="46" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <ellipse cx="74" cy="57" rx="6.4" ry="7.4" fill="#33251C"/>
+  <circle cx="48.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+  <circle cx="76.4" cy="54" r="2.1" fill="#fff" opacity=".92"/>
+  <path d="M60 68 l-4.6 -4.2 h9.2 z" fill="#D97B2A"/>
+  <path d="M60 69 q-4.5 6.5 -9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M60 69 q4.5 6.5 9 1.5" stroke="#33251C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="34" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <ellipse cx="86" cy="71" rx="6" ry="3.4" fill="#E8734A" opacity=".38"/>
+  <path d="M28 62 h-14 M28 70 h-12 M92 62 h14 M92 70 h12" stroke="var(--cat)" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
+  <path d="M60 27 q4 -7 10 -3" stroke="var(--cat)" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".45"/>
+</g>
+</defs>
+</svg>
+
+<div class="wrap">
+
+  <div class="hd">
+    <svg class="hd__cat" viewBox="0 0 120 112"><use href="#catfig"/></svg>
+    <div>
+      <h1>耄耋改名 · 五套新界面方案</h1>
+      <p class="hd__sub">按你这次的要求重做：现代排版、高级科技感、克制不发光、版面可以完全不按原版来。下面五套是<strong>完整渲染好的界面</strong>，不是骨架；每一格都能直接在里面点、悬停、切深浅色。</p>
+      <div class="chips">
+        <span class="chip">画布 <b>1440×900</b></span>
+        <span class="chip">五套 <b>骨架全不一样</b></span>
+        <span class="chip">同一只 <b>橘猫</b></span>
+        <span class="chip">外部依赖 <b>0</b></span>
+        <span class="chip">光源/发光 <b>没用</b></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="howto">
+    <div><b>① 先扫一眼五个格子</b><span>五套的骨架完全不同：左栏工具台 / 无栏命令式 / 网格阵列 / 顶部标签 / 一步一页。</span></div>
+    <div><b>② 看中的点「打开」</b><span>打开的是真页面，不是截图。鼠标点一下、拖一下都有反应；右上角能切深/浅色。</span></div>
+    <div><b>③ 再看第二、三部分</b><span>一部分是「原版每个分区去哪了」，一部分是「五套互相到底差多少」——都是量出来的数，不是感觉。</span></div>
+  </div>
+
+  <h2><span class="n">PART 01</span>五套方案</h2>
+  <p class="h2s">下面每格是真实页面（可以交互）。色块四个从左到右：深色底 / 浅色底 / 深色下的强调色 / 浅色下的强调色。</p>
+
+  <!-- A -->
+  <div class="card">
+    <div class="card__hd">
+      <span class="card__ix">A</span>
+      <div class="card__t"><b>控制台</b><p>深色 · 左边一条 240px 导航栏 + 中间 7 列数据表 + 右边 320px 检查器 + 底状态栏</p></div>
+      <span class="card__sw">
+        <i class="sw" style="background:#0F0E0D"></i><i class="sw" style="background:#FBFBFA"></i>
+        <i class="sw" style="background:#FF6A1F"></i><i class="sw" style="background:#D9531A"></i>
+      </span>
+      <a class="card__open" href="A-控制台.html" target="_blank">打开 →</a>
+    </div>
+    <div class="pv"><iframe src="A-控制台.html" loading="lazy" title="方案 A 控制台"></iframe></div>
+    <div class="card__ft">
+      <div>
+        <h4>这套的思路</h4>
+        <ul>
+          <li>最像「正经工具软件」的一套。信息密度最高，一屏能看 12 个文件。</li>
+          <li>列表每行带勾选框和行内删除按钮，不用先去右边找按钮。</li>
+          <li>规则全部竖排在右侧检查器，改完左边立刻看到结果。</li>
+        </ul>
+      </div>
+      <div>
+        <h4>原版的东西去哪了</h4>
+        <ul>
+          <li class="gone">左栏「大猫 + 状态气泡」没了 → 猫缩成左栏底部一张小卡</li>
+          <li class="gone">左栏三个按钮没了 → 换成 4 组导航</li>
+          <li class="move">列表从「一块区域」变成 7 列网格，多了勾选框/大小/行内删除</li>
+          <li class="move">规则区从右栏中部 → 右栏通栏竖排检查器</li>
+          <li class="keep">底部状态栏保留</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="card">
+    <div class="card__hd">
+      <span class="card__ix">B</span>
+      <div class="card__t"><b>命令台</b><p>浅色 · 没有侧栏，居中 960px 单列；规则写成一句人话，设置全收进 Ctrl K 命令面板</p></div>
+      <span class="card__sw">
+        <i class="sw" style="background:#F8F8F6"></i><i class="sw" style="background:#131211"></i>
+        <i class="sw" style="background:#F0672A"></i><i class="sw" style="background:#D9541B"></i>
+      </span>
+      <a class="card__open" href="B-命令台.html" target="_blank">打开 →</a>
+    </div>
+    <div class="pv"><iframe src="B-命令台.html" loading="lazy" title="方案 B 命令台"></iframe></div>
+    <div class="card__ft">
+      <div>
+        <h4>这套的思路</h4>
+        <ul>
+          <li>「把名字里所有的 <code>[广告]</code> 都换成 <code>[推广]</code>」——直接点句子里那个橘色词就能改。</li>
+          <li>结果是一条从上往下的箭头流：序号 → 原名 → → 新名 → 状态，每行 48px。</li>
+          <li>所有设置不在页面上，按 <b>Ctrl K</b>（或点右上「全部设置」）弹出一块命令面板。</li>
+        </ul>
+      </div>
+      <div>
+        <h4>原版的东西去哪了</h4>
+        <ul>
+          <li class="gone">左栏整条没了（猫、三个按钮全部）</li>
+          <li class="gone">右栏的「3 个页签规则区」整块消失 → 收进 Ctrl K 面板</li>
+          <li class="move">列表 → 6 列流程行，没有表头、没有外框</li>
+          <li class="move">「开始/撤销」→ 底栏一行统计数字 + 一颗大胶囊按钮</li>
+          <li class="keep">底部状态栏保留</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="card">
+    <div class="card__hd">
+      <span class="card__ix">C</span>
+      <div class="card__t"><b>面板阵列</b><p>深色 · 12×5 的不规则网格，8 块面板分三个台面（凸起 / 齐平 / 下沉）；超大数字当主角，猫占最大一块，会呼吸、会眨眼，头上那圈进度环自己画出来</p></div>
+      <span class="card__sw">
+        <i class="sw" style="background:#0B0A09"></i><i class="sw" style="background:#EDEBE7"></i>
+        <i class="sw" style="background:#FF7A1A"></i><i class="sw" style="background:#A1420D"></i>
+      </span>
+      <a class="card__open" href="C-面板阵列.html" target="_blank">打开 →</a>
+    </div>
+    <div class="pv"><iframe src="C-面板阵列.html" loading="lazy" title="方案 C 面板阵列"></iframe></div>
+    <div class="card__ft">
+      <div>
+        <h4>这套的思路</h4>
+        <ul>
+          <li>数字先说话：「将变化 5 / 保持 1 / 重名 0」是 60px 的巨字，离三步远也看得见。</li>
+          <li>8 块面板不是一样平：<b>猫和数字用的是「凸起」台面</b>（上面有一道 1px 受光边），<b>说明性的小面板用「下沉」台面</b>（带内阴影），剩下的是「齐平」。眼睛先看凸的，说明性内容自然退到后面。</li>
+          <li>网格的行高不一样（1.18 : 1 : 0.97 : 0.85 : 1），不是五等分的格子 —— 关键的那几块更高。</li>
+          <li>数字不只是数字：<b>6 个文件的「改 / 不动 / 重名」变成了一排会亮的小方块</b>，5 个亮、1 个空心、0 个灰。</li>
+          <li>「活」不靠发光：8 块面板<b>从下往上错开 0.02→0.58s 依次入场</b>；猫在轻轻呼吸、每隔几秒眨一次眼；进度环从 0 画到 5/6；状态点一明一暗。系统开了「减少动效」时全部静止。</li>
+          <li>改了哪些字、有没有重名、点哪里执行，全在同一个视野里，不用滚动。</li>
+        </ul>
+      </div>
+      <div>
+        <h4>原版的东西去哪了</h4>
+        <ul>
+          <li class="gone">左右两栏分栏结构整个没了（改成一整张网格）</li>
+          <li class="gone">底部状态栏没了 → 状态信息并进顶栏右侧</li>
+          <li class="move">猫从「左栏静态形象」→ 最大的那一块（凸起台面）+ 会画的进度环，还会呼吸、眨眼</li>
+          <li class="move">规则区从「3 个页签」→ 一块 25px 大字句面板</li>
+          <li class="move">「开始/撤销」→ 独立一大块，在右下（不贴底）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div class="card">
+    <div class="card__hd">
+      <span class="card__ix">D</span>
+      <div class="card__t"><b>标签工作区</b><p>浅色冷灰蓝 · 顶栏分段标签 + 一条 4 步步骤条 + 全宽「原/新」上下配对 + 底部 104px 工具带</p></div>
+      <span class="card__sw">
+        <i class="sw" style="background:#F1F4F7"></i><i class="sw" style="background:#0E141A"></i>
+        <i class="sw" style="background:#FF7440"></i><i class="sw" style="background:#D9531A"></i>
+      </span>
+      <a class="card__open" href="D-标签工作区.html" target="_blank">打开 →</a>
+    </div>
+    <div class="pv"><iframe src="D-标签工作区.html" loading="lazy" title="方案 D 标签工作区"></iframe></div>
+    <div class="card__ft">
+      <div>
+        <h4>这套的思路</h4>
+        <ul>
+          <li>每个文件占<b>上下两行</b>：上一行是被改掉的名字（被替换的字划掉），下一行是改完的名字（新字橘色高亮）。</li>
+          <li>像看「修改记录」一样一眼看懂动了哪几个字，不用自己左右对照。</li>
+          <li>所有操作都在底部一条工具带里，手不用在屏幕上跑。</li>
+        </ul>
+      </div>
+      <div>
+        <h4>原版的东西去哪了</h4>
+        <ul>
+          <li class="gone">左栏、右栏两条竖栏全没了（改成整幅单列）</li>
+          <li class="gone">底部状态栏没了</li>
+          <li class="gone">右侧「规则区」整块搬到<b>窗口底部</b>变成工具带</li>
+          <li class="move">猫 → 工具带最左边当「操作员」</li>
+          <li class="move">新增原版没有的 <b>4 步步骤条</b>（选文件夹→定规则→看预览→执行）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- E -->
+  <div class="card">
+    <div class="card__hd">
+      <span class="card__ix">E</span>
+      <div class="card__t"><b>一页一步</b><p>近黑 · 720px 居中单列，一次只问一件事；超大描边步骤数字，底部悬浮胶囊导航</p></div>
+      <span class="card__sw">
+        <i class="sw" style="background:#0A0A0B"></i><i class="sw" style="background:#FCFCFC"></i>
+        <i class="sw" style="background:#FF6B1A"></i><i class="sw" style="background:#D9500F"></i>
+      </span>
+      <a class="card__open" href="E-一页一步.html" target="_blank">打开 →</a>
+    </div>
+    <div class="pv"><iframe src="E-一页一步.html" loading="lazy" title="方案 E 一页一步"></iframe></div>
+    <div class="card__ft">
+      <div>
+        <h4>这套的思路</h4>
+        <ul>
+          <li>一屏只问一个问题（这屏是「名字要怎么改？」），答完点下一步，不会一上来就被一堆按钮淹没。</li>
+          <li>字体最讲究的一套：44px 的细标题 + 112px 的描边数字，靠字重和留白撑气场，不靠发光。</li>
+          <li>顶栏那条 2px 橘线就是进度，走到第几步一眼知道。</li>
+        </ul>
+      </div>
+      <div>
+        <h4>原版的东西去哪了</h4>
+        <ul>
+          <li class="gone">左右两栏全没了</li>
+          <li class="gone">底部状态栏没了</li>
+          <li class="gone"><b>主界面里根本没有文件列表</b>（要到第 3 步才出现）</li>
+          <li class="move">规则区 → 4 条带下划线的整行设置</li>
+          <li class="move">「开始/撤销」→ 悬浮胶囊里的「上一步 / 下一步」</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="n">PART 02</span>原版每个分区，在新方案里变成了什么</h2>
+  <p class="h2s">这是你问的「和原版差多少」的正面回答。原型主界面我读出来的真实骨架是：<code>.col-left</code>（窄左栏：猫 + 状态气泡 + 三个按钮）＋ <code>.col-right</code>（宽右栏：列表区 / 规则区（3 个页签）/ 开始·撤销），最底一条状态栏。</p>
+
+  <div class="tblwrap">
+  <table>
+    <thead>
+      <tr><th style="width:186px">原版的分区</th><th>A 控制台</th><th>B 命令台</th><th>C 面板阵列</th><th>D 标签工作区</th><th>E 一页一步</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>左栏 · 猫的独立舞台</b><br><span class="z" style="font-size:11.5px">大猫 + 状态气泡</span></td>
+        <td class="z">缩成左栏底部一张小卡（46px 头像 + 一句话）</td>
+        <td class="z">没有独立位置，只在标题栏和句子里露脸</td>
+        <td class="z">升级成最大的一块面板，头上套进度环</td>
+        <td class="z">挪到底部工具带最左边当操作员</td>
+        <td class="z">坐在巨大描边数字「02」旁边</td>
+      </tr>
+      <tr>
+        <td><b>左栏 · 三个按钮</b><br><span class="z" style="font-size:11.5px">打开文件夹 / 添加文件 / 清空</span></td>
+        <td class="z">换成 240px 的 4 组导航列表</td>
+        <td class="z">收进 Ctrl K 面板，顶栏留一个「全部设置」</td>
+        <td class="z">变成顶栏三颗胶囊：文件夹合并 / 文件提取 / 撤销历史</td>
+        <td class="z">变成顶栏 4 个分段标签 + 步骤条</td>
+        <td class="z">没有按钮组，靠「下一步」逐个问</td>
+      </tr>
+      <tr>
+        <td><b>右栏上 · 文件列表区</b><br><span class="z" style="font-size:11.5px">区标题 + 计数 + 表头 + 行（序号/原名/箭头/新名）</span></td>
+        <td class="z">留到中栏，从「区域」变 7 列网格（多勾选框 / 大小 / 行内删除）</td>
+        <td class="z">变 6 列箭头流程行，无表头无外框，手柄悬停才出</td>
+        <td class="z">收进其中一块面板内部，不再是整栏</td>
+        <td class="z">改成每个文件上下两行（原 / 新 配对 + 划掉 + 高亮）</td>
+        <td class="z"><b>主界面里没有列表</b>，第 3 步才出现</td>
+      </tr>
+      <tr>
+        <td><b>右栏中 · 规则区</b><br><span class="z" style="font-size:11.5px">删除 / 替换 / 规则 三个页签 + 参数行</span></td>
+        <td class="z">挪到右栏，变 320px 通栏竖排检查器（页签 + 参数 + 开关 + 进阶）</td>
+        <td class="z"><b>整块消失</b>，收进 Ctrl K 命令面板（6 个分组）</td>
+        <td class="z">变一块「规则句子面板」，25px 大字，词可点</td>
+        <td class="z"><b>整块搬到窗口底部</b>，变 104px 工具带</td>
+        <td class="z">变 4 条带下划线的整行设置（标签左、控件右）</td>
+      </tr>
+      <tr>
+        <td><b>右栏底 · 动作区</b><br><span class="z" style="font-size:11.5px">开始重命名 / 撤销</span></td>
+        <td class="z">挪进检查器内部（不再贴底）</td>
+        <td class="z">底栏一行 4 个统计数字 + 一颗 99px 圆角大胶囊</td>
+        <td class="z">独立一大块面板，在右下角</td>
+        <td class="z">并入底部工具带最右，46px 高大按钮</td>
+        <td class="z">悬浮胶囊里的「上一步 / 下一步」</td>
+      </tr>
+      <tr>
+        <td><b>底部 · 状态栏</b><br><span class="z" style="font-size:11.5px">状态文字 + 进度条</span></td>
+        <td class="z"><span class="tag tag--same">保留</span>内容换成「检查完 6 个文件，没有重名」+ 快捷键提示</td>
+        <td class="z"><span class="tag tag--same">保留</span>位置形状基本没动</td>
+        <td class="z"><span class="tag tag--gone">没了</span>状态并进顶栏右侧</td>
+        <td class="z"><span class="tag tag--gone">没了</span>改成顶部 4 步步骤条</td>
+        <td class="z"><span class="tag tag--gone">没了</span>改成顶栏 2px 进度线 + 4 个圆点</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box box--warn">
+    <h3>关于「90% 元素不一样」，我先说实话</h3>
+    <p>六个分区里，<b>D 和 E 是 6 个里换了 6 个</b>（列表和状态栏在主界面直接没有了）；<b>C 换了 5 个</b>；<b>A 和 B 各保留 2 个</b>——就是「顶部标题栏」和「底部状态栏」。</p>
+    <p style="margin-top:9px">保留这两个不是偷懒：标题栏是 Windows 的规矩（拖窗口、最小化在哪都是固定的），而且 <b>「能看到原名和新名」这件事本身就是改名软件的本职</b>，任何一种排版都躲不掉。所以我不给你编一个「89.3% 不一样」的数字——那没有意义。上面那张表就是全部事实，你扫一眼就知道哪几块还在。</p>
+    <p style="margin-top:9px">如果你觉得 A、B 还是太规矩（它们确实更"像软件"），告诉我，我把它们也往 D、E 那个方向推。</p>
+  </div>
+
+  <h2><span class="n">PART 03</span>五套互相之间，到底差多少</h2>
+  <p class="h2s">不是感觉，是数出来的：把每一套 HTML 里出现过的样式类名全抓出来、去掉重复，再减掉<b>五套都有的那 10 个外壳类名</b>（<code class="mono">win / tbar / wkey / pgbar / brand / …</code>），然后两两算重叠（Jaccard）。数字越大越像。<br><b>C 因为刚优化过、零件重新命名了一批，这一整张表已经按新 C 重算过</b>（口径与原来一致：拿 A/B/D/E 反过来对，老数字 66/49/43/31 能复现成 64/45/42/30，属同一算法）。</p>
+
+  <div class="tblwrap">
+  <table class="mx">
+    <thead><tr><th style="text-align:left">重合率</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr></thead>
+    <tbody>
+      <tr><th style="text-align:left">A 控制台 <span class="z mono" style="font-weight:400">64 个零件类名</span></th><td class="d">—</td><td>11.2%</td><td class="hi">13.8%</td><td>3.9%</td><td class="lo">0.0%</td></tr>
+      <tr><th style="text-align:left">B 命令台 <span class="z mono" style="font-weight:400">45 个</span></th><td>11.2%</td><td class="d">—</td><td>9.7%</td><td>4.8%</td><td>5.6%</td></tr>
+      <tr><th style="text-align:left">C 面板阵列 <span class="z mono" style="font-weight:400">68 个</span></th><td class="hi">13.8%</td><td>9.7%</td><td class="d">—</td><td>2.8%</td><td>2.1%</td></tr>
+      <tr><th style="text-align:left">D 标签工作区 <span class="z mono" style="font-weight:400">42 个</span></th><td>3.9%</td><td>4.8%</td><td>2.8%</td><td class="d">—</td><td>2.9%</td></tr>
+      <tr><th style="text-align:left">E 一页一步 <span class="z mono" style="font-weight:400">30 个</span></th><td class="lo">0.0%</td><td>5.6%</td><td>2.1%</td><td>2.9%</td><td class="d">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box box--ok">
+    <h3>按你的「三份互相 ≥90% 不一样」，五组达标 —— 最不像的一组还是 C + D + E</h3>
+    <dl class="kv">
+      <dt>C + D + E</dt><dd>最不像的一组：两两相差 <b>97.2% / 97.9% / 97.1%</b>（最低 97.1%）</dd>
+      <dt>A + D + E</dt><dd>两两相差 <b>96.1% / 100.0% / 97.1%</b>（最低 96.1%）</dd>
+      <dt>B + D + E</dt><dd>两两相差 <b>95.2% / 94.4% / 97.1%</b>（最低 94.4%）</dd>
+      <dt>B + C + D / B + C + E</dt><dd>两两相差 <b>90.3% / 95.2% / 97.2%</b> 与 <b>90.3% / 94.4% / 97.9%</b>（最低都是 90.3%，刚好过线）</dd>
+      <dt>需要留意的一对</dt><dd><b>A ↔ C = 只差 86.2%</b>，是五套里最像的一对（第二名 A ↔ B 差 88.8%）。A 和 C 都属「深色 + 橘 + 紧凑工具感」，<em>结构完全不一样</em>（A 是三栏控制台、C 是不规则网格），但配色气质接近。想让这两组都拉开，把 C 换成冷色（蓝灰底）就够。</dd>
+      <dt>完全不像的一对</dt><dd><b>A ↔ E = 0.0%</b>，两套除了窗口外壳以外没有任何一个同名零件。</dd>
+    </dl>
+  </div>
+
+  <h2><span class="n">PART 04</span>刻意保持一致的六件事</h2>
+  <p class="h2s">有些东西不一致反而是错的。这六条五套都一样，是有意的。</p>
+  <dl class="kv">
+    <dt>画布 1440×900</dt><dd>五套都是这个尺寸，方便你并排比。窄到 900px 会整幅等比例缩小，不会出现横向滚动条。</dd>
+    <dt>同一只猫</dt><dd>五套用的是<b>同一份内联 SVG</b>（同一个 <code>id="catfig"</code>），连毛发毛边的滤镜参数都同一套。实测：五套里猫的像素完全一致——4776 个不透明像素、平均色 rgb(233,178,110)。</dd>
+    <dt>窗口外壳</dt><dd>拖拽区 + 最小化 / 最大化 / 关闭，五套一样。这是 Windows 规矩，不该各套一个样。</dd>
+    <dt>深浅两色都能切</dt><dd>右上角一点就切，不是只做了一套配色。我每套都拍了深浅两张图（共 10 张，在 <code>shots/</code> 里）。</dd>
+    <dt>数字不跳</dt><dd>所有数字用等宽字形（tabular-nums），文件大小、序号、计数换行时宽度不会抖。</dd>
+    <dt>外部依赖 0</dt><dd>不联网、不引 CDN、不引字体文件、不引图标包。双击就能开，断网也一样。</dd>
+  </dl>
+
+  <h2><span class="n">PART 05</span>老实话：没验到的和我确定做不到的</h2>
+
+  <ol class="honest">
+    <li><b>我看不了图片。</b>这个会话的模型读不了图，所以「好不好看」我给不出判断——这是你的事，我确实看不到。前面每一句「没有溢出 / 没有截断 / 装得下」都是我用浏览器量出来的数字，不是我眼睛看到的。界面的美感请你亲自否定，我不会有情绪。</li>
+    <li><b><code>Noto Sans SC</code> 这台机器其实没装。</b>我用宽度对比法测的（写成 Noto Sans SC 和写成一个根本不存在的字体名，量出来的宽度一模一样 = 走了回落）。所以上面五套的中文实际落在<b>微软雅黑</b>上。你原来的设计规范把 Noto Sans SC 列为主字体——要么把这台机器装上它，要么把字体栈里那一条删掉，不然换台电脑呈现会不一样。</li>
+    <li><b>只验了两个宽度：1440×900 和 900px。</b>1024、1280、2K/4K 屏、以及 Windows 缩放 125% / 150% 的情况都没验。</li>
+    <li><b>数据是编的。</b>五套里都是模拟的 6 个文件（IMG_2043.JPG 那一批），没接真实列表。真实场景里文件名会长得多，D 方案那种上下两行的排法遇到超长名会出现省略号——这是设计上接受的，但你要知道。</li>
+    <li><b>对比度：现在实测过了。</b>这一条原来写的是「我用眼睛估的，不能算数」—— 现在不算数这句话要撤掉，因为我写了个自动审计：在浏览器里把 C 里每一个「有文字的元素」找出来，解析它实际压在什么底色上（含半透明层叠），按字号字重决定门槛（普通字 4.5:1、大字 3:1），再算真实的对比度。结果：<b>深色 100 处、浅色 100 处，全部达标</b>。过程中真抓到 3 类毛病并改掉了（见下一条）。<b>仍然没验的是</b>：朗读器读出来的顺序、键盘 Tab 键的走位、以及焦点环的可见性。</li>
+    <li><b>为了过对比度，C 的色板动了 6 个值（只有 C，另外四套没动）。</b>这些不是我凭感觉调的，是「保持色相不变、只压明度」求出来的最小改动，改完再实测一遍：
+      <div class="tblwrap">
+      <table class="mx">
+        <thead><tr><th style="text-align:left">改哪</th><th>原来</th><th>改成</th><th>为什么</th></tr></thead>
+        <tbody>
+          <tr><th style="text-align:left">深色 · 小标题 / 表头</th><td class="mono">#4A443D</td><td class="mono">#8E8376</td><td class="z" style="text-align:left">原来只有 <b>1.91:1</b>，那行 9.5px 的大写小标题基本看不见</td></tr>
+          <tr><th style="text-align:left">深色 · 「完成」按钮的字</th><td class="mono">白字</td><td class="mono">#04170B</td><td class="z" style="text-align:left">白字压绿底只有 <b>2.65:1</b>；换深墨绿字后 7.00:1，绿色本身没动</td></tr>
+          <tr><th style="text-align:left">深浅两色 · 控件描边</th><td class="mono">#3A342E / #CBC4BA</td><td class="mono">#72665B / #9C8E7B</td><td class="z" style="text-align:left">勾选框描边、开关底槽、空心方块的轮廓只有 <b>1.49:1</b>，AA 对控件边界要 3:1</td></tr>
+          <tr><th style="text-align:left">浅色 · 橘色</th><td class="mono">#DA5A12</td><td class="mono">#A1420D</td><td class="z" style="text-align:left">橘色当字时只有 3.63:1，<b>压在橘色淡底上只有 2.88:1</b>（新增的字恰恰就是橘字压橘底）</td></tr>
+          <tr><th style="text-align:left">浅色 · 绿 / 次要字</th><td class="mono">#1F8A4C / #6E685F</td><td class="mono">#19713E / #68635A</td><td class="z" style="text-align:left">各差一点点（4.13 / 4.49），差 0.01 也算不过</td></tr>
+          <tr><th style="text-align:left">浅色 · 下沉面说明字</th><td class="mono">次要字色</td><td class="mono">用正文次要色</td><td class="z" style="text-align:left">压在下沉底上只有 4.15:1</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p style="margin-top:9px">一句话：<b>浅色的橘色比原来深了一档</b>（从亮橘变成偏赭的深橘）。这是唯一一处你可能会一眼看出来的变化 —— 如果觉得太深，告诉我，我可以改成「换成中性灰底的高亮」这种别的解法，而不是把橘色压深。</p>
+    </li>
+    <li><b>这五套是原型，不是能直接塞进 Electron 的代码。</b>它们现在是各自独立的 HTML 文件，验证排版和观感用的。你选定之后我再把它拆成 Vue 组件落进 <code>maodie-renamer/</code>，那时候要重跑 typecheck / lint / test:core / cli:verify / package:win 一整套，工作量不小。</li>
+    <li><b>猫的样子我没动。</b>你说了「还是那只可爱橘猫」，所以五套里猫是同一只、同一个表情。如果哪一套你想让它的姿势或表情跟着变（比如 D 里当操作员戴顶帽子），说一声，这是单独的活。</li>
+    <li><b>只有 C 有动效，其余四套是静止的。</b>这是你要求「面板太死板、要活跃一点」之后加的，不是四套漏了。动效我验到的是两件事：① 动画确实挂在元素上（读出来的名字是 <code class="mono">panelIn / catbreathe / blink / ringDraw / breath</code>，八块面板的入场延迟是 0.02→0.58s）；② 系统开了「减少动效」以后，这 5 项全部变成 <code class="mono">none</code>，界面静止。没验到的是：真机上的流畅度（每秒帧数）、放着不管半小时会不会累积跑偏、以及低配机器上会不会掉帧。这些得你在自己电脑上开着看一眼。</li>
+    <li><b>C 在量尺寸时真抓到过一个毛病，已修。</b>文件列表的<b>第一行比其它五行矮 12px</b>（46 / 58 / 58 / 58 / 58 / 58）。原因不是布局写错，是一个类名撞车：行的「选中」标记叫 <code class="mono">sel</code>，而下拉框的样式类也叫 <code class="mono">sel</code>，后者的 <code class="mono">flex:1</code> 把行的行高基准覆盖掉了。改名成 <code class="mono">is-sel</code> 之后六行实测都是 56px。这类毛病肉眼看只是「第一行好像有点扁」，不量尺寸根本说不清 —— 所以我是量出来的，不是看出来的。</li>
+  </ol>
+
+  <footer>
+    耄耋改名 · 五套界面方案总览 ｜ 画布 1440×900 ｜ 五套全部通过硬判据：尺寸 1440×900 · 无缩放 · 无文字截断 · 无元素逃逸 · 无横向滚动 · 猫像素级一致<br>
+    C 已于本轮优化：分台面主次 + 错开入场 + 猫呼吸眨眼 + 进度环自绘 + 点击区补足 + 色板过 AA（深浅各 100 处文字实测 0 不达标），截图已重拍<br>
+    数据来源：Chrome 无头 + DevTools 协议实测（<code>.probe2.js</code>）· 类名重合度实测（<code>.overlap-final.js</code>，去掉五套共有的 10 个外壳类名后算 Jaccard）· 对比度实测（<code>.contrast-audit.js</code>，2 主题 × 100 处文字）· 字体可用性实测（宽度对比法）
+  </footer>
+
+</div>
+
+<script>
+function fitAll(){
+  document.querySelectorAll('.pv').forEach(function(box){
+    var f = box.querySelector('iframe'); if(!f) return;
+    var w = box.clientWidth || 1100;
+    var s = w / 1440;
+    f.style.transform = 'scale(' + s + ')';
+    box.style.height = Math.round(900 * s) + 'px';
+  });
+}
+window.addEventListener('resize', fitAll);
+window.addEventListener('load', fitAll);
+fitAll();
+setTimeout(fitAll, 300);
+</script>
+</body>
+</html>

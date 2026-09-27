@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh-CN" data-dark="0">
+<head>
+<meta charset="utf-8">
+<title>方案 4 · 指挥台 — 耄耋改名</title>
+<style>
+:root{
+  --bg:#FFFFFF; --ink:#121212; --ink2:#4A4A4A; --ink3:#8C8C8C; --ink4:#B8B8B8;
+  --hair:#E4E4E4; --rule:#121212; --field:#F5F5F5;
+  --orange:#FF6B1A; --orange-ink:#121212;
+  --sans:"Helvetica Neue",Helvetica,Arial,"Microsoft YaHei","Noto Sans SC",sans-serif;
+  --mono:"JetBrains Mono",Consolas,"Cascadia Mono",monospace;
+}
+html[data-dark="1"]{
+  --bg:#121212; --ink:#FFFFFF; --ink2:#C8C8C8; --ink3:#8A8A8A; --ink4:#5A5A5A;
+  --hair:#2E2E2E; --rule:#FFFFFF; --field:#1C1C1C;
+  --orange:#FF7B33;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#151515;font-family:var(--sans);display:flex;flex-direction:column;align-items:center;padding:22px 0 46px;gap:16px}
+.bar{display:flex;align-items:center;gap:14px;color:#c9c9c9;font-size:13px}
+.bar b{color:#fff;font-weight:600}
+.bar .tag{font-size:11px;color:#8a8a8a;border:1px solid #3a3a3a;border-radius:99px;padding:3px 10px}
+.bar button{font-family:var(--sans);font-size:12px;color:#cfcfcf;background:#262626;border:1px solid #3a3a3a;border-radius:6px;padding:5px 12px;cursor:pointer}
+.bar button.on{background:#fff;color:#111;border-color:#fff}
+
+.win{width:1280px;height:800px;overflow:hidden;background:var(--bg);color:var(--ink);
+  display:flex;flex-direction:column;box-shadow:0 30px 90px rgba(0,0,0,.65);border:1px solid var(--hair)}
+
+/* ── 报头 ── */
+.mast{height:96px;display:flex;align-items:center;padding:0 28px;gap:26px}
+.mast__brand{flex:0 0 auto}
+.mast__name{font-size:38px;font-weight:700;letter-spacing:-1px;line-height:1}
+.mast__sub{font-family:var(--mono);font-size:10.5px;letter-spacing:2.4px;color:var(--ink3);margin-top:7px;text-transform:uppercase}
+.mast__meta{margin-left:auto;display:flex;align-items:center}
+.mast__cell{padding:0 22px;border-left:1px solid var(--hair);text-align:right}
+.mast__cell:first-child{border-left:none}
+.mast__cell span{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:2px;color:var(--ink3);text-transform:uppercase}
+.mast__cell b{display:block;font-family:var(--mono);font-size:30px;font-weight:400;line-height:1.15;font-variant-numeric:tabular-nums}
+.mast__cell b.hot{color:var(--orange)}
+.mast__logo{flex:0 0 auto;padding-left:22px;border-left:1px solid var(--hair)}
+.mast__logo svg{width:54px;height:48px;display:block}
+.rule2{height:2px;background:var(--rule)}
+
+/* ── 主体 12 栏 ── */
+.body{flex:1;min-height:0;display:flex}
+.colL{flex:7 1 0;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--rule)}
+.colR{flex:5 1 0;min-width:0;display:flex;flex-direction:column;overflow-y:auto}
+
+.tbl{flex:1;min-height:0;display:flex;flex-direction:column}
+.tbl__head{height:30px;background:var(--ink);color:var(--bg);display:grid;
+  grid-template-columns:56px 54px minmax(0,1fr) minmax(0,1fr) 78px;align-items:center}
+.tbl__head>*{font-family:var(--mono);font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;padding:0 12px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbl__scroll{flex:1;min-height:0;overflow:hidden;background-image:repeating-linear-gradient(to bottom,transparent 0 39px,var(--hair) 39px 40px)}
+.tr{height:40px;display:grid;grid-template-columns:56px 54px minmax(0,1fr) minmax(0,1fr) 78px;align-items:center;font-size:13.5px}
+.tr>*{padding:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .no{font-family:var(--mono);font-size:10.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.tr:hover{background:var(--ink);color:var(--bg)}
+.tr:hover .no{color:var(--ink4)}
+.tr:hover .del{color:var(--ink4)}
+.tr:hover .add{color:var(--orange);background:transparent;padding:0}
+.tr:hover .st{color:var(--bg)}
+.tick{width:14px;height:14px;border:1.5px solid var(--ink);position:relative;display:block}
+.tick.on{background:var(--ink)}
+.tick.on::after{content:"";position:absolute;left:3px;top:0.5px;width:4px;height:8px;
+  border-right:2px solid var(--bg);border-bottom:2px solid var(--bg);transform:rotate(40deg)}
+.tr:hover .tick{border-color:var(--bg)}
+.tr:hover .tick.on{background:var(--bg)}
+.tr:hover .tick.on::after{border-color:var(--ink)}
+.del{color:var(--ink4);text-decoration:line-through;text-decoration-thickness:2px}
+.add{color:var(--orange);font-weight:700}
+.none{color:var(--ink4)}
+.st{font-family:var(--mono);font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase}
+.st--on{color:var(--orange)}
+.st--off{color:var(--ink4)}
+.addrow{height:44px;display:flex;align-items:center;gap:10px;padding:0 12px;border-top:2px solid var(--rule);
+  font-size:13px;color:var(--ink2);cursor:pointer}
+.addrow:hover{background:var(--field)}
+.addrow b{font-size:17px;font-weight:400;color:var(--orange)}
+
+/* 右栏：指令 */
+.sec{padding:13px 24px 14px;border-bottom:1px solid var(--hair)}
+.sec__t{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.sec__n{font-family:var(--mono);font-size:10px;letter-spacing:1.6px;color:var(--orange)}
+.sec__h{font-size:13px;font-weight:700;letter-spacing:3px}
+.sec__hint{margin-left:auto;font-size:11px;color:var(--ink3)}
+.modes{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--hair)}
+.mode{flex:1 1 0;min-width:72px;height:36px;background:none;border:none;border-bottom:1px solid var(--hair);
+  border-right:1px solid var(--hair);font-family:var(--sans);font-size:12.5px;color:var(--ink2);cursor:pointer;position:relative}
+.mode:last-child{border-right:none}
+.mode:hover{background:var(--field)}
+.mode.on{color:var(--ink);font-weight:700;box-shadow:inset 0 -3px 0 0 var(--orange)}
+.fld{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.fld:last-child{margin-bottom:0}
+.fld__l{flex:0 0 68px;font-family:var(--mono);font-size:10px;letter-spacing:1.4px;color:var(--ink3);text-transform:uppercase}
+.fld input[type=text],.fld input[type=number],.fld select{flex:1;min-width:0;background:transparent;border:none;
+  border-bottom:1.5px solid var(--ink);color:var(--ink);font-family:var(--sans);font-size:14px;
+  padding:3px 2px 4px;outline:none}
+.fld input[type=number]{flex:0 0 62px;font-family:var(--mono);font-size:13px;text-align:center}
+.fld select{flex:0 1 auto;min-width:96px;cursor:pointer;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink) 50%),linear-gradient(135deg,var(--ink) 50%,transparent 50%);
+  background-position:calc(100% - 8px) 16px,calc(100% - 3px) 16px;background-size:5px 5px;background-repeat:no-repeat;padding-right:20px}
+.fld input:focus,.fld select:focus{border-bottom-color:var(--orange)}
+.fld input::placeholder{color:var(--ink4)}
+.chk{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2);cursor:pointer}
+.chk .tick{flex:0 0 auto}
+.vars{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--hair)}
+.var{flex:1 1 0;min-width:80px;height:32px;display:grid;place-items:center;border-right:1px solid var(--hair);
+  font-family:var(--mono);font-size:11px;color:var(--ink2);cursor:pointer;background:none;border-top:none;border-left:none;border-bottom:none}
+.var:last-child{border-right:none}
+.var:hover{background:var(--field);color:var(--orange)}
+.adv{width:100%;height:34px;background:none;border:1px solid var(--hair);font-family:var(--mono);font-size:10.5px;
+  letter-spacing:1.6px;color:var(--ink3);cursor:pointer;text-transform:uppercase}
+.adv:hover{border-color:var(--ink);color:var(--ink)}
+
+/* ── 执行条 + 状态栏 ── */
+.cmd{height:64px;background:var(--ink);color:var(--bg);display:flex;align-items:center;padding:0 28px;gap:26px}
+.cmd__label{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--ink4);text-transform:uppercase}
+.cmd__rule{flex:1;font-size:14px}
+.cmd__rule b{color:var(--orange);font-weight:700}
+.cmd__keys{font-family:var(--mono);font-size:10.5px;color:var(--ink4);letter-spacing:1px}
+.go{height:44px;padding:0 34px;background:var(--orange);color:var(--orange-ink);border:none;
+  font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:4px;cursor:pointer}
+.go:hover{filter:brightness(1.08)}
+.go:active{transform:scale(.97)}
+.status{height:24px;background:var(--ink);border-top:1px solid var(--hair);color:var(--ink3);
+  display:flex;align-items:center;gap:20px;padding:0 28px;font-family:var(--mono);font-size:10px;letter-spacing:1.4px;text-transform:uppercase}
+.status__sp{margin-left:auto}
+.o{color:var(--orange)}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <b>方案 4 · 指挥台</b>
+  <span class="tag">1280×800</span>
+  <span class="tag">纯白 · 炭黑 · 零圆角</span>
+  <button id="b-light" class="on">浅色</button>
+  <button id="b-dark">深色</button>
+</header>
+
+<div class="win">
+
+  <div class="mast">
+    <div class="mast__brand">
+      <div class="mast__name">耄耋改名</div>
+      <div class="mast__sub">Maodie&nbsp;Renamer&nbsp;/&nbsp;批量改名&nbsp;·&nbsp;本地离线</div>
+    </div>
+    <div class="mast__meta">
+      <div class="mast__cell"><span>Items</span><b>06</b></div>
+      <div class="mast__cell"><span>Will&nbsp;change</span><b class="hot">05</b></div>
+      <div class="mast__cell"><span>Keep</span><b>01</b></div>
+      <div class="mast__cell"><span>Clash</span><b>00</b></div>
+    </div>
+    <div class="mast__logo" aria-label="耄耋猫标志">
+      <svg viewBox="0 0 100 90">
+        <path d="M14 34 L22 6 L40 26 Z" fill="#121212"/>
+        <path d="M86 34 L78 6 L60 26 Z" fill="#121212"/>
+        <circle cx="50" cy="52" r="34" fill="#FF6B1A"/>
+        <rect x="31" y="44" width="14" height="5" rx="2.5" fill="#121212"/>
+        <rect x="55" y="44" width="14" height="5" rx="2.5" fill="#121212"/>
+        <path d="M50 60 l-5 -4.5 h10 z" fill="#121212"/>
+        <path d="M50 62 q-6 8 -12 1.5" stroke="#121212" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M50 62 q6 8 12 1.5" stroke="#121212" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+  <div class="rule2"></div>
+
+  <div class="body">
+
+    <section class="colL">
+      <div class="tbl">
+        <div class="tbl__head">
+          <span>No.</span><span>Sel</span><span>Current name</span><span>New name</span><span>State</span>
+        </div>
+        <div class="tbl__scroll">
+          <div class="tr"><span class="no">01</span><span><span class="tick on"></span></span>
+            <span><span class="del">广告</span>素材-01.png</span><span><span class="add">推广</span>素材-01.png</span><span class="st st--on">Change</span></div>
+          <div class="tr"><span class="no">02</span><span><span class="tick on"></span></span>
+            <span>夏季新品<span class="del">广告</span>主图.jpg</span><span>夏季新品<span class="add">推广</span>主图.jpg</span><span class="st st--on">Change</span></div>
+          <div class="tr"><span class="no">03</span><span><span class="tick on"></span></span>
+            <span><span class="del">广告</span>-详情页-03.webp</span><span><span class="add">推广</span>-详情页-03.webp</span><span class="st st--on">Change</span></div>
+          <div class="tr"><span class="no">04</span><span><span class="tick on"></span></span>
+            <span>主图-04-备用.jpg</span><span class="none">—</span><span class="st st--off">Keep</span></div>
+          <div class="tr"><span class="no">05</span><span><span class="tick on"></span></span>
+            <span>banner<span class="del">广告</span>位-05.png</span><span>banner<span class="add">推广</span>位-05.png</span><span class="st st--on">Change</span></div>
+          <div class="tr"><span class="no">06</span><span><span class="tick on"></span></span>
+            <span><span class="del">广告</span>素材-06.gif</span><span><span class="add">推广</span>素材-06.gif</span><span class="st st--on">Change</span></div>
+        </div>
+        <div class="addrow"><b>+</b> 继续添加文件 / 文件夹 <span style="color:var(--ink4);font-size:11.5px;margin-left:auto">Ctrl+O</span></div>
+      </div>
+    </section>
+
+    <section class="colR">
+
+      <div class="sec">
+        <div class="sec__t"><span class="sec__n">01</span><span class="sec__h">改法</span>
+          <span class="sec__hint">五选一</span></div>
+        <div class="modes">
+          <button class="mode">删除</button><button class="mode on">替换</button>
+          <button class="mode">自定义</button><button class="mode">插入</button><button class="mode">导入</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec__t"><span class="sec__n">02</span><span class="sec__h">参数</span>
+          <span class="sec__hint">改一下右边立刻重算</span></div>
+        <div class="fld"><span class="fld__l">Find</span><input type="text" value="广告"></div>
+        <div class="fld"><span class="fld__l">Replace</span><input type="text" value="推广"></div>
+        <div class="fld"><span class="fld__l"></span>
+          <label class="chk"><span class="tick"></span>区分大小写</label>
+          <span style="margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:1.2px;color:var(--ink3);cursor:pointer">? 看不懂？</span></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec__t"><span class="sec__n">03</span><span class="sec__h">序号</span></div>
+        <div class="fld"><span class="fld__l">Enable</span>
+          <label class="chk"><span class="tick on"></span>启用序号</label>
+          <select style="margin-left:auto"><option>排在最前</option><option>排在最后</option><option>第 n 个字符后</option></select></div>
+        <div class="fld"><span class="fld__l">Type</span>
+          <select style="flex:1"><option>数字</option><option>字母</option><option>随机字符</option><option>时间</option></select></div>
+        <div class="fld"><span class="fld__l">Start</span><input type="number" value="1">
+          <span class="fld__l" style="flex:0 0 auto">Step</span><input type="number" value="1">
+          <span class="fld__l" style="flex:0 0 auto">Pad</span><input type="number" value="2"></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec__t"><span class="sec__n">04</span><span class="sec__h">属性</span>
+          <span class="sec__hint">点一下填进查找框</span></div>
+        <div class="vars">
+          <button class="var">{文件名}</button><button class="var">{序号}</button>
+          <button class="var">{日期}</button><button class="var">{文件夹名}</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec__t"><span class="sec__n">05</span><span class="sec__h">扩展名</span></div>
+        <div class="fld"><span class="fld__l"></span>
+          <label class="chk"><span class="tick"></span>改扩展名</label>
+          <select style="margin-left:auto"><option>改成指定扩展名</option><option>删掉扩展名</option><option>在后面再加一个</option></select></div>
+        <button class="adv">⚙ 进阶设置 / 正则</button>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="cmd">
+    <span class="cmd__label">Rule</span>
+    <span class="cmd__rule">替换 <b>「广告」</b> → <b>「推广」</b></span>
+    <span class="cmd__keys">Ctrl+O 添加 · Ctrl+Z 撤销 · Enter 开咬</span>
+    <button class="go">开咬改名</button>
+  </div>
+
+  <div class="status">
+    <span class="o">●</span>
+    <span>Ready</span>
+    <span>6 items / 5 will change / 1 keep / 0 clash</span>
+    <span class="status__sp">maodie 1.0 · offline</span>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('b-light').onclick=function(){set(0,this)};
+document.getElementById('b-dark').onclick=function(){set(1,this)};
+function set(v,el){
+  document.documentElement.dataset.dark=v;
+  document.querySelectorAll('.bar button').forEach(function(b){b.classList.remove('on')});
+  el.classList.add('on');
+}
+document.querySelectorAll('.tr').forEach(function(r){
+  r.addEventListener('click',function(){
+    var t=r.querySelector('.tick');if(t)t.classList.toggle('on');
+  });
+});
+document.querySelectorAll('.mode').forEach(function(m){
+  m.addEventListener('click',function(){
+    document.querySelectorAll('.mode').forEach(function(x){x.classList.remove('on')});
+    m.classList.add('on');
+  });
+});
+function fit(){
+  var w=document.querySelector('.win'),s=Math.min(1,(window.innerWidth-36)/1280);
+  w.style.transformOrigin='top center';
+  w.style.transform=s<1?'scale('+s+')':'none';
+}
+window.addEventListener('resize',fit);fit();
+</script>
+</body>
+</html>

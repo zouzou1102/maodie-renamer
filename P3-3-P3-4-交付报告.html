@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P3-3 + P3-4 交付报告 · 耄耋改名</title>
+<style>
+  :root{
+    --bg:#F7F2EA; --card:#FFFFFF; --ink:#2A1A10; --ink2:#6B5A4A; --line:#E5DCD0;
+    --orange:#E08B33; --orange-d:#B96A18; --ok:#1E7A46; --warn:#B4453A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Noto Sans SC","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+       line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 28px 80px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:34px}
+  .kicker{font-size:13px;letter-spacing:.18em;color:var(--orange-d);font-weight:700;margin:0 0 10px}
+  h1{margin:0;font-size:30px;letter-spacing:-.01em}
+  h1 small{display:block;font-size:14px;font-weight:400;color:var(--ink2);letter-spacing:0;margin-top:8px}
+  h2{font-size:19px;margin:44px 0 14px;padding-left:12px;border-left:5px solid var(--orange)}
+  h3{font-size:15px;margin:24px 0 8px;color:var(--ink)}
+  p{margin:8px 0}
+  .verdict{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--ok);
+           border-radius:10px;padding:18px 22px;font-size:16px}
+  .verdict b{color:var(--ok)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin:18px 0 6px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .stat .n{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .stat .l{font-size:12.5px;color:var(--ink2);margin-top:4px}
+  .stat.pass .n{color:var(--ok)}
+  table{width:100%;border-collapse:collapse;background:var(--card);
+        border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13.5px;margin:14px 0}
+  th{background:#F0E8DC;text-align:left;font-weight:700;font-size:12.5px;letter-spacing:.03em}
+  th,td{padding:10px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code{background:#F1EAE0;padding:1.5px 6px;border-radius:4px;font-size:12.5px;
+       font-family:"Cascadia Mono",Consolas,monospace}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:5px 0}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:99px;
+       vertical-align:1px;margin-right:6px}
+  .t-ok{background:#DFF0E5;color:var(--ok)}
+  .t-warn{background:#FBE6E2;color:var(--warn)}
+  .t-info{background:#F2E7D8;color:var(--orange-d)}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:14px 0}
+  .box.warn{border-left:6px solid var(--warn)}
+  .box.info{border-left:6px solid var(--orange)}
+  .box.ok{border-left:6px solid var(--ok)}
+  .box h3{margin-top:0}
+  .mono{font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px;word-break:break-all}
+  .sha{background:#2A1A10;color:#F7F2EA;border-radius:8px;padding:12px 16px;margin:12px 0}
+  .sha div{margin:3px 0;font-family:"Cascadia Mono",Consolas,monospace;font-size:12.5px}
+  .sha b{color:#E08B33}
+  .stamp{display:inline-block;background:#DFF0E5;color:#1E7A46;border-radius:6px;
+         padding:3px 10px;font-size:12px;font-weight:700;letter-spacing:.02em}
+  .todo{display:inline-block;background:#FBE6E2;color:#B4453A;border-radius:6px;
+        padding:3px 10px;font-size:12px;font-weight:700;letter-spacing:.02em}
+  footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+         font-size:12.5px;color:var(--ink2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">耄耋改名 · MaoDie Renamer · 第 3 阶段第 3、4 批</p>
+  <h1>P3-3 + P3-4 交付报告
+    <small>按文件属性命名（{创建} / {修改} / {大小}）＋ 导入 Excel 按表格改名　｜　2026-09-22</small>
+  </h1>
+  <p style="margin-top:14px"><span class="stamp">代码与验证已完成</span>　<span class="stamp">已推送到 GitHub（main / fix 均为 97280c0）</span> ✅</p>
+</header>
+
+<div class="verdict">
+  <b>结论：两批的代码都在，全部验证通过，已经提交到本地仓库。</b><br>
+  单测 <b>223/223</b>（新增 64 条）、真实程序冒烟 <b>67/67 × 两套数据</b>、
+  类型检查 / 规范 / 构建 0 错。<b>已推送到 GitHub。</b>你打开代理后重推一次成功，
+  四处版本号已核对一致（本地 main / fix = 远端 main / fix = <code>97280c0</code>）。
+</div>
+
+<h2>一、数字</h2>
+<div class="grid">
+  <div class="stat pass"><div class="n">223 / 223</div><div class="l">单元测试（本两批新增 64 条）</div></div>
+  <div class="stat pass"><div class="n">67 / 67</div><div class="l">真机冒烟 · 两套数据各一遍</div></div>
+  <div class="stat pass"><div class="n">0 错 0 警</div><div class="l">类型检查 + 规范 + 构建</div></div>
+  <div class="stat pass"><div class="n">47</div><div class="l">本次推送的文件数（+4269 / −71）</div></div>
+  <div class="stat pass"><div class="n">0</div><div class="l">动到你的文件（两批都不碰文件）</div></div>
+  <div class="stat pass"><div class="n">0</div><div class="l">新增第三方依赖</div></div>
+</div>
+
+<div class="box info">
+  <h3>先说清楚一件事：这两批的代码不是我写的</h3>
+  <p>我接手时发现，<b>两批的实现已经在工作区里了</b>（38 个文件被修改 + 7 个新文件），
+     只是<b>没有提交</b>，而且<b>留了一处会让编译失败的调试残留</b> —— 所以之前的状态是「看起来做完了，其实过不了编译」。</p>
+  <p>我这轮做的是：<b>① 修掉那处残留 ② 把完整验证链重跑一遍 ③ 抽查设计文档点名的几个"最容易漏"的地方 ④ 提交到本地 ⑤ 尝试推送</b>（卡在代理）。</p>
+  <p style="margin-bottom:0">下面写的功能与验证结果，都是我<b>当场重跑</b>出来的，不是转述。</p>
+</div>
+
+<h2>二、P3-3：按文件属性命名</h2>
+<p>在改名规则里多了三个可以写进「前缀 / 后缀」的变量：</p>
+<table>
+  <tr><th style="width:110px">变量</th><th>取什么</th><th style="width:230px">例子（原名 IMG_0001.JPG）</th></tr>
+  <tr><td><code>{创建}</code></td><td>文件的创建日期</td><td><code>2026-09-18_IMG_0001.JPG</code></td></tr>
+  <tr><td><code>{修改}</code></td><td>最后修改日期</td><td><code>2026-09-20_IMG_0001.JPG</code></td></tr>
+  <tr><td><code>{大小}</code></td><td>文件大小</td><td><code>2.4MB_IMG_0001.JPG</code></td></tr>
+</table>
+<p>规则区新增一个「属性组」，里面有这三个变量的说明、一个「大小单位」下拉（自动 / B / KB / MB / GB），
+和一行示例。<b>点一下变量名就能把它插进前缀</b>（省得手打漏括号 —— 而打错的变量名不会报错，会原样留在文件名里）。</p>
+
+<h3>三处"看着正常其实会错"的地方（都已处理）</h3>
+<div class="box warn">
+  <p><span class="tag t-warn">1</span><b>「创建日期」绝不能取成"上次改名那一刻"。</b>
+     系统里有两个时间：真正的创建时间、和"属性被改过的时间"。<b>改个名字就会刷新后者</b> ——
+     而这个软件干的就是改名。取错的话，你每次改完名再打开，看到的"创建日期"全变成了刚才那一刻，而界面毫无异常。</p>
+  <p><span class="tag t-warn">2</span><b>日期必须按本机时区算。</b>
+     用通用写法（UTC）会让<b>凌晨 0 点到 8 点之间创建的文件整体差一天</b>，且只在这些文件上出现 ——
+     一批文件里错几个，最难发现。</p>
+  <p style="margin-bottom:0"><span class="tag t-warn">3</span><b>「文件夹」和"空文件"必须区分开。</b>
+     文件夹的大小是没有意义的（要算出总大小就得递归扫描，本项目铁律禁止）→ 展开成<b>空</b>；
+     而一个真的是 0 字节的文件 → 展开成 <code>0B</code>。<b>两者绝不能混为一谈</b>，
+     否则你会以为自己的文件夹是空的。</p>
+</div>
+
+<h2>三、P3-4：导入 Excel 按表格改名</h2>
+<p>左栏多了「<b>导入表格</b>」按钮：选一个 Excel/CSV → 弹出对照预览（<b>哪一行配哪个文件、改成什么，全摆给你看</b>）→ 确认后才写进列表。</p>
+<table>
+  <tr><th style="width:150px">能力</th><th>说明</th></tr>
+  <tr><td><b>两种匹配方式</b></td>
+      <td>· <b>按文件名</b>（默认）：表里有「原名」列 → 按它去列表里找同名文件。<b>找不到就不配，绝不会配错</b><br>
+          · <b>按行顺序</b>：表里只有新名时，第 1 行配第 1 个文件…。<b>这种容易全错位，所以加了两道闸</b>：
+          行数与文件数不等就直接拒绝；表里恰好也有原名列时顺手校验顺序，对不上会明确警告</td></tr>
+  <tr><td><b>不静默丢弃</b></td>
+      <td>对不上的行<b>逐条列出来</b>告诉你为什么，不会悄悄跳过（与「冲突默认跳过 + 标红」是同一条底线）</td></tr>
+  <tr><td><b>扩展名自动保护</b></td>
+      <td>表里读到 <code>封面.jpg</code>，只取「封面」这个名字部分，扩展名仍用<b>原文件的</b> ——
+          所以 <code>照片.docx</code> 出来的是 <code>封面.docx</code>，不需要为这一批写任何新逻辑</td></tr>
+  <tr><td><b>和导出能往返</b></td>
+      <td>第 2 批导出的清单表头就是「原名 / 新名」，所以你在 Excel 里改一改新名列，<b>直接导回来就能用</b>。
+          这是这两批配合起来最实用的场景</td></tr>
+  <tr><td><b>零依赖读 Excel</b></td>
+      <td>xlsx 读取器也是自己写的（和第 2 批的写入器共用一套压缩包逻辑），<b>没有引入第三方库</b></td></tr>
+</table>
+<div class="box ok">
+  <h3><span class="tag t-ok">安全</span>导入不改任何文件</h3>
+  <p>导入只是往列表里写「这个文件应该改成什么」。<b>真正动手仍然要你点「开始改名」，并且过既有的二次确认</b> ——
+     导入这一步本身一个文件都不碰。</p>
+</div>
+
+<h2>四、验证证据</h2>
+<table>
+  <tr><th style="width:200px">验的东西</th><th>证据</th></tr>
+  <tr><td>单元测试 223 项</td>
+      <td><code>maodie-renamer/tests/artifacts/last-unit.json</code>（passed 223 / failed 0）<br>
+          新增：<code>tests/p3-3-attrs.test.ts</code>、<code>tests/p3-4-import.test.ts</code>（都已登记进 <code>test:core</code>）</td></tr>
+  <tr><td>真机冒烟 67 项 · 第 1 轮</td>
+      <td><code>maodie-renamer/tests/artifacts/2026-09-22T04-31-01/report.html</code>（67/67 · 600ms 慢速）</td></tr>
+  <tr><td>真机冒烟 67 项 · 第 2 轮</td>
+      <td><code>maodie-renamer/tests/artifacts/2026-09-22T04-33-35/report.html</code>（67/67）</td></tr>
+  <tr><td>异常检查</td>
+      <td>两轮都是 <b>0</b>：无界面报错、无未捕获异常、无资源加载失败</td></tr>
+</table>
+
+<h2>五、我这轮修掉的那处问题（值得记一笔）</h2>
+<div class="box warn">
+  <h3><span class="tag t-warn">已修</span>两行调试代码留在了正式源码里</h3>
+  <p><code>stores/files.ts</code> 里留着两行调试探针（还带着「⚠️【临时探针】」的注释），
+     <b>而且是重复的两行</b>。它不是合法代码 → <b>类型检查和代码规范直接红</b>，
+     也就是「功能看着做完了，但其实根本编译不过」。</p>
+  <p>这说明上一轮工作是<b>在调试中途中断的</b>：功能写完了、文档也回填了，但最后一步（清理 + 跑完整验证）没做。</p>
+  <p style="margin-bottom:0">我把它删掉后，编译 / 规范 / 单测 / 构建 / 冒烟<b>全链路一次通过</b> —— 也说明那两行纯粹是残留，不是有意留的。</p>
+</div>
+
+<h2>六、没验到的（照实说）</h2>
+<div class="box warn">
+  <ul>
+    <li><span class="tag t-warn">沙箱做不到</span><b>真机上「凌晨 0–8 点创建的文件」的日期</b> ——
+        单测只能构造时间戳来验证算法，没法在你的真机上造一个"凌晨创建的文件"。</li>
+    <li><span class="tag t-warn">沙箱做不到</span><b>属性组、导入预览弹窗在深色模式下的观感</b>。</li>
+    <li><span class="tag t-warn">沙箱做不到</span><b>规则区多了一组、左栏多了一个按钮之后的高度与滚动</b> —— 会不会挤出滚动条得真机看。</li>
+    <li><span class="tag t-warn">沙箱做不到</span><b>打包出来的 exe</b>。</li>
+    <li><span class="tag t-ok">已完成</span><b>推送到 GitHub</b> —— 代理打开后重推成功，四处 SHA 已核对一致。</li>
+  </ul>
+</div>
+
+<h2>七、推送：已完成</h2>
+<div class="box ok">
+  <p><b>你打开代理后重推，两个分支都上去了。</b>四处版本号已逐字符核对：</p>
+  <table style="margin:10px 0">
+    <tr><th style="width:170px">位置</th><th>版本号（SHA）</th></tr>
+    <tr><td>本地 main</td><td class="mono">97280c0</td></tr>
+    <tr><td>本地 fix</td><td class="mono">97280c0</td></tr>
+    <tr><td>远端 main</td><td class="mono">97280c0</td></tr>
+    <tr><td>远端 fix</td><td class="mono">97280c0</td></tr>
+  </table>
+  <p style="margin-bottom:0">推 main 时还碰到一次「假失败」：命令报了错、  但远端实际已经更新完毕。所以我核对的是「远端版本号是否等于本地」，  而不是看命令有没有报错。</p>
+</div>
+
+<h2>八、提交与推送状态</h2>
+<div class="sha">
+  <div>提交（分支 fix）：<b>c1e7512</b>　47 文件　+4269 / −71（含 7 个新文件）</div>
+  <div>合并后主线 main：<b>97280c0</b>　跟踪文件 207 → <b>214</b></div>
+  <div>远端 main / fix：<b>97280c0</b>（与本地逐字符相等，已核对）</div>
+</div>
+
+<h2>九、下一步：还剩 4 批</h2>
+<table>
+  <tr><th style="width:40px">#</th><th>批次</th><th style="width:170px">风险</th></tr>
+  <tr><td>5</td><td>三模式扩到五模式 + 扩展名更改 + 只留编号</td><td><span class="tag t-info">中</span>改文件名本体</td></tr>
+  <tr><td>6</td><td>提取文件夹名</td><td><span class="tag t-info">中</span>读上层名字</td></tr>
+  <tr><td>7</td><td>文件夹合并</td><td><span class="tag t-warn">高</span><b>会移动/删除文件本身</b></td></tr>
+  <tr><td>8</td><td>从压缩包 / 多层目录提取文件</td><td><span class="tag t-warn">高</span><b>会复制文件本身</b></td></tr>
+</table>
+<p>第 7、8 批按约定放到最后做，并单独走一次不可逆操作评审。
+第 6 批（提取文件夹名）与刚做完的 P3-3 共用同一套「属性快照」机制，届时可以直接复用。</p>
+
+<footer>
+  耄耋改名 · P3-3 + P3-4 交付报告　｜　生成于 2026-09-22　｜　
+  单测 223/223 · 冒烟 67/67 × 2 · typecheck 0 · lint 0 · build 0<br>
+  提交 c1e7512 → 合并 97280c0（<b>本地与远端四处一致，已推送到 GitHub</b>）
+</footer>
+
+</div>
+</body>
+</html>
