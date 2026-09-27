@@ -135,12 +135,14 @@ const restCount = computed(() => Math.max(0, files.total - willChangeCount.value
 .md-filelist {
   display: flex;
   flex-direction: column;
-  /* ★ 高度基准档位（180px 下限 / 38% 窗口高 / 320px 上限）+ 有剩余空间时吸收：
-     规则区再长也挤不掉它（flex-shrink = 0），规则区短时它填掉空档（flex-grow = 1），
-     所以既不会出现「被压瘪」，也不会留一条空荡荡的带子。
-     注意：列表内部仍是一个独立滚动区（虚拟滚动必需），滚动条不会消失。 */
-  flex: 1 0 auto;
-  height: clamp(180px, 38vh, 320px);
+  /* ★ 2026-09-27：高度**交给网格格位**（list 跨行 3-5），只保底 180px。
+     原来写的是 `height: clamp(180px,38vh,320px)` + `flex: 0 1 auto` —— 那是
+     「窗口不固定、由内容撑高」时代的档位，搬进「窗口固定 900 + 网格分行」之后
+     它就成了多余的硬高度，实测两头都出错：
+       · 1440 下比自己的格位矮 56px → 表格下方留一条空带（违背「富余时吸收空档」）；
+       · 1180×760 下比格位高 83px → 戳出格子、把主区顶超 69px（「开始改名」被挤下去）。
+     格位本身已经是高度预算：行 3/4 是 minmax(0,1fr)、行 5 是 auto。 */
+  min-height: 180px;
   background: var(--md-bg-card);
   border-radius: var(--md-radius-card);
   box-shadow: var(--md-shadow-card);

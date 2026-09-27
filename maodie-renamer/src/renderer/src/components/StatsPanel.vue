@@ -215,11 +215,13 @@ const bad = computed(() => raw.value.conflict > 0 || raw.value.invalid > 0)
 
 .md-stat__eyebrow {
   margin: 0;
+  /* 设计 §04：9.5px / 全大写 / 字距 1.7px / --ink4（与其它区块标签同一档）*/
   font-family: var(--md-font-num);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  color: var(--md-ink-3);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
+  color: var(--md-ink-4);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -230,16 +232,18 @@ const bad = computed(() => raw.value.conflict > 0 || raw.value.invalid > 0)
   color: var(--md-line-strong);
 }
 
-/* 全屏字号最大的地方 —— 细字重 + 超大字号（靠字重对比撑气场，不靠发光）。
-   ★ P3-10：字号跟设计稿对齐（`.bigno` = 60px），并用 clamp 让窄列时不撑破；
+/* 全屏字号最大的地方 —— 大字号 + 600 字重（靠字重对比撑气场，不靠发光）。
+   ★ 2026-09-27 对齐设计稿 `.bigno`：**60px / 600 / 字距 −1.5px**。
+   （原来是 clamp(38px,3.4vw,60px) + 500 字重 + −0.02em —— 在 1440 下只有 48.96px，
+   与设计稿的 60px 差了一档，而且字距被算成 −0.98px。）
    数字压在卡片底部（设计稿是 `margin-top:auto`）。 */
 .md-stat__value {
   margin: auto 0 0;
   font-family: var(--md-font-num);
-  font-size: clamp(38px, 3.4vw, 60px);
-  font-weight: 500;
+  font-size: 60px;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -1.5px;
   font-variant-numeric: tabular-nums;
   color: var(--md-ink-1);
 }
@@ -256,17 +260,19 @@ const bad = computed(() => raw.value.conflict > 0 || raw.value.invalid > 0)
   color: var(--md-bad);
 }
 
+/* 分段条（设计 §04：数字下面间距 13px；每格 flex:1、格间 4px；
+   高 7px / 圆角 3px）*/
 .md-stat__bar {
   display: flex;
-  gap: 3px;
-  margin-top: 9px;
+  gap: 4px;
+  margin-top: 13px;
   padding-top: 0;
 }
 
 .md-stat__cell {
   flex: 1 1 0;
-  height: 4px;
-  border-radius: 2px;
+  height: 7px;
+  border-radius: 3px;
   background: var(--md-bg-disabled);
   transition: background var(--md-dur-hover) ease;
 }
@@ -289,11 +295,13 @@ const bad = computed(() => raw.value.conflict > 0 || raw.value.invalid > 0)
   background: var(--md-ok-bg);
 }
 
+/* 说明（设计 §04：分段条下面间距 9px；11px / **--ink2**）——
+   ⚠️ 这里是 --ink2 不是 --ink3：说明字落在**下沉面**上，ink3 的对比度不够（规格书特意写过）。 */
 .md-stat__caption {
-  margin: 7px 0 0;
+  margin: 9px 0 0;
   font-size: 11px;
   line-height: 15px;
-  color: var(--md-ink-4);
+  color: var(--md-ink-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

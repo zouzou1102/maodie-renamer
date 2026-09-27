@@ -3,6 +3,13 @@
  *
  * 单独成模块的理由：同一段文案在「历史页卡片」「撤销确认弹窗」两处出现，
  * 且它要参与持久化 —— 硬编码在组件里会让历史记录与代码版本耦合。
+ *
+ * ★ 2026-09-27：拆出 `buildRuleSummaryParts` —— 规则块那句 25px 大字要把
+ *   **用户填的值**（`广告` / `推广` / 前缀…）高亮成橘色小块（设计 §04「摘要里的高亮词」）。
+ *   `buildRuleSummary` 保留为**字符串**形式（要写进 `history.json`），实现改成
+ *   「分段拼回去」，于是两处**同一份逻辑**，不会漂移；字符串输出逐字节不变，
+ *   由 `tests/p1-rules.test.ts` / `tests/p2b-templates.test.ts` / `tests/p3-1-seq.test.ts`
+ *   的既有断言兜底。
  */
 
 import { ATTR_VARS } from './attr-vars'
@@ -18,6 +25,18 @@ export interface ImportedSummaryInfo {
 }
 
 /**
+ * 摘要的一段。
+ *
+ * `hl` 表示「这一段是**用户在输入框里填的值**」—— 界面上把它做成橘色小块，
+ * 让「哪个词是这条规则的可调参数」一眼可见（设计 §04）。它**只影响渲染**，
+ * 拼接后的字符串与高亮无关。
+ */
+export interface SummaryPart {
+  text: string
+  hl?: boolean
+}
+
+/**
  * 规则摘要 = 模式摘要 + 大小写后缀 + 表格导入说明（设计 §8：都追加在末尾）。
  *
  * ★ P3-4：表格导入的项**不受规则影响**（override 优先）。摘要不说这件事，
@@ -28,73 +47,102 @@ export interface ImportedSummaryInfo {
  *   老的历史记录也不会因此变化 —— **绝不为了统一写法去写数据迁移**。
  */
 export function buildRuleSummary(rule: RuleConfig, imported?: ImportedSummaryInfo): string {
-  const base = buildBaseSummary(rule)
-  const suffix = caseTransformLabel(rule.caseTransform ?? 'none')
-  const head = suffix ? `${base} + ${suffix}` : base
-  return imported !== undefined && imported.count > 0
-    ? `${head} + 含表格导入 ${imported.count} 项（${imported.source}）`
-    : head
+  return buildRuleSummaryParts(rule, imported)
+    .map((p) => p.text)
+    .join('')
 }
 
-function buildBaseSummary(rule: RuleConfig): string {
+/** 摘要的**分段**形式（界面上按 `hl` 高亮；拼起来与 `buildRuleSummary` 完全一致）*/
+export function buildRuleSummaryParts(
+  rule: RuleConfig,
+  imported?: ImportedSummaryInfo,
+): SummaryPart[] {
+  const parts = buildBaseParts(rule)
+  const suffix = caseTransformLabel(rule.caseTransform ?? 'none')
+  if (suffix) parts.push({ text: ` + ${suffix}` })
+  if (imported !== undefined && imported.count > 0) {
+    parts.push({ text: ` + 含表格导入 ${imported.count} 项（${imported.source}）` })
+  }
+  return parts
+}
+
+function buildBaseParts(rule: RuleConfig): SummaryPart[] {
   // 「（正则）」只对会用到匹配的两种模式有意义 —— 规则化模式不涉及匹配
   const regex = rule.regexEnabled ? '（正则）' : ''
   switch (rule.mode) {
     case 'delete': {
       const text = rule.delete.text
-      if (!text) return '未设置删除内容'
-      return `删除「${text}」${regex}${rule.caseSensitive ? '（区分大小写）' : ''}`
+      if (!text) return [{ text: '未设置删除内容' }]
+      return [
+        { text: '删除「' },
+        { text, hl: true },
+        { text: '」' },
+        ...(regex ? [{ text: regex }] : []),
+        ...(rule.caseSensitive ? [{ text: '（区分大小写）' }] : []),
+      ]
     }
 
     case 'replace': {
       const { find, to } = rule.replace
-      if (!find) return '未设置查找内容'
-      const right = to === '' ? '（删除）' : `「${to}」`
-      return `替换「${find}」→${right}${regex}${rule.caseSensitive ? '（区分大小写）' : ''}`
+      if (!find) return [{ text: '未设置查找内容' }]
+      return [
+        { text: '替换「' },
+        { text: find, hl: true },
+        { text: '」→' },
+        ...(to === ''
+          ? [{ text: '（删除）' }]
+          : [{ text: '「' }, { text: to, hl: true }, { text: '」' }]),
+        ...(regex ? [{ text: regex }] : []),
+        ...(rule.caseSensitive ? [{ text: '（区分大小写）' }] : []),
+      ]
     }
 
     case 'rule': {
       const r = rule.rule
-      const parts: string[] = []
+      const segs: SummaryPart[][] = []
 
-      if (r.prefix) parts.push(`前缀「${r.prefix}」`)
-      if (r.suffix) parts.push(`后缀「${r.suffix}」`)
+      if (r.prefix) segs.push([{ text: '前缀「' }, { text: r.prefix, hl: true }, { text: '」' }])
+      if (r.suffix) segs.push([{ text: '后缀「' }, { text: r.suffix, hl: true }, { text: '」' }])
 
       if (r.seqEnabled) {
-        parts.push(`序号(${seqBits(r).join(' / ')})`)
+        segs.push([{ text: `序号(${seqBits(r).join(' / ')})` }])
       }
 
       if (r.dateEnabled) {
-        parts.push(`日期(${dateFormatLabel(r.dateFormat)})`)
+        segs.push([{ text: `日期(${dateFormatLabel(r.dateFormat)})` }])
       }
 
       // ★ P3-3 / P3-6：属性变量（写在前后缀里、**没有开关**）。
       //   摘要里必须说出来 —— 否则撤销之后没人知道当初是怎么算出来的（设计 §7.5 第 10 行）。
-      //   ⚠️ 这一段必须在下面 `parts.length === 0` 判断**之前** ——
+      //   ⚠️ 这一段必须在下面 `segs.length === 0` 判断**之前** ——
       //      否则「只写了属性变量」的规则会被误报成「未设置任何规则要素」。
       //   ★ P3-6：改成由 `shared/attr-vars.ts` 的清单生成 —— 以后加变量**只改那一处**
       //   （这个坑咬过两次：P3-3 加变量时提示行漏改，P3-6 又差点漏）。见设计 §5.①。
       const vars = `${r.prefix ?? ''}${r.suffix ?? ''}`
       for (const v of ATTR_VARS) {
-        if (vars.includes(v.token)) parts.push(v.summary(r))
+        if (vars.includes(v.token)) segs.push([{ text: v.summary(r) }])
       }
 
-      if (parts.length === 0) return '未设置任何规则要素'
+      if (segs.length === 0) return [{ text: '未设置任何规则要素' }]
 
-      parts.push(r.keepOriginal ? '保留原名' : '不保留原名')
-      return parts.join(' + ')
+      segs.push([{ text: r.keepOriginal ? '保留原名' : '不保留原名' }])
+      return segs.flatMap((s, i) => (i === 0 ? s : [{ text: ' + ' }, ...s]))
     }
 
     case 'insert': {
       const { at, text } = rule.insert
-      if (!text) return '未设置插入内容'
-      return `在第 ${Math.max(0, at)} 个字后插入「${text}」`
+      if (!text) return [{ text: '未设置插入内容' }]
+      return [
+        { text: `在第 ${Math.max(0, at)} 个字后插入「` },
+        { text, hl: true },
+        { text: '」' },
+      ]
     }
 
     // ★ P3-5：导入模式 = 名字来自表格（引擎不参与）。摘要必须说出来 ——
     //   否则撤销之后没人知道当初那批名字是怎么来的（这段会写进 history.json）。
     case 'import':
-      return '名字来自导入的表格（规则不参与）'
+      return [{ text: '名字来自导入的表格（规则不参与）' }]
 
     default: {
       // ★ 穷尽兜底：加模式时「忘了写摘要分支」变编译期错误，而不是静默给「未知规则」。
