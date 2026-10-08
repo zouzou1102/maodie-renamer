@@ -233,6 +233,7 @@ app.whenReady().then(async () => {
       return set('input[placeholder="例如：最终版"]', '广告') && set('input[placeholder="留空 = 删除"]', '推广'); })()`);
     await new Promise((r) => setTimeout(r, 900));
     report.hl = JSON.parse(await S.evalIn(win, HL_AUDIT));
+    await S.shot(win, outDir, 3, '替换模式-人话');
     await S.shot(win, outDir, 1, '1440x900');
 
     // ── 第三段：最小窗口 1180×760 —— 底栏要「换行不压字」，验收四条不能破 ──

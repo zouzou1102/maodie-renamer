@@ -1,15 +1,23 @@
 /**
- * 规则摘要文案（供历史页展示，`RenameTask.ruleSummary`）。
+ * 规则文案：**两套**，一个文件 —— 存档摘要 + 面板那句人话。
  *
- * 单独成模块的理由：同一段文案在「历史页卡片」「撤销确认弹窗」两处出现，
- * 且它要参与持久化 —— 硬编码在组件里会让历史记录与代码版本耦合。
+ * 单独成模块的理由：这些文案在「历史页卡片」「撤销确认弹窗」「规则块那句 25px 大字」
+ * 三处出现，且前者要参与持久化 —— 硬编码在组件里会让历史记录与代码版本耦合。
  *
- * ★ 2026-09-27：拆出 `buildRuleSummaryParts` —— 规则块那句 25px 大字要把
- *   **用户填的值**（`广告` / `推广` / 前缀…）高亮成橘色小块（设计 §04「摘要里的高亮词」）。
+ * ★ 2026-09-27：拆出 `buildRuleSummaryParts` —— 界面按 `hl` 把**用户填的值**
+ *   （`广告` / `推广` / 前缀…）高亮成橘色小块（设计 §04「摘要里的高亮词」）。
  *   `buildRuleSummary` 保留为**字符串**形式（要写进 `history.json`），实现改成
  *   「分段拼回去」，于是两处**同一份逻辑**，不会漂移；字符串输出逐字节不变，
  *   由 `tests/p1-rules.test.ts` / `tests/p2b-templates.test.ts` / `tests/p3-1-seq.test.ts`
  *   的既有断言兜底。
+ *
+ * ★ 2026-10-08：面板那句大字**改用设计稿的人话**（`buildRuleSentenceParts`）。
+ *   分工必须记牢，别把两者合并：
+ *   · **存档摘要**（`buildRuleSummary`）＝写进 `history.json` + 历史卡片 + 撤销弹窗。
+ *     它要**紧凑、且永久不变**（老记录不回填），所以长得像 `替换「广告」→「推广」（正则）`。
+ *   · **面板那句话**（`buildRuleSentenceParts`）＝只活在界面上，要读起来像人话
+ *     （设计原文：「把名字里所有的〔广告〕都换成〔推广〕」）。
+ *   两者都**只从 `rule` 取值**，谁也不复制对方的字符串 —— 改一处不会让另一处过期。
  */
 
 import { ATTR_VARS } from './attr-vars'
@@ -64,6 +72,67 @@ export function buildRuleSummaryParts(
     parts.push({ text: ` + 含表格导入 ${imported.count} 项（${imported.source}）` })
   }
   return parts
+}
+
+/**
+ * 面板那句话（规则块里那句 25px 大字）。设计原文见 `C-面板阵列` 的 `.sentence`：
+ * 「把名字里所有的〔广告〕都换成〔推广〕」—— 用户填的值包成橘色小块。
+ *
+ * ⚠️ 与上面的存档摘要是**两套文案、同一个数据源**（都只从 `rule` 取值），理由见文件头。
+ *
+ * ★ 穷尽 `switch` + `never` 兜底：将来加第 6 个模式时**编译就红**，
+ *   而不是悄悄落进兜底分支显示一句错的话（本项目第 6 类静默 bug）。
+ */
+export function buildRuleSentenceParts(rule: RuleConfig): SummaryPart[] {
+  const parts = buildSentenceBase(rule)
+  // 大小写是「算完之后再套一层」的收尾动作，挂在句尾说（口径与存档摘要一致）
+  const suffix = caseTransformLabel(rule.caseTransform ?? 'none')
+  if (suffix) parts.push({ text: `，最后改成「${suffix}」` })
+  return parts
+}
+
+function buildSentenceBase(rule: RuleConfig): SummaryPart[] {
+  switch (rule.mode) {
+    case 'delete': {
+      const text = rule.delete.text
+      if (!text) return [{ text: '还没填要删掉的内容' }]
+      return [{ text: '把名字里所有的' }, { text, hl: true }, { text: '删掉' }]
+    }
+
+    case 'replace': {
+      const { find, to } = rule.replace
+      if (!find) return [{ text: '还没填要查找的内容' }]
+      if (to === '') return [{ text: '把名字里所有的' }, { text: find, hl: true }, { text: '删掉' }]
+      return [
+        { text: '把名字里所有的' },
+        { text: find, hl: true },
+        { text: '都换成' },
+        { text: to, hl: true },
+      ]
+    }
+
+    case 'insert': {
+      const { at, text } = rule.insert
+      if (!text) return [{ text: '还没填要插入的内容' }]
+      const where = Math.max(0, at) === 0 ? '在最前面插入' : `在第 ${Math.max(0, at)} 个字符后插入`
+      return [{ text: where }, { text, hl: true }]
+    }
+
+    case 'import':
+      // 设计原文照抄：导入模式没有可调参数
+      return [{ text: '名字由表格决定，规则引擎不参与' }]
+
+    case 'rule':
+      // 自定义模式有 6 类要素（前缀 / 后缀 / 序号 / 日期 / 属性 / 保留原名），
+      // 设计只给了「最前面加上 {d}-，最后加上 001 这样的编号」一个例子 —— 做成固定
+      // 句式会把其余要素藏起来（「看不见的功能等于不存在」），所以这一支沿用存档摘要的分段。
+      return buildBaseParts(rule)
+
+    default: {
+      const never: never = rule.mode
+      return never
+    }
+  }
 }
 
 function buildBaseParts(rule: RuleConfig): SummaryPart[] {

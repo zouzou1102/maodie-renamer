@@ -18,7 +18,7 @@ import {
   computeNewStem,
   REGEX_MAX_LENGTH,
 } from '../src/shared/rule-engine'
-import { buildRuleSummary, buildRuleSummaryParts } from '../src/shared/rule-summary'
+import { buildRuleSentenceParts, buildRuleSummary, buildRuleSummaryParts } from '../src/shared/rule-summary'
 import { joinName, splitName } from '../src/shared/name-split'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '../src/shared/regex-cheatsheet'
 import { DEFAULT_RULE, type RuleConfig } from '../src/shared/types'
@@ -236,6 +236,108 @@ test('摘要分段：只有用户填的值被高亮，括号与标签不高亮',
   )
   assert.deepEqual(hlOf(buildRuleSummaryParts(rule({ mode: 'rule' }))), [], '「未设置任何规则要素」不高亮')
   assert.deepEqual(hlOf(buildRuleSummaryParts(rule({ mode: 'import' }))), [], '导入模式没有可填项')
+})
+
+/* ── 面板那句话（2026-10-08：照设计稿的人话，与存档摘要是两套文案）────────
+   ★ 三条必须成立：
+     ① 每个模式都读得通（不是空串、不是「未知规则」）；
+     ② 用户填的值都在句子里、且**只有**它们被高亮；
+     ③ 它与存档摘要**不漂移** —— 两者提到的是同一批值（同一次输入、同一个数据源）。 */
+
+test('面板那句话：照设计稿的原话（替换模式逐字对上 C-面板阵列 的 .sentence）', () => {
+  const s = (r: RuleConfig) => buildRuleSentenceParts(r).map((p) => p.text).join('')
+  assert.equal(
+    s(rule({ mode: 'replace', replace: { find: '广告', to: '推广' } })),
+    '把名字里所有的广告都换成推广',
+    '★ 设计稿原文：把名字里所有的〔广告〕都换成〔推广〕',
+  )
+  assert.equal(s(rule({ mode: 'delete', delete: { text: '广告' } })), '把名字里所有的广告删掉')
+  assert.equal(s(rule({ mode: 'insert', insert: { at: 2, text: '2026' } })), '在第 2 个字符后插入2026')
+  assert.equal(
+    s(rule({ mode: 'import' })),
+    '名字由表格决定，规则引擎不参与',
+    '导入模式逐字照抄设计',
+  )
+  // 替换成空 = 删掉：说人话（而不是显示「替换「广告」→（删除）」）
+  assert.equal(s(rule({ mode: 'replace', replace: { find: '广告', to: '' } })), '把名字里所有的广告删掉')
+  // 插入位置 0 = 最前面：说人话（第 0 个字符后 = 最前面）
+  assert.equal(s(rule({ mode: 'insert', insert: { at: 0, text: '2026' } })), '在最前面插入2026')
+})
+
+test('面板那句话：每种模式都有话说，没填内容时给的是人话提示（不是空串）', () => {
+  const modes = ['delete', 'replace', 'insert', 'import', 'rule'] as const
+  for (const mode of modes) {
+    const text = buildRuleSentenceParts(rule({ mode }))
+      .map((p) => p.text)
+      .join('')
+    assert.notEqual(text, '', `${mode} 模式的那句话是空的`)
+    assert.ok(!text.includes('undefined'), `${mode} 模式出现了 undefined`)
+    assert.ok(!text.includes('未知'), `${mode} 模式落进了兜底分支`)
+  }
+  // 没填必需内容时的提示也要是人话
+  assert.equal(
+    buildRuleSentenceParts(rule({ mode: 'replace', replace: { find: '', to: '' } }))
+      .map((p) => p.text)
+      .join(''),
+    '还没填要查找的内容',
+  )
+  assert.equal(
+    buildRuleSentenceParts(rule({ mode: 'delete', delete: { text: '' } }))
+      .map((p) => p.text)
+      .join(''),
+    '还没填要删掉的内容',
+  )
+})
+
+test('面板那句话：只有用户填的值高亮，句式里的字不高亮', () => {
+  const hl = (r: RuleConfig) => buildRuleSentenceParts(r).filter((p) => p.hl).map((p) => p.text)
+  assert.deepEqual(
+    hl(rule({ mode: 'replace', replace: { find: '广告', to: '推广' } })),
+    ['广告', '推广'],
+  )
+  assert.deepEqual(hl(rule({ mode: 'delete', delete: { text: '广告' } })), ['广告'])
+  assert.deepEqual(hl(rule({ mode: 'insert', insert: { at: 2, text: '2026' } })), ['2026'])
+  assert.deepEqual(hl(rule({ mode: 'import' })), [], '导入模式没有可填项 → 不高亮')
+  // 自定义模式沿用存档摘要的分段，用户填的前后缀同样要高亮
+  assert.deepEqual(
+    hl(rule({ mode: 'rule' }, { prefix: 'P-', suffix: '-S' })),
+    ['P-', '-S'],
+  )
+})
+
+test('面板那句话 × 存档摘要：不漂移（两套文案提到的是同一批值）', () => {
+  const cases: RuleConfig[] = [
+    rule({ mode: 'delete', delete: { text: '广告' }, caseTransform: 'lower' }),
+    rule({ mode: 'replace', replace: { find: '广告', to: '推广' } }),
+    rule({ mode: 'replace', replace: { find: '广告', to: '' } }),
+    rule({ mode: 'insert', insert: { at: 3, text: '2026' } }),
+    rule({ mode: 'import' }),
+    rule({ mode: 'rule' }, { prefix: '{d}-', suffix: '-终', dateEnabled: true }),
+  ]
+  for (const r of cases) {
+    const sentence = buildRuleSentenceParts(r).map((p) => p.text).join('')
+    const summary = buildRuleSummary(r)
+    // 用户填的每个值，两句里都得出现（否则就是「一句话漏说了某个参数」）
+    for (const value of ['广告', '推广', '2026', '{d}-', '-终']) {
+      const inSummary = summary.includes(value)
+      if (inSummary) {
+        assert.ok(
+          sentence.includes(value),
+          `${r.mode}：存档摘要有「${value}」，面板那句话却没有 → 两套文案漂移了`,
+        )
+      }
+    }
+  }
+  // 大小写是收尾动作，两句都要提到（口径一致）
+  const withCase = rule({ mode: 'delete', delete: { text: '广告' }, caseTransform: 'upper' })
+  assert.ok(buildRuleSummary(withCase).includes('全部大写'), '存档摘要应提到大小写')
+  assert.ok(
+    buildRuleSentenceParts(withCase)
+      .map((p) => p.text)
+      .join('')
+      .includes('全部大写'),
+    '面板那句话也应提到大小写',
+  )
 })
 
 /* ── TC-26 P0 逐字节回归（红线：正则关 + 大小写 none 必须与 P0 一致）── */
