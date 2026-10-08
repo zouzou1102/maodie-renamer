@@ -22,6 +22,7 @@
 
 import { ATTR_VARS } from './attr-vars'
 import { caseTransformLabel, dateFormatLabel, seqPositionLabel } from './labels'
+import { isInsertAtEnd } from './rule-engine'
 import type { RuleConfig } from './types'
 
 /** P3-4：摘要里要能说明「这批名字有一部分来自导入的表格」*/
@@ -114,7 +115,11 @@ function buildSentenceBase(rule: RuleConfig): SummaryPart[] {
     case 'insert': {
       const { at, text } = rule.insert
       if (!text) return [{ text: '还没填要插入的内容' }]
-      const where = Math.max(0, at) === 0 ? '在最前面插入' : `在第 ${Math.max(0, at)} 个字符后插入`
+      const where = isInsertAtEnd(at)
+        ? '在名字最末尾插入'
+        : Math.max(0, at) === 0
+          ? '在最前面插入'
+          : `在第 ${Math.max(0, at)} 个字符后插入`
       return [{ text: where }, { text, hl: true }]
     }
 
@@ -201,8 +206,12 @@ function buildBaseParts(rule: RuleConfig): SummaryPart[] {
     case 'insert': {
       const { at, text } = rule.insert
       if (!text) return [{ text: '未设置插入内容' }]
+      // ★ 2026-10-08：界面上的〔末尾〕按钮把位置写成 `INSERT_AT_END`（哨兵值）。
+      //   摘要里照实说「在末尾」，别把 255 印出来 —— 历史记录里出现「第 255 个字后」
+      //   没人看得懂。这个值是新加的，不存在老记录里，所以不涉及迁移。
+      const where = isInsertAtEnd(at) ? '在末尾' : `在第 ${Math.max(0, at)} 个字后`
       return [
-        { text: `在第 ${Math.max(0, at)} 个字后插入「` },
+        { text: `${where}插入「` },
         { text, hl: true },
         { text: '」' },
       ]

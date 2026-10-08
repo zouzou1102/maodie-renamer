@@ -22,8 +22,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { parseCliArgs } from '../src/shared/cli-args'
 import { resolveItems } from '../src/shared/preview'
-import { applyInsert, extText } from '../src/shared/rule-engine'
-import { buildRuleSummary } from '../src/shared/rule-summary'
+import { applyInsert, extText, INSERT_AT_END, isInsertAtEnd } from '../src/shared/rule-engine'
+import { buildRuleSentenceParts, buildRuleSummary } from '../src/shared/rule-summary'
 import { sanitizeRule } from '../src/shared/sanitize-rule'
 import { cloneTemplateRule, RULE_TEMPLATES } from '../src/shared/templates'
 import { DEFAULT_RULE, type ItemAttrs, type RuleConfig } from '../src/shared/types'
@@ -96,6 +96,25 @@ test('applyInsert：按码点切 —— emoji 绝不被劈成半个代理对（�
   assert.equal(Array.from(out).length, 3, '必须是 3 个码点')
   // 反向证据：按 UTF-16 单元切（`stem.charAt(0) + '_' + stem.slice(1)`）会插进两个代理对之间
   assert.notEqual(out, stem.charAt(0) + '_' + stem.slice(1), '不能是按 UTF-16 单元切的产物')
+})
+
+/* ★ 2026-10-08：界面上的〔开头〕〔末尾〕两个快捷档就落在这两条语义上。
+   末尾用哨兵值 `INSERT_AT_END`（= 255）—— 引擎本来就是「越界即末尾」，
+   所以任何合法文件名（Windows 上限 255 个码点）都会被贴到末尾。 */
+
+test('插入快捷档：〔开头〕= 0、〔末尾〕= INSERT_AT_END，且对任意长度都真的落在末尾', () => {
+  assert.equal(INSERT_AT_END, 255, '哨兵值一旦改动，界面与文案都要跟着复核')
+  // 开头
+  assert.equal(applyInsert('素材-01', 0, '2026'), '2026素材-01')
+  // 末尾：短名 / 刚好 255 / emoji 名，都得贴到最后
+  assert.equal(applyInsert('素材-01', INSERT_AT_END, '2026'), '素材-012026')
+  assert.equal(applyInsert('a'.repeat(255), INSERT_AT_END, 'X'), 'a'.repeat(255) + 'X')
+  assert.equal(applyInsert('😀😀😀', INSERT_AT_END, 'X'), '😀😀😀X')
+  // 判定函数：只有「>= 哨兵值」才算末尾（0 与中间数字都不算）
+  assert.equal(isInsertAtEnd(INSERT_AT_END), true)
+  assert.equal(isInsertAtEnd(9999), true, '越界同样是末尾')
+  assert.equal(isInsertAtEnd(2), false)
+  assert.equal(isInsertAtEnd(0), false, '0 是「开头」，不是「末尾」')
 })
 
 test('applyInsert：插入模式不认识变量 —— {n} / {d} 原样插进去', () => {
@@ -300,4 +319,23 @@ test('★ 第 7 个模板「只用编号」：丢原名、序号从头、不补�
   assert.equal(r.rule.seqPad, 0, '不补零 → 得到 1 而不是 001')
   assert.equal(r.extMode, 'keep', '不带扩展名处理')
   assert.equal(one('照片A.jpg', r).toName, '1.jpg', '照片A.jpg → 1.jpg')
+})
+
+test('★ 插入快捷档的文案：两套话都说「末尾」，不把哨兵值 255 印给用户看', () => {
+  const atEnd = cfg({ mode: 'insert', insert: { at: INSERT_AT_END, text: '2026' } })
+  // 面板那句 25px 大字
+  assert.equal(
+    buildRuleSentenceParts(atEnd).map((p) => p.text).join(''),
+    '在名字最末尾插入2026',
+  )
+  // 存档摘要（会写进 history.json）—— 历史记录里出现「第 255 个字后」没人看得懂
+  assert.equal(buildRuleSummary(atEnd), '在末尾插入「2026」')
+  assert.ok(!buildRuleSummary(atEnd).includes('255'), '存档摘要里不许出现哨兵值')
+
+  // 对照：普通位置与「开头」仍照旧说
+  const mid = cfg({ mode: 'insert', insert: { at: 2, text: '2026' } })
+  assert.equal(buildRuleSentenceParts(mid).map((p) => p.text).join(''), '在第 2 个字符后插入2026')
+  assert.equal(buildRuleSummary(mid), '在第 2 个字后插入「2026」')
+  const start = cfg({ mode: 'insert', insert: { at: 0, text: '2026' } })
+  assert.equal(buildRuleSentenceParts(start).map((p) => p.text).join(''), '在最前面插入2026')
 })
