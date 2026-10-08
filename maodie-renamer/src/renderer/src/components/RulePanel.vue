@@ -24,7 +24,7 @@ import {
 import { ATTR_VARS } from '@shared/attr-vars'
 import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
 import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
-import { buildRuleSummaryParts } from '@shared/rule-summary'
+import { buildRuleSentenceParts } from '@shared/rule-summary'
 import { joinName, splitName } from '@shared/name-split'
 import { applyDelete, applyInsert, applyReplace, applyRuleMode, dateText, sizeText } from '@shared/rule-engine'
 import { todayYmd } from '@shared/today'
@@ -56,19 +56,22 @@ function clearImported(): void {
 /**
  * EL-156 规则「一句话」（P3-9 · 照 C 方案）。
  *
- * ★ **不另写一套摘要逻辑**：直接用 `buildRuleSummaryParts` —— 它就是
- *   `buildRuleSummary`（历史卡片、撤销确认弹窗用的那份字符串）的**分段形式**，
- *   两者是同一份逻辑（拼回去逐字节相等，单测钉着）。
- *   这里要是抄一份，迟早出现「面板上写的是 A、历史记录里写的是 B」的漂移，
- *   而那种漂移没人会发现。
- *   分段的目的只有一个：按 `hl` 把**用户填的值**做成橘色小块（设计 §04 高亮词）。
+ * ★ 2026-10-08：改用 `buildRuleSentenceParts` —— **设计稿那句人话**
+ *   （「把名字里所有的〔广告〕都换成〔推广〕」，见 `C-面板阵列` 的 `.sentence`）。
+ *   此前这里用的是 `buildRuleSummaryParts`（存档摘要那句话，长得像
+ *   `替换「广告」→「推广」（正则）`）—— 讲得准确，但不是设计稿要的那句人话。
+ *
+ * ⚠️ **两句话是刻意分开的，别合并**：存档摘要要写进 `history.json`、还要显示在
+ *   历史卡片与撤销弹窗上，必须紧凑且**永久不变**（老记录不回填）；面板这句只活在
+ *   界面上，追求「读起来像人话」。两者都只从 `rule` 取值，改一处不会让另一处过期
+ *   （`src/shared/rule-summary.ts` 文件头写了这条分工）。
  *
  * ⚠️ 刻意**不传** `imported`（表格导入说明）：那条信息已经有 `data-import-bar`
  *   专门在讲了（P3-5 起导入是五选一互斥的，只在导入模式下生效），
  *   摘要在别的模式下提它就是误导；而且这里多一个 `mode === 'import'` 判断
  *   就多一处「判断写错→静默显示错文案」的口子。少一处比多一处好。
  */
-const sentenceParts = computed(() => buildRuleSummaryParts(rule.rule))
+const sentenceParts = computed(() => buildRuleSentenceParts(rule.rule))
 
 /**
  * P2-B EL-120 / IX-106：点一下 chip = 套用整份模板。
