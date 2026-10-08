@@ -1600,6 +1600,21 @@ const FEATURES = [
         'all',
         '★ 每一行的新名都以 zz_ 开头 —— 插入真的插进去了（不是被当成删除 / 自定义）'
       )
+      // ★ 2026-10-08：插入位置的两个快捷档（〔开头〕/〔末尾〕）
+      .see('[data-insert-start]', '「开头」快捷按钮可见')
+      .see('[data-insert-end]', '「末尾」快捷按钮可见')
+      .click('[data-insert-end]')
+      .waitUntil("document.querySelector('[data-insert-at]').value === '255'", 8000)
+      .seeContains('[data-insert-demo]', '【素材】zz_',
+        '★ 点「末尾」= 贴在名字最后面（示例行跟着变，走的是真引擎）')
+      // 色值是 180ms 过渡过去的：刚点完读到的是中间帧（rgba(…,0.91)）——
+      // 用 seeStyleSettled 等它到稳定值再判，不是放宽，是等它本来就会到的地方。
+      .seeStyleSettled('[data-insert-end]', 'backgroundColor', 'rgb(161, 66, 13)',
+        '选中档位高亮成品牌橘（看得见「现在选的是末尾」）')
+      .click('[data-insert-start]')
+      .waitUntil("document.querySelector('[data-insert-at]').value === '0'", 8000)
+      .seeContains('[data-insert-demo]', 'zz_【素材】', '★ 点「开头」= 加在名字最前面')
+      .seeStyleSettled('[data-insert-start]', 'backgroundColor', 'rgb(161, 66, 13)', '高亮跟着切到「开头」')
   ),
 
   feature('P3-5 IX-118：切到「导入」→ 入口与状态区出现；没选表格时明说「都不改名」', (c) =>

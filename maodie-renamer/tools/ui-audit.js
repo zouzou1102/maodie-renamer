@@ -208,6 +208,22 @@ const NARROW_AUDIT = `(() => {
   });
 })()`;
 
+/** 插入模式那一行：按钮尺寸 + 有没有被挤爆 */
+const INSERT_AUDIT = `(() => {
+  const row = document.querySelector('[data-insert-group] .md-grow');
+  const btns = Array.from(document.querySelectorAll('[data-insert-start], [data-insert-end]'));
+  const text = document.querySelector('[data-insert-text]');
+  const at = document.querySelector('[data-insert-at]');
+  const r = (el) => { const b = el.getBoundingClientRect(); return Math.round(b.width) + 'x' + Math.round(b.height); };
+  return JSON.stringify({
+    rowOverflow: row ? row.scrollWidth - row.clientWidth : null,
+    textInputWidth: text ? Math.round(text.getBoundingClientRect().width) : null,
+    buttons: btns.map((b) => b.textContent.trim() + ' ' + r(b)),
+    activeClass: btns.map((b) => b.className.includes('--on')),
+    atValue: at ? at.value : null,
+  });
+})()`;
+
 app.whenReady().then(async () => {
   const report = { rows: null, error: null, bounds: null };
   try {
@@ -235,6 +251,14 @@ app.whenReady().then(async () => {
     report.hl = JSON.parse(await S.evalIn(win, HL_AUDIT));
     await S.shot(win, outDir, 3, '替换模式-人话');
     await S.shot(win, outDir, 1, '1440x900');
+
+    // ── 第二段之二：插入模式那一行（新增了〔开头〕〔末尾〕两个快捷档）──
+    await S.evalIn(win, `(() => { const t = Array.from(document.querySelectorAll('.md-rulepanel .md-tab')).find((x) => x.textContent.trim() === '插入'); if (t) t.click(); return !!t; })()`);
+    await new Promise((r) => setTimeout(r, 500));
+    await S.evalIn(win, `(() => { const el = document.querySelector('[data-insert-text]'); if (el) { el.value = '2026'; el.dispatchEvent(new Event('input', { bubbles: true })); } return !!el; })()`);
+    await new Promise((r) => setTimeout(r, 400));
+    report.insert = JSON.parse(await S.evalIn(win, INSERT_AUDIT));
+    await S.shot(win, outDir, 4, '插入模式-快捷档');
 
     // ── 第三段：最小窗口 1180×760 —— 底栏要「换行不压字」，验收四条不能破 ──
     win.setSize(1180, 760);

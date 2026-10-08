@@ -403,6 +403,24 @@ export function applyReplace(
 /* ── P3-5：插入模式（设计 §3.2）─────────────────────────────────────── */
 
 /**
+ * ★ 2026-10-08：「插到末尾」用的位置值（界面上的〔末尾〕快捷按钮）。
+ *
+ * 引擎的语义本来就是「**超出名字长度就落到末尾**」（上面 `applyInsert` 里
+ * `k = clamp(at, 0, chars.length)`），而 Windows 文件名最长 255 个码点 ——
+ * 所以 **255 对任何名字都等于末尾**，不需要给 `insert` 加字段：
+ * 规则形状、`sanitizeRule` 白名单、引擎、既有测试**一个都不用改**。
+ *
+ * ⚠️ 判断「是不是末尾」一律走 `isInsertAtEnd()`，别在别处散写 `at === 255`
+ *    （将来改这个值会漏改 —— 本项目第 6 类静默 bug 的形态）。
+ */
+export const INSERT_AT_END = 255
+
+/** 这个位置是不是「插到末尾」（含任何更大的值 —— 越界同样是末尾） */
+export function isInsertAtEnd(at: number): boolean {
+  return Math.trunc(at) >= INSERT_AT_END
+}
+
+/**
  * 插入模式的算法：在主体的第 k 个**码点**之后插入一段文字。
  *
  * 三条边界（与设计 §4 逐条对应）：

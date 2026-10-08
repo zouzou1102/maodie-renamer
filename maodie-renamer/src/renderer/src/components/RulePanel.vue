@@ -26,7 +26,7 @@ import { REGEX_CHEATSHEET, REGEX_DEMO_FILE } from '@shared/regex-cheatsheet'
 import { RULE_TEMPLATES, templateAppliedMessage, type RuleTemplate } from '@shared/templates'
 import { buildRuleSentenceParts } from '@shared/rule-summary'
 import { joinName, splitName } from '@shared/name-split'
-import { applyDelete, applyInsert, applyReplace, applyRuleMode, dateText, sizeText } from '@shared/rule-engine'
+import { applyDelete, applyInsert, applyReplace, applyRuleMode, dateText, isInsertAtEnd, sizeText, INSERT_AT_END } from '@shared/rule-engine'
 import { todayYmd } from '@shared/today'
 import type {
   CaseTransform,
@@ -323,6 +323,18 @@ function setInsertAt(e: Event): void {
   rule.patch({ insert: { at: Number.isFinite(n) ? n : 0 } })
 }
 
+/**
+ * ★ 2026-10-08：插入位置的两个快捷档（〔开头〕/〔末尾〕）。
+ *   · 开头 = `0`（引擎：0 等价于前缀）
+ *   · 末尾 = `INSERT_AT_END`（引擎：超出名字长度即末尾，所以这个值对任何名字都成立）
+ *   判定「是不是末尾」用共享层的 `isInsertAtEnd()` —— 不在组件里散写 255。
+ */
+const insertAtEnd = computed(() => isInsertAtEnd(rule.rule.insert.at))
+
+function setInsertPreset(at: number): void {
+  rule.patch({ insert: { at } })
+}
+
 /* ══ P3-5 · 扩展名小组（EL-138 / IX-119）═════════════════════════════ */
 
 /** 勾上「改扩展名」= `extMode !== 'keep'`（不勾就是默认的「保持原样」） */
@@ -601,6 +613,29 @@ function onExtMode(e: Event): void {
               :value="rule.rule.insert.at"
               @input="setInsertAt"
             />
+            <!-- ★ 2026-10-08 两个快捷档：开头 = 位置 0；末尾 = 哨兵值（引擎本来就
+                 「超出名字长度即末尾」，见 `INSERT_AT_END`）。放数字框右边 ——
+                 它们是**这个数字的两个极端值**的快捷方式，说清从属关系。 -->
+            <button
+              type="button"
+              class="md-quick"
+              :class="{ 'md-quick--on': rule.rule.insert.at === 0 }"
+              data-insert-start
+              title="插在名字最前面（等于把位置填 0）"
+              @click="setInsertPreset(0)"
+            >
+              开头
+            </button>
+            <button
+              type="button"
+              class="md-quick"
+              :class="{ 'md-quick--on': insertAtEnd }"
+              data-insert-end
+              title="插在名字最后面（不看名字多长，永远贴末尾）"
+              @click="setInsertPreset(INSERT_AT_END)"
+            >
+              末尾
+            </button>
             <input
               class="md-input md-ginput"
               data-insert-text
@@ -610,7 +645,7 @@ function onExtMode(e: Event): void {
             />
           </div>
           <p class="md-hint">
-            数字超出名字长度时会自动放到末尾；填 0 等于加在最前面。插入的文字里<b>不认识变量</b>（<code>{n}</code>、<code>{d}</code> 会原样插进去）。
+            数字超出名字长度时会自动放到末尾；填 0 等于加在最前面（右边两个按钮就是这两档的快捷方式）。插入的文字里<b>不认识变量</b>（<code>{n}</code>、<code>{d}</code> 会原样插进去）。
           </p>
           <!-- EL-136 示例行：走 applyInsert —— 与真正改名、与预览 Worker 同一个函数 -->
           <p class="md-hint" data-insert-demo>
@@ -1735,6 +1770,39 @@ code {
 
 .md-grow__l--wide {
   flex: 0 0 auto;
+}
+
+/* ── ★ 2026-10-08：G 格里的小快捷按钮（目前是插入位置的〔开头〕〔末尾〕）──
+   与页签胶囊同一套语言（圆角 99 / 描边 / 选中橘底深字），但小一号（30px）——
+   它是**某个输入框的快捷档**，不是模式页签，视觉上不能抢。 */
+.md-quick {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--md-line-strong);
+  border-radius: 99px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--md-ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--md-dur-hover) ease,
+    border-color var(--md-dur-hover) ease,
+    color var(--md-dur-hover) ease;
+}
+
+.md-quick:hover {
+  border-color: var(--md-orange-primary);
+  color: var(--md-ink-1);
+}
+
+.md-quick--on {
+  background: var(--md-orange-primary);
+  border-color: var(--md-orange-primary);
+  color: var(--md-on-brand);
+  font-weight: 600;
 }
 
 .md-grow__hint {
